@@ -46,4 +46,8 @@ func _process(delta: float) -> void:
 	var s := 1.0 + sin(_t * pulse_speed) * pulse_scale
 	global_transform = Transform3D(cam.global_transform.basis.scaled(Vector3(s, s, 1.0)),
 		cam.global_position + to_sun * distance)
-	_mat.set_shader_parameter("glow", base_glow + sin(_t * pulse_speed * 1.3 + 1.0) * pulse_glow)
+	# Canto dims toward the horizon, vanishes at night and is veiled by clouds / storms.
+	var w := WorldState
+	var vis := smoothstep(-5.0, 7.0, w.sun_elevation_deg) * (1.0 - 0.93 * w.storm) * (1.0 - 0.5 * w.cloud)
+	visible = vis > 0.01 and not OS.get_cmdline_user_args().has("--no-canto")
+	_mat.set_shader_parameter("glow", (base_glow + sin(_t * pulse_speed * 1.3 + 1.0) * pulse_glow) * vis)

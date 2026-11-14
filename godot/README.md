@@ -49,3 +49,9 @@ open -g -n -W -a /Applications/Godot.app --args --path <project> --position 20,4
 `-g` keeps the current app frontmost, `-W` waits for exit; output goes to the log file. In `--capture` and `--jitter-test`
 modes `capture.gd` also sets `WINDOW_FLAG_NO_FOCUS`. Other flags: `--jitter-test [--jitter-shot=N]`, `--rebase-test=<m>`, `--debug-deck`.
 Ocean: `Waves.sea_state` (0 calm .. 1 storm); FFT pipeline vendored in `addons/ocean_fft` (MIT, see its README).
+
+## World state / autonomy (T4)
+`WorldState` autoload runs day/night (720 s per day), weather (clear -> cloudy -> storm -> cloudy), wind drift and `sea_state`.
+The autopilot (`Ship/Autopilot`) sails between islands, tacks when the waypoint is upwind and drives `Ship.rudder_cmd`; `Ship.rudder` (-1..1) is the shared steering signal.
+Test args: `--timescale=N` (day/weather clocks only), `--start-phase=0..1` (0 midnight, .5 noon), `--weather=clear|cloudy|storm` (hold),
+`--sea=0..1`, `--wind=<deg>` (fixed wind direction), `--no-day`, `--engine-scale=N`, `--lightning`, `--plan=world|sky`, `--autopilot-log=<secs>`.

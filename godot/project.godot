@@ -10,6 +10,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 [autoload]
 
 Waves="*res://scripts/waves.gd"
+WorldState="*res://scripts/world_state.gd"
 Capture="*res://scripts/capture.gd"
 
 [display]

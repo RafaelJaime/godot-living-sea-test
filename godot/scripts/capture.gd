@@ -4,7 +4,7 @@ extends Node
 
 const SHOT_DIR := "res://_shots"
 # [capture time (s), camera shot index]
-const PLAN: Array = [[3.0, 11, 0.2], [6.0, 12, 0.2], [9.0, 2, 0.2], [13.0, 11, 0.9], [16.0, 12, 0.9], [19.0, 2, 0.9]]
+var PLAN: Array = [[3.0, 11, 0.2], [6.0, 12, 0.2], [9.0, 2, 0.2], [13.0, 11, 0.9], [16.0, 12, 0.9], [19.0, 2, 0.9]]
 
 var _active := false
 var _t := 0.0
@@ -12,6 +12,8 @@ var _step := 0
 var _jumped := false
 
 var _jitter := false
+var _log_secs := 0.0
+var _log_t := 0.0
 var _prev_rel: Vector3
 var _prev_d: Vector3
 var _prev_fwd: Vector3
@@ -24,22 +26,46 @@ var _max_dang := 0.0
 var _max_delta := 0.0
 var _sum_delta := 0.0
 
+func _has_prefix(prefix: String) -> bool:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(prefix):
+			return true
+	return false
+
 func _ready() -> void:
-	if "--capture" in OS.get_cmdline_user_args() or "--jitter-test" in OS.get_cmdline_user_args():
+	if "--capture" in OS.get_cmdline_user_args() or "--jitter-test" in OS.get_cmdline_user_args() or _has_prefix("--autopilot-log="):
 		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true) # never steal keyboard focus
 	process_priority = 1000 # measure after camera/ship have updated this frame
 	_jitter = "--jitter-test" in OS.get_cmdline_user_args()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with('--autopilot-log='):
+			_log_secs = float(a.get_slice('=', 1))
 	if _jitter:
 		_active = true
 		return
 	_active = "--capture" in OS.get_cmdline_user_args()
+	_active = _active or _log_secs > 0.0
 	set_process(_active)
 	if _active:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SHOT_DIR))
-		print("[capture] active")
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with('--plan='):
+				match a.get_slice('=', 1):
+					'world': PLAN = [[3.0, 0], [6.0, 5], [9.0, 3], [12.0, 2], [15.0, 6], [18.0, 4], [21.0, 0]]
+					'sky': PLAN = [[3.0, 5], [6.0, 6], [9.0, 2], [12.0, 3], [15.0, 0], [18.0, 5]]
+		print('[capture] active')
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _log_secs > 0.0:
+		_log_t += delta
+		if fmod(_log_t, 2.0) < delta:
+			var sh := get_tree().root.get_node('Main/Ship')
+			var ap := get_tree().root.get_node('Main/Ship/Autopilot')
+			print('[log] t=', snappedf(_log_t, 0.1), ' pos=(', snappedf(sh.global_position.x, 1.0), ',', snappedf(sh.global_position.z, 1.0), ') yaw=', snappedf(rad_to_deg(sh.yaw), 1.0), ' rudder=', snappedf(sh.rudder, 0.01), ' speed=', snappedf(sh.current_speed, 0.1), ' tacking=', ap.tacking, ' target_dist=', snappedf(Vector2(sh.global_position.x, sh.global_position.z).distance_to(ap.target), 1.0), ' wind_ang=', snappedf(rad_to_deg(WorldState.wind_angle), 1.0), ' day=', snappedf(WorldState.day_phase, 0.01), ' cloud=', snappedf(WorldState.cloud, 0.01), ' storm=', snappedf(WorldState.storm, 0.01), ' sea=', snappedf(WorldState.sea_state, 0.01))
+		if _log_t >= _log_secs:
+			get_tree().quit()
+		return
 	if _jitter:
 		_jitter_step(delta)
 		return
@@ -49,13 +75,15 @@ func _process(delta: float) -> void:
 		return
 	var when: float = PLAN[_step][0]
 	var cam_idx: int = PLAN[_step][1]
-	if _step < PLAN.size() and PLAN[_step].size() > 2 and not is_equal_approx(Waves.sea_state, float(PLAN[_step][2])):
-		Waves.sea_state = float(PLAN[_step][2])
+	if _step < PLAN.size() and PLAN[_step].size() > 2:
+		WorldState.override_sea = float(PLAN[_step][2])
 	if not _jumped and _t >= when - 0.8:
 		_jumped = true
 		var d := get_tree().get_first_node_in_group("camera_director")
 		if d:
 			d.jump_to(cam_idx, true)
+	if '--lightning' in OS.get_cmdline_user_args() and _step == 2 and _t >= when - 0.08:
+		WorldState.flash = 1.0
 	if _t >= when:
 		var img := get_viewport().get_texture().get_image()
 		var path := "%s/shot_%02d.png" % [SHOT_DIR, _step + 1]

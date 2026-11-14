@@ -22,6 +22,7 @@ var _trunk_mat: StandardMaterial3D
 var _leaf_mat: StandardMaterial3D
 var _palm_mesh: ArrayMesh
 var _ring: MeshInstance3D
+var _ring_mat: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("rebase")
@@ -40,7 +41,7 @@ func _ready() -> void:
 	_palm_mesh = _build_palm_mesh()
 	_build_horizon()
 	for i in island_count:
-		_spawn(_ship.global_position.z + 150.0 - (float(i) / island_count) * 1900.0 - _rng.randf() * 120.0)
+		_spawn_ahead(-150.0 + (float(i) / island_count) * 2000.0 + _rng.randf() * 120.0)
 
 func rebase(shift: Vector3) -> void:
 	for isl in _islands:
@@ -57,14 +58,32 @@ func _push_to_ocean() -> void:
 
 func _process(_delta: float) -> void:
 	_push_to_ocean()
+	# Distant mountains dim with daylight and weather (their colours are baked and unaffected by fog).
+	var dim := (0.05 + 0.95 * WorldState.daylight) * (1.0 - 0.45 * WorldState.storm - 0.15 * WorldState.cloud)
+	_ring_mat.albedo_color = Color(dim, dim, dim * 1.05)
 	_ring.global_position = Vector3(_ship.global_position.x, 0.0, _ship.global_position.z)
+	var sp := Vector2(_ship.global_position.x, _ship.global_position.z)
+	var fwd: Vector2 = _ship.forward if "forward" in _ship else Vector2(0, -1)
 	for isl in _islands.duplicate():
-		if isl.global_position.z > _ship.global_position.z + behind_recycle + float(isl.get_meta("radius")):
+		var rel := Vector2(isl.global_position.x, isl.global_position.z) - sp
+		var behind := rel.dot(fwd) < -(behind_recycle + float(isl.get_meta("radius")))
+		if rel.length() > 2300.0 or (behind and rel.length() > 700.0):
 			_islands.erase(isl)
 			isl.queue_free()
-			_spawn(_ship.global_position.z - _rng.randf_range(ahead_min + 400.0, ahead_max))
+			_spawn_ahead(_rng.randf_range(ahead_min + 300.0, ahead_max))
 
-func _spawn(z: float) -> void:
+## Islands as autopilot targets: [{pos: Vector2 (world xz), radius: float (clearance radius)}].
+func targets() -> Array:
+	var out := []
+	for isl in _islands:
+		var sh: Vector2 = isl.get_meta("shore")
+		out.append({"pos": Vector2(isl.global_position.x, isl.global_position.z), "radius": maxf(sh.x, sh.y) + 40.0})
+	return out
+
+## Spawns an island `ahead` metres in front of the ship (along its heading), offset sideways.
+func _spawn_ahead(ahead: float) -> void:
+	var fwd: Vector2 = _ship.forward if "forward" in _ship else Vector2(0, -1)
+	var right := Vector2(-fwd.y, fwd.x) # perpendicular (starboard is (cos yaw, -sin yaw) = (-fwd.y, fwd.x))
 	_counter += 1
 	var seed_i := seed_base + _counter * 7919
 	var r := RandomNumberGenerator.new()
@@ -77,7 +96,9 @@ func _spawn(z: float) -> void:
 	isl.set_meta("radius", radius)
 	isl.set_meta("shore", isl.get_meta("shore_xz"))
 	add_child(isl)
-	isl.global_position = Vector3(_ship.global_position.x + _side * lateral, 0.0, z)
+	var sp := Vector2(_ship.global_position.x, _ship.global_position.z)
+	var p := sp + fwd * ahead + right * _side * lateral
+	isl.global_position = Vector3(p.x, 0.0, p.y)
 	_islands.append(isl)
 
 func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
@@ -292,6 +313,7 @@ func _build_horizon() -> void:
 	_ring = MeshInstance3D.new()
 	_ring.mesh = st.commit()
 	_ring.material_override = mat
+	_ring_mat = mat
 	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ring.extra_cull_margin = 10000.0
 	add_child(_ring)

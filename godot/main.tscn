@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -13,17 +13,27 @@
 [ext_resource type="Script" path="res://scripts/canto_sun.gd" id="11_canto"]
 [ext_resource type="Script" path="res://scripts/ship_fx.gd" id="12_fx"]
 [ext_resource type="Script" path="res://scripts/wake_ribbon.gd" id="13_wake"]
+[ext_resource type="Script" path="res://scripts/weather_fx.gd" id="14_weather"]
+[ext_resource type="Script" path="res://scripts/autopilot.gd" id="15_auto"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 
+[node name="Moon" type="DirectionalLight3D" parent="."]
+
+[node name="Weather" type="Node3D" parent="."]
+script = ExtResource("14_weather")
+
 [node name="Sky" type="WorldEnvironment" parent="."]
 script = ExtResource("2_sky")
 
 [node name="Ship" type="Node3D" parent="."]
 script = ExtResource("3_ship")
+
+[node name="Autopilot" type="Node" parent="Ship"]
+script = ExtResource("15_auto")
 
 [node name="FX" type="Node3D" parent="Ship"]
 script = ExtResource("12_fx")

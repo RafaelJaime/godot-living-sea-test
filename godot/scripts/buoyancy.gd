@@ -1,8 +1,15 @@
 extends Node3D
-## Ship motion: constant forward sailing along -Z plus wave-driven heave/pitch/roll.
-## Node layout: Ship (this, position + yaw wander) / Pivot (heave, pitch, roll) / Model + CrewMarkers.
+## Ship motion: sails along its heading (autopilot steers via `rudder_cmd`), plus wave-driven heave/pitch/roll.
+## `rudder` (-1 port .. +1 starboard, smoothed) is the shared steering signal (wheel, crew lean, wake...).
+## Node layout: Ship (this, position + heading) / Pivot (heave, pitch, roll) / Model + CrewMarkers.
 
+## Cruising speed (m/s); the autopilot scales it with the point of sail (`speed_scale`).
 @export var speed := 6.0
+@export_group("Steering")
+## Yaw rate at full rudder and cruising speed (deg/s).
+@export var max_turn_rate_deg := 5.5
+@export var rudder_rate := 0.45 ## how fast the rudder moves (units/s) toward the command
+@export var turn_heel_gain := 0.9 ## outward lean while turning
 @export var pivot_path := NodePath("Pivot")
 @export var loader_path := NodePath("Pivot/Model")
 @export_group("Buoyancy")
@@ -27,6 +34,12 @@ var heave := 0.0
 var pitch := 0.0
 var roll := 0.0
 var yaw := 0.0
+var yaw_rate := 0.0 ## rad/s (positive = turning to port)
+var rudder := 0.0 ## smoothed, -1 port .. +1 starboard
+var rudder_cmd := 0.0 ## written by the autopilot
+var speed_scale := 1.0
+var current_speed := 6.0
+var forward := Vector2(0, -1) ## heading as a world (x, z) unit vector
 var _heave_v := 0.0
 var _pitch_v := 0.0
 var _roll_v := 0.0
@@ -61,9 +74,15 @@ func _process(delta: float) -> void:
 	if not active:
 		return
 	_t += delta
-	global_position.z -= speed * delta
-	yaw = deg_to_rad(sin(_t * 0.07) * yaw_wander_deg + sin(_t * 0.131 + 1.3) * yaw_wander_deg * 0.5)
+	# Steering: the rudder follows the command, yaw rate follows the rudder (turning radius ~ speed / rate).
+	rudder = move_toward(rudder, clampf(rudder_cmd, -1.0, 1.0), rudder_rate * delta)
+	current_speed = lerpf(current_speed, speed * speed_scale, 1.0 - exp(-0.35 * delta))
+	var rate_target := -rudder * deg_to_rad(max_turn_rate_deg) * clampf(current_speed / maxf(speed, 0.1), 0.3, 1.3)
+	yaw_rate = lerpf(yaw_rate, rate_target, 1.0 - exp(-1.2 * delta))
+	yaw += yaw_rate * delta + deg_to_rad(sin(_t * 0.07) * yaw_wander_deg * 0.2) * delta
 	rotation.y = yaw
+	forward = Vector2(-sin(yaw), -cos(yaw))
+	global_position += Vector3(forward.x, 0.0, forward.y) * current_speed * delta
 
 	var half_l := length * 0.5 * sample_length_frac
 	var half_b := beam * 0.5 * sample_beam_frac
@@ -83,8 +102,11 @@ func _process(delta: float) -> void:
 	var target_heave := ((h_bow + h_stern) * 0.5 * 0.25 + (h_port + h_stbd) * 0.5 * 0.25
 		+ h_c * 0.25 + h_corners * 0.25) * heave_gain
 	var target_pitch := atan2(h_bow - h_stern, half_l * 2.0) * pitch_gain
-	var heel := deg_to_rad(wind_heel_deg) * (1.0 + 0.25 * sin(_t * 0.31))
-	var target_roll := atan2(h_stbd - h_port, half_b * 2.0) * roll_gain - heel * 0.5 # starboard-up positive; wind from starboard heels to port
+	# Heel: leeward lean from the wind (wind pushing toward starboard -> starboard down) plus outward lean in turns.
+	var right := Vector2(cos(yaw), -sin(yaw))
+	var side_wind := WorldState.wind_vector().dot(right) * WorldState.wind_strength
+	var heel := deg_to_rad(wind_heel_deg * 2.0) * side_wind
+	var target_roll := atan2(h_stbd - h_port, half_b * 2.0) * roll_gain - heel * 0.5 - yaw_rate * current_speed * 0.02 * turn_heel_gain # starboard-up positive
 
 	var r := _smooth(heave, target_heave, _heave_v, heave_smooth_time, delta)
 	heave = r.x; _heave_v = r.y
