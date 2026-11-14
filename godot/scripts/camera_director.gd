@@ -163,11 +163,18 @@ func _apply_pose(t: float, _first: bool) -> void:
 	var wpos := f * pos
 	var wlook := f * look
 	wlook.y += _ship_heave() * 0.5
-	# Soft water clearance: smooth-max of the wanted height and (wave + 1 m), then low-passed,
-	# so the camera never snaps against a hard clamp.
-	var deficit := Waves.height_at(wpos.x, wpos.z) + 1.0 - wpos.y
+	# Soft water clearance against the wave ENVELOPE: highest surface among the camera column, a ring around it and
+	# points ahead along the view direction (so it never ends up inside a crest), raised with sea_state.
+	var fwd_xz := Vector2(wlook.x - wpos.x, wlook.z - wpos.z).normalized()
+	var side := Vector2(-fwd_xz.y, fwd_xz.x)
+	var env := Waves.height_at(wpos.x, wpos.z)
+	for off in [Vector2(0, 0), fwd_xz * 5.0, fwd_xz * 11.0, side * 5.0, -side * 5.0, -fwd_xz * 4.0]:
+		env = maxf(env, Waves.height_at(wpos.x + off.x, wpos.z + off.y))
+	var margin := 1.0 + 1.6 * Waves.sea_state
+	var deficit := env + margin - wpos.y
 	var lift := 0.5 * (deficit + sqrt(deficit * deficit + 0.35))
-	_lift = lerpf(_lift, lift, 1.0 - exp(-3.0 * _dt))
+	# Asymmetric low-pass: rises quickly (the envelope look-ahead + margin anticipate crests), falls slowly.
+	_lift = lerpf(_lift, lift, 1.0 - exp(-(5.0 if lift > _lift else 1.2) * _dt))
 	wpos.y += _lift
 	global_position = wpos
 	look_at(wlook, Vector3.UP)

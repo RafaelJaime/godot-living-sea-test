@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/camera_director.gd" id="10_cam"]
 [ext_resource type="Script" path="res://scripts/canto_sun.gd" id="11_canto"]
 [ext_resource type="Script" path="res://scripts/ship_fx.gd" id="12_fx"]
+[ext_resource type="Script" path="res://scripts/wake_ribbon.gd" id="13_wake"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -90,6 +91,9 @@ placeholder_y_offset = -0.38
 
 [node name="Ocean" type="MeshInstance3D" parent="."]
 script = ExtResource("7_ocean")
+
+[node name="Wake" type="MeshInstance3D" parent="."]
+script = ExtResource("13_wake")
 
 [node name="Islands" type="Node3D" parent="."]
 script = ExtResource("8_islands")
