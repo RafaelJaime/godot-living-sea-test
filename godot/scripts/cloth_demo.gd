@@ -67,7 +67,7 @@ func _ready() -> void:
 func _stage_steps(tag: String, t0: float, ms: float, ship_scale: float, rel: float, settle: float) -> float:
 	_steps.append([t0, "wind", [tag, ms, ship_scale, rel]])
 	var t := t0 + settle
-	for v in [["sails_side", "sails_side"], [15, "flag_stern"], [16, "flag_main"], ["sails_bow", "sails_bow"]]:
+	for v in [["sails_side", "sails_side"], [15, "flag_stern"], [16, "flag_main"], ["sails_bow", "sails_bow"], ["sails_top", "sails_top"], ["sails_starboard", "sails_starboard"]]:
 		_steps.append([t, "cam", v[0]])
 		_steps.append([t + 0.8, "shot", "%s_%s" % [tag, v[1]]])
 		t += 1.0
@@ -90,6 +90,8 @@ func _gust_steps(t0: float, rel: float, tag: String) -> float:
 func _cams() -> Dictionary:
 	return {
 		"sails_side": {"pos": Vector3(-36.0, 13.0, 0.0), "look": Vector3(0.0, 12.0, -1.0), "fov": 60.0},
+		"sails_top": {"pos": Vector3(0.5, 48.0, 0.5), "look": Vector3(0.0, 0.0, -2.0), "fov": 45.0},
+		"sails_starboard": {"pos": Vector3(34.0, 12.0, 0.0), "look": Vector3(0.0, 12.0, -1.0), "fov": 60.0},
 		"sails_bow": {"pos": Vector3(-18.0, 7.0, -34.0), "look": Vector3(0.0, 12.0, -4.0), "fov": 58.0},
 	}
 
@@ -221,4 +223,4 @@ func _report() -> void:
 			nres += sc.cloth.resets
 		print("[cloth] self-heal resets (all cloths): ", nres)
 		for s in rig.get_sail_forces():
-			print("[cloth] sail ", s["name"], " area=", snappedf(s["area"], 0.1), " F=", s["force"].snapped(Vector3.ONE), " CoE=", s["point"].snapped(Vector3.ONE * 0.1), " state=", s["state"], " stretch=", snappedf(s["stretch"], 0.001))
+			print("[cloth] sail ", s["name"], " area=", snappedf(s["area"], 0.1), " F=", s["force"].snapped(Vector3.ONE), " CoE=", s["point"].snapped(Vector3.ONE * 0.1), " state=", s["state"], " bulge_z=", snappedf(s["bulge"], 0.01), " stretch=", snappedf(s["stretch"], 0.001))

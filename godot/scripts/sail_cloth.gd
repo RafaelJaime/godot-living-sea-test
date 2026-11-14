@@ -324,6 +324,13 @@ func _is_luffing() -> bool:
 	s /= float(COLS * ROWS / 7)
 	return s > 1.5 and absf(force_ship.z) < 0.5 * cloth.pressure * area
 
+## Mean belly of the sim grid in the sail's own frame (z of the nodes minus the yard plane): < 0 = bulges toward the bow.
+func bulge() -> float:
+	var acc := 0.0
+	for k in COLS * ROWS:
+		acc += _dbuf[k * 4 + 2] + bz[k] - z0
+	return acc / float(COLS * ROWS)
+
 func set_furl(f: float, time: float) -> void:
 	for m in mats:
 		m.set_shader_parameter("furl", f)
@@ -331,4 +338,4 @@ func set_furl(f: float, time: float) -> void:
 
 func info() -> Dictionary:
 	return {"name": sail_name.trim_prefix("geo_ship_pinnace_").trim_prefix("GEO_ship_pinnace_"), "force": force_ship, "point": point_ship,
-		"area": area, "pressure": pressure, "tension": tension, "gust": gust, "state": state, "brace_deg": rad_to_deg(brace), "stretch": cloth.max_stretch}
+		"area": area, "pressure": pressure, "tension": tension, "gust": gust, "state": state, "brace_deg": rad_to_deg(brace), "stretch": cloth.max_stretch, "bulge": bulge()}
