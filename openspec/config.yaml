@@ -1,0 +1,35 @@
+schema: spec-driven
+context: |
+  Godot 4.7.2 (Forward+, Jolt) GDScript living-wallpaper: pirate ship sailing procedural FFT ocean. No gameplay.
+  Project dir godot/ (autoloads Waves, WorldState, Capture; scene main.tscn; scripts/ per concern; shaders/*.gdshader).
+  Blender Python at repo root (build_ship_scene.py, export_*.py); Higgsfield-generated GLBs; addons/ocean_fft vendored (MIT).
+  Conventions: Conventional Commits, ODD feature docs in odd/tasks, research in odd/research, ATTRIBUTION.md for licenses.
+  Constraints: NPC/crew code owned by a separate user session; Godot runs only via ~/.claude/bin/testsem (max 2); launch with open -g.
+  User tests from worktree el-terraria-blender-worktrees/stable; parallel agents use worktrees under el-terraria-blender-worktrees/.
+strict_tdd: false
+projects:
+  - path: godot
+    stack: Godot 4.7.2 GDScript + .gdshader
+    test_command: null
+    note: no unit test runner; functional verification via CLI flags (--capture, --jitter-test, --rebase-test=N, --autopilot-log, --plan=world|sky) and zero script errors in godot log
+  - path: .
+    stack: Blender Python scripts (build_ship_scene.py, export_pinnace.py, export_placeholders.py)
+    test_command: null
+testing:
+  workspace_test_command: null
+  unit: false
+  integration: false
+  e2e: false
+  coverage: false
+  linter: false
+  type_checker: false
+  formatter: false
+  verification: "testsem -- open -g -n -W -a /Applications/Godot.app --args --path godot --log-file godot/_shots/godot.log -- --capture"
+rules:
+  proposal: [keep scope within authorized ODD feature doc; flag NPC/crew code as out of scope]
+  specs: [behavior stated as observable capture/jitter/log results]
+  design: [single wave source scripts/waves.gd; autoload-based state; scripts per concern]
+  tasks: [forecast against 400 changed-line budget; delivery single-pr]
+  apply: [no Godot/Blender run outside testsem; do not touch crew_*.gd without user ok]
+  verify: [run capture + jitter-test via testsem; report absence of unit runner honestly]
+  archive: [keep ODD feature doc in sync]
