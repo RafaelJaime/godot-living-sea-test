@@ -192,6 +192,12 @@ func set_hull_volume(tex: Texture2D, dims: Vector4) -> void:
 	_mat.set_shader_parameter("hull_dims", dims)
 	_mat.set_shader_parameter("hull_volume_on", true)
 
+## World-anchored wake foam field (see wake_field.gd): texture, window origin (local coords) and size (m).
+func set_wake(tex: Texture2D, origin_local: Vector2, size: float) -> void:
+	_mat.set_shader_parameter("wake_tex", tex)
+	_mat.set_shader_parameter("wake_origin", origin_local)
+	_mat.set_shader_parameter("wake_size", size)
+
 func set_hull_profile(widths: PackedFloat32Array, z_bow: float, z_stern: float) -> void:
 	_mat.set_shader_parameter("hull_w", widths)
 	_mat.set_shader_parameter("hull_z", Vector2(z_bow, z_stern))

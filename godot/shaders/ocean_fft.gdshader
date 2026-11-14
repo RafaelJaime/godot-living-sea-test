@@ -26,6 +26,9 @@ uniform vec2 ship_half = vec2(11.0, 3.2);       // half length, half beam (m)
 uniform float hull_w[HULL_BINS];                // waterline half-width per bin, bow (index 0) .. stern (last)
 uniform vec2 hull_z = vec2(-11.0, 11.0);        // local z of bin 0 (bow) and the last bin (stern)
 uniform float ship_speed = 6.0;
+uniform sampler2D wake_tex : filter_linear, repeat_disable;
+uniform vec2 wake_origin = vec2(1.0e6);
+uniform float wake_size = 320.0;
 uniform float hull_foam_gain = 1.0;
 uniform float debug_mode = 0.0;
 uniform bool hull_volume_on = false;
@@ -160,7 +163,16 @@ void fragment() {
 	// Lacy foam: the accumulated foam is broken up by the fine slope field so it reads as patches and strands, not blobs.
 	float lace_n = fract(sin(dot(floor((UV + vec2(TIME * 0.03)) * 3.0), vec2(12.9, 78.2))) * 43758.5) * 0.5 + 0.5 * abs(sin(gradient.x * 55.0) * cos(gradient.y * 47.0));
 	float whitecap = smoothstep(0.0, 1.0, gradient.z * 0.75) * smoothstep(0.18, 0.7, lace_n + gradient.z * 0.45) * exp(-dist * 0.0035);
-	foam_factor = clamp(whitecap * (1.0 - 0.7 * shallow) + shore_foam * 0.9 + hull_foam, 0.0, 1.0);
+	// Advected wake foam: lacy (broken up by fine slopes), stronger where fresh.
+	vec2 wuv = (rest_xz - wake_origin) / wake_size;
+	float wake = 0.0;
+	if (wuv.x > 0.0 && wuv.x < 1.0 && wuv.y > 0.0 && wuv.y < 1.0) {
+		wake = texture(wake_tex, wuv).r;
+		float edge = smoothstep(0.0, 0.04, min(min(wuv.x, 1.0 - wuv.x), min(wuv.y, 1.0 - wuv.y)));
+		float lace_w = 0.5 + 0.5 * sin(rest_xz.x * 0.9 + gradient.x * 18.0) * cos(rest_xz.y * 1.1 + gradient.y * 16.0);
+		wake = smoothstep(0.22, 0.7, wake + (lace_w - 0.5) * 0.5) * min(wake * 1.6, 1.0) * edge;
+	}
+	foam_factor = clamp(wake * 0.8 + whitecap * (1.0 - 0.7 * shallow) + shore_foam * 0.9 + hull_foam, 0.0, 1.0);
 
 	// Own water colour: absorption body + teal scattering that grows toward wave crests (independent of the sky IBL).
 	// Height sampled per fragment (the per-vertex varying differs between overlapping LOD rings -> visible patches).

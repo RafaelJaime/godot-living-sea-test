@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -21,6 +21,7 @@
 [ext_resource type="Script" path="res://scripts/flag.gd" id="19_flag"]
 [ext_resource type="Script" path="res://scripts/ship_lights_builder.gd" id="99_lights"]
 [ext_resource type="Script" path="res://scripts/lashed_boat.gd" id="98_boat"]
+[ext_resource type="Script" path="res://scripts/wake_field.gd" id="99_wakefield"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -143,8 +144,8 @@ snap_tolerance = 1.2
 [node name="Ocean" type="MeshInstance3D" parent="."]
 script = ExtResource("7_ocean")
 
-[node name="Wake" type="MeshInstance3D" parent="."]
-script = ExtResource("13_wake")
+[node name="Wake" type="Node" parent="."]
+script = ExtResource("99_wakefield")
 
 [node name="Boat" type="Node3D" parent="."]
 script = ExtResource("98_boat")
