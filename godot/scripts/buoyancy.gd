@@ -29,6 +29,7 @@ extends RigidBody3D
 @export var roll_damping_ratio := 0.22
 @export var pitch_damping_ratio := 0.3
 @export var drag_longitudinal := 500.0 ## 0.5 rho Cd A  (N s^2/m^2)
+@export var drag_wave := 14.0 ## N s^4/m^4: wave-making drag ~ v^4
 @export var drag_lateral := 1.1 ## quadratic coefficient per section: 0.5 rho Cd (times section area)
 @export var rudder_area := 5.0
 @export var rudder_max_deg := 32.0
@@ -110,6 +111,9 @@ var min_keel_clear := -99.0 ## min over keel columns of (keel world y - water he
 @onready var _pivot: Node3D = get_node(pivot_path)
 
 func _ready() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with('--sail-gain='):
+			cloth_sail_gain = float(a.get_slice('=', 1))
 	add_to_group("rebase")
 	var loader := get_node(loader_path)
 	loader.ship_ready.connect(func(l: float, b: float, _r: float) -> void:
@@ -525,6 +529,8 @@ func _physics_process(delta: float) -> void:
 	# --- hull drag: longitudinal quadratic at the centre, lateral per section (keel effect, also damps yaw) ----
 	var vl := b.inverse() * linear_velocity
 	apply_central_force(b * Vector3(0.0, 0.0, 1.0) * (-drag_longitudinal * absf(vl.z) * vl.z) * wet)
+	# Wave-making resistance rises steeply near hull speed (~sqrt(g L) ~ 19 m/s theoretical, practically ~8 m/s here).
+	apply_central_force(b * Vector3(0.0, 0.0, 1.0) * (-drag_wave * pow(absf(vl.z), 4.0) * signf(vl.z)) * wet)
 	var nsec := 9
 	var dz := (_zr.y - _zr.x) / float(nsec)
 	for i in nsec:
@@ -564,6 +570,8 @@ func _physics_process(delta: float) -> void:
 var _sail_rig: Node
 var _analytic_sails := OS.get_cmdline_user_args().has("--analytic-sails")
 var cloth_force_used := false
+## Calibration of the cloth sail forces against the hull drag (the cloth pressure integration is conservative).
+@export var cloth_sail_gain := 4.0 ## calibrated (with drag_wave): beam reach ~4-4.5 m/s at 11 m/s wind
 func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
 	if _sail_rig == null or not is_instance_valid(_sail_rig):
 		_sail_rig = get_tree().get_first_node_in_group("sail_rig")
@@ -571,7 +579,7 @@ func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
 		var heel_d := 1.0 - smoothstep(heel_depower_start_deg, heel_depower_end_deg, absf(rad_to_deg(roll)))
 		var tot := Vector3.ZERO
 		for sd in _sail_rig.get_sail_forces():
-			var fs: Vector3 = sd["force"] * heel_d
+			var fs: Vector3 = sd["force"] * heel_d * cloth_sail_gain * (1.0 - 0.75 * WorldState.storm) # storm canvas: less sail area / reefed
 			if not fs.is_finite():
 				continue
 			var cap := mass * 9.81 * 0.35 # a single sail can never push harder than 0.35 g of the ship
