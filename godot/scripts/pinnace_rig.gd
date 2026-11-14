@@ -77,17 +77,34 @@ func _has_down(model: Node, nm: String) -> bool:
 
 func _make_cloth(mi: MeshInstance3D, shader: Shader, mast_zs: PackedFloat32Array) -> bool:
 	var box: AABB = (_pivot.global_transform.affine_inverse() * mi.global_transform) * mi.get_aabb()
-	var axis := Vector3(0.0, box.get_center().y, box.get_center().z) # same pivot the yard bones are braced about
+	# Brace axis = the mast the sail hangs from (vertical line through x = 0); the bowsprit sail pivots about itself.
+	var zc := box.get_center().z
+	var zm := zc
+	for mz in mast_zs:
+		if absf(mz - zc) < 4.0:
+			zm = mz
+	var axis := Vector3(0.0, box.get_center().y, zm)
 	var sail := SailCloth.new()
 	if not sail.setup(mi, shader, _pivot, mast_zs, sail_density, axis):
 		return false
 	_sails.append(sail)
+	# Bones to brace = only the bones that actually carry this sail's vertices (yard, sail, clews, its running rigging).
+	# Never def_root: the masts, the stern staff and the hull are 100 % weighted to it and must stay attached to the ship.
 	var bl: Array = []
 	if _skel != null and mi.skin != null:
-		for bi in mi.skin.get_bind_count():
-			var bidx := _skel.find_bone(mi.skin.get_bind_name(bi))
-			if bidx >= 0 and not bl.has(bidx):
-				bl.append(bidx)
+		for si in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(si)
+			if arr[Mesh.ARRAY_BONES] == null:
+				continue
+			var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+			var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+			for q in bones.size():
+				if wts[q] > 0.02:
+					var bidx := _skel.find_bone(mi.skin.get_bind_name(bones[q]))
+					if bidx < 0:
+						bidx = mi.skin.get_bind_bone(bones[q])
+					if bidx >= 0 and bidx != _skel.find_bone("def_root") and not bl.has(bidx):
+						bl.append(bidx)
 	_sail_bones.append(bl)
 	_mast_ship.append(axis)
 	if "sail_defs" in _ship:

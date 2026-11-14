@@ -103,5 +103,5 @@ void fragment() {
 	NORMAL_MAP_DEPTH = 1.0;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.15;
-	BACKLIGHT = a.rgb * 0.45; // sails glow a little when the sun is behind them
+	BACKLIGHT = a.rgb * 0.85; // thin canvas: the side facing away from the sun still reads as light cloth (translucency)
 }

@@ -67,7 +67,7 @@ func _ready() -> void:
 func _stage_steps(tag: String, t0: float, ms: float, ship_scale: float, rel: float, settle: float) -> float:
 	_steps.append([t0, "wind", [tag, ms, ship_scale, rel]])
 	var t := t0 + settle
-	for v in [["sails_side", "sails_side"], [15, "flag_stern"], [16, "flag_main"], ["sails_bow", "sails_bow"], ["sails_top", "sails_top"], ["sails_starboard", "sails_starboard"]]:
+	for v in [["sails_side", "sails_side"], [15, "flag_stern"], [16, "flag_main"], ["sails_bow", "sails_bow"], ["sails_top", "sails_top"], ["sails_starboard", "sails_starboard"], ["sails_stern", "sails_stern"]]:
 		_steps.append([t, "cam", v[0]])
 		_steps.append([t + 0.8, "shot", "%s_%s" % [tag, v[1]]])
 		t += 1.0
@@ -90,6 +90,7 @@ func _gust_steps(t0: float, rel: float, tag: String) -> float:
 func _cams() -> Dictionary:
 	return {
 		"sails_side": {"pos": Vector3(-36.0, 13.0, 0.0), "look": Vector3(0.0, 12.0, -1.0), "fov": 60.0},
+		"sails_stern": {"pos": Vector3(-12.0, 10.0, 36.0), "look": Vector3(0.0, 11.0, 4.0), "fov": 58.0},
 		"sails_top": {"pos": Vector3(0.5, 48.0, 0.5), "look": Vector3(0.0, 0.0, -2.0), "fov": 45.0},
 		"sails_starboard": {"pos": Vector3(34.0, 12.0, 0.0), "look": Vector3(0.0, 12.0, -1.0), "fov": 60.0},
 		"sails_bow": {"pos": Vector3(-18.0, 7.0, -34.0), "look": Vector3(0.0, 12.0, -4.0), "fov": 58.0},
@@ -174,7 +175,9 @@ func _rig() -> Node:
 func _summary() -> String:
 	var parts := PackedStringArray()
 	parts.append("wind=%.1f" % WindField.mean_speed())
-	parts.append("ship=%.1f m/s" % float(_ship.get("current_speed")))
+	parts.append("ship=%.1f m/s brace=%.0fdeg" % [float(_ship.get("current_speed")), rad_to_deg(float(_ship.get("brace")))])
+	for fl2 in _flags():
+		parts.append("staff_shift_%s=%.2fm" % [fl2.mesh_suffix.left(4), fl2.staff_shift()])
 	for fl in _flags():
 		var d: Dictionary = fl.debug_info()
 		parts.append("%s tension=%sN p=%sPa g=%s droop=%s" % [fl.mesh_suffix.left(4), d["tension"], d["pressure"], d["gust"], d["droop"]])

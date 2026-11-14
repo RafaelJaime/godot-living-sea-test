@@ -303,6 +303,10 @@ func _process(delta: float) -> void:
 			var d := debug_info()
 			print("[wind] ", mesh_suffix, " ", d)
 
+## How far the staff has moved from its ready pose relative to the hull (m): ~0 means it stays attached to the ship.
+func staff_shift() -> float:
+	return (_tie_local[0] - _tie_rest[0]).length()
+
 ## Numbers for logs: tension (N, reaction at the ties), aero pressure (Pa), gust factor seen, fly vector, stretch.
 func debug_info() -> Dictionary:
 	var hoist := _tie_world(0)
