@@ -18,10 +18,10 @@ extends Node3D
 @export_group("Clipmap")
 @export var base_cell := 0.8
 @export var cells_per_level := 96 ## multiple of 4
-@export var levels := 9
+@export var levels := 11 ## outer rings reach ~40 km: the sea meets the horizon
 
-## Cascade tile sizes (m). Rebase steps in main.gd must be a common multiple of these.
-const TILES := [200.0, 80.0, 20.0]
+## Cascade tile sizes (m). Free: rebase shifts are folded in per cascade (cascade_shifts()).
+const TILES := [211.0, 79.0, 23.0] # deliberately non-integer ratios: no visible super-tiling
 const CPU_CASCADES := 2 ## cascades with non-zero displacement (the third is normal/foam detail only)
 const MAX_ISLANDS := 10
 
@@ -155,7 +155,17 @@ func _process(delta: float) -> void:
 		_readback_t = 0.0
 		_request_readback()
 
+## World offset (accumulated rebase shifts, doubles) modulo each cascade tile, for shaders that sample the FFT maps.
+func cascade_shifts() -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in parameters:
+		out.append(Vector2(fposmod(Waves.offset_x, p.tile_length.x), fposmod(Waves.offset_z, p.tile_length.y)))
+	while out.size() < 8:
+		out.append(Vector2.ZERO)
+	return out
+
 func _push_dynamic() -> void:
+	_mat.set_shader_parameter("cascade_shift", cascade_shifts())
 	_mat.set_shader_parameter("islands", _islands)
 	_mat.set_shader_parameter("island_count", _island_count)
 	if _ship:
@@ -214,8 +224,8 @@ func _sample_img(img: Image, layer: int, x: float, z: float) -> Vector3:
 	if img == null:
 		return Vector3.ZERO
 	var p := parameters[layer]
-	var fx := x / p.tile_length.x * map_size - 0.5
-	var fz := z / p.tile_length.y * map_size - 0.5
+	var fx := (x + fposmod(Waves.offset_x, p.tile_length.x)) / p.tile_length.x * map_size - 0.5
+	var fz := (z + fposmod(Waves.offset_z, p.tile_length.y)) / p.tile_length.y * map_size - 0.5
 	var x0 := floorf(fx)
 	var z0 := floorf(fz)
 	var tx := fx - x0

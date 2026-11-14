@@ -69,7 +69,7 @@ func _ready() -> void:
 	var ld := get_node_or_null("../Ship/Pivot/Model")
 	if ld and ld.has_signal("ship_ready"):
 		ld.ship_ready.connect(func(l: float, _b: float, _r: float) -> void: shot_scale = l / 22.0)
-	far = 25000.0
+	far = 60000.0
 	near = 0.15
 	_noise.frequency = 0.35
 	_noise.fractal_octaves = 2

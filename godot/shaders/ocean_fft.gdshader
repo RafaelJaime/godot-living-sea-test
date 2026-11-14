@@ -34,6 +34,7 @@ uniform sampler2D hull_tex : filter_linear, repeat_disable; // W(z, y) = max |x|
 uniform vec4 hull_dims = vec4(-1.0, 1.0, -1.0, 1.0);        // z0, z1, y0, y1 of the table (pivot space)
 
 group_uniforms cascade_data;
+uniform vec2 cascade_shift[MAX_CASCADES]; // world offset (rebase shifts) modulo each cascade tile, metres: tile sizes are free
 uniform vec4 map_scales[MAX_CASCADES]; // uv scale xy, displacement scale, normal scale
 global uniform uint num_cascades;
 global uniform sampler2DArray displacements;
@@ -67,7 +68,7 @@ void vertex() {
 	vec3 displacement = vec3(0.0);
 	for (uint i = 0U; i < num_cascades; ++i) {
 		vec4 scales = map_scales[i];
-		displacement += texture(displacements, vec3(UV * scales.xy, float(i))).xyz * scales.z;
+		displacement += texture(displacements, vec3((UV + cascade_shift[i]) * scales.xy, float(i))).xyz * scales.z;
 	}
 	VERTEX += displacement * distance_factor;
 	VERTEX.y -= lod_bias;
@@ -118,7 +119,7 @@ void fragment() {
 	vec3 gradient = vec3(0.0);
 	for (uint i = 0U; i < num_cascades; ++i) {
 		vec4 scales = map_scales[i];
-		vec3 coords = vec3(UV * scales.xy, float(i));
+		vec3 coords = vec3((UV + cascade_shift[i]) * scales.xy, float(i));
 		float ppm = map_size * min(scales.x, scales.y);
 		// The 20 m detail cascade has no mips: fade it with distance so it cannot alias into sparkle.
 		float fade = (i == 2U) ? (1.0 - smoothstep(25.0, 110.0, dist)) : 1.0;

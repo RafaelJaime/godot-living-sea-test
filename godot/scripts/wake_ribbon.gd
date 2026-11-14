@@ -78,6 +78,7 @@ func _process(delta: float) -> void:
 			var uv: Vector2 = Vector2.ONE / p.tile_length
 			scales.append(Vector4(uv.x, uv.y, p.displacement_scale, p.normal_scale))
 		_mat.set_shader_parameter("map_scales", scales)
+		_mat.set_shader_parameter("cascade_shift", Waves.ocean.cascade_shifts())
 		_scales_set = true
 	var pos := Vector2(_ship.global_position.x, _ship.global_position.z)
 	var yaw: float = _ship.get("yaw")

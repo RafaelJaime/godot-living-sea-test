@@ -7,6 +7,7 @@ render_mode world_vertex_coords, unshaded, blend_mix, depth_draw_never, cull_dis
 global uniform uint num_cascades;
 global uniform sampler2DArray displacements;
 global uniform vec4 foam_color : source_color;
+uniform vec2 cascade_shift[MAX_CASCADES]; // world offset (rebase shifts) modulo each cascade tile, metres: tile sizes are free
 uniform vec4 map_scales[MAX_CASCADES];
 uniform sampler2D noise_tex : source_color, repeat_enable, filter_linear_mipmap;
 uniform float lift = 0.2;
@@ -22,7 +23,7 @@ vec3 surface_at(vec2 xz) {
 	vec3 d = vec3(0.0);
 	for (uint i = 0U; i < num_cascades; ++i) {
 		vec4 s = map_scales[i];
-		d += texture(displacements, vec3(xz * s.xy, float(i))).xyz * s.z;
+		d += texture(displacements, vec3((xz + cascade_shift[i]) * s.xy, float(i))).xyz * s.z;
 	}
 	return d;
 }
