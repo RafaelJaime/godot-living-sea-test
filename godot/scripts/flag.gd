@@ -33,6 +33,23 @@ var _dbg: Array[MeshInstance3D] = []
 var _log_t := 0.0
 var _fly_ema := Vector3.ZERO
 var _anch := PackedInt32Array()
+# Bone-posed staff tracking: the staff mesh is skinned (other tracks rotate yard bones that also carry the mast truck),
+# so the ties are re-derived EVERY frame from the CPU-skinned top slice of the staff mesh (a few dozen vertices).
+var _skel: Skeleton3D
+var _to_root := Transform3D.IDENTITY # skeleton space -> pivot space
+var _sub_v := PackedVector3Array()
+var _sub_b := PackedInt32Array()
+var _sub_w := PackedFloat32Array()
+var _sub_stride := 0
+var _sub_bind := PackedInt32Array() # skin bind index -> skeleton bone
+var _sub_bindpose: Array[Transform3D] = []
+var _top_sel := PackedInt32Array() # subset indices of the finial cluster / the lower cluster
+var _mid_sel := PackedInt32Array()
+var _c_top0 := Vector3.ZERO
+var _ax0 := Vector3.UP
+var _tie_rest := PackedVector3Array() # ties at the ready pose (pivot space)
+var _pole_a0 := Vector3.ZERO
+var _pole_b0 := Vector3.ZERO
 
 func _ready() -> void:
 	add_to_group("rebase")
@@ -102,6 +119,11 @@ func _on_ship_ready() -> void:
 	var off := (Vector3.RIGHT - ax * ax.dot(Vector3.RIGHT)).normalized() * pole_clearance
 	var top := tip - ax * hoist_drop + off
 	_tie_local = PackedVector3Array([top, top - ax * (flag_height * tie_slack)])
+	_tie_rest = _tie_local.duplicate()
+	_pole_a0 = _pole_a
+	_pole_b0 = _pole_b
+	_ax0 = ax
+	_setup_tracking(pole, tip, hi - lo)
 	_build_cloth(ax)
 	_ready_flag = true
 	print("[flag] ", mesh_suffix, " axis ", ax.snapped(Vector3.ONE * 0.01), " tip ", tip.snapped(Vector3.ONE * 0.01), " length ", snappedf(hi - lo, 0.01), " cloth ", cols, "x", rows, " mass ", snappedf(flag_length * flag_height * density, 0.01), " kg")
@@ -128,6 +150,92 @@ func _rest_layout(ax: Vector3) -> PackedVector3Array:
 		for c in cols:
 			rest.append(top + down * (flag_height * float(r) / float(rows - 1)) + dir * (flag_length * float(c) / float(cols - 1)))
 	return rest
+
+## Keeps the skinning data of the top part of the staff mesh so its pose can be re-evaluated every frame.
+func _setup_tracking(pole: MeshInstance3D, tip: Vector3, length: float) -> void:
+	if pole.skin == null or pole.get_skeleton_path().is_empty():
+		push_warning("[flag] %s: staff mesh not skinned" % mesh_suffix)
+		return
+	_skel = pole.get_node_or_null(pole.get_skeleton_path()) as Skeleton3D
+	if _skel == null:
+		return
+	_to_root = _pivot.global_transform.affine_inverse() * _skel.global_transform
+	var arr := pole.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES] if arr[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+	var weights: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS] if arr[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+	var stride := (bones.size() / verts.size()) if (verts.size() > 0 and bones.size() > 0) else 0
+	var posed := SailCloth.posed_surface(pole, 0, _pivot)
+	var ytip := tip.y
+	var depth := 3.3 if length > 10.0 else length + 0.1 # long mast: top slice only; short staff: all of it
+	var ys := PackedFloat32Array()
+	for vi in verts.size():
+		var y := posed[vi].y
+		if y < ytip - depth:
+			continue
+		_sub_v.append(verts[vi])
+		ys.append(y)
+		for q in stride:
+			_sub_b.append(bones[vi * stride + q])
+			_sub_w.append(weights[vi * stride + q])
+	# finial cluster = top 0.6 m; lower cluster = the lowest quarter of the slice (a low-poly staff may have no vertex 2.5 m down)
+	var sorted_y := ys.duplicate()
+	sorted_y.sort()
+	if sorted_y.size() >= 8:
+		var y_low: float = sorted_y[sorted_y.size() / 4]
+		for k in ys.size():
+			if ys[k] > ytip - 0.6:
+				_top_sel.append(k)
+			elif ys[k] <= y_low and ytip - ys[k] > 0.8:
+				_mid_sel.append(k)
+	_sub_stride = stride
+	for i in pole.skin.get_bind_count():
+		var bone := pole.skin.get_bind_bone(i)
+		if bone < 0:
+			bone = _skel.find_bone(pole.skin.get_bind_name(i))
+		_sub_bind.append(bone)
+		_sub_bindpose.append(pole.skin.get_bind_pose(i))
+	if _top_sel.is_empty() or _mid_sel.is_empty():
+		push_warning("[flag] %s: staff slice empty (top %d, mid %d, subset %d, tip.y %.2f)" % [mesh_suffix, _top_sel.size(), _mid_sel.size(), _sub_v.size(), tip.y])
+		_skel = null
+		return
+	_c_top0 = _cluster(_top_sel)
+	_ax0 = (_c_top0 - _cluster(_mid_sel)).normalized() # rotation reference = the cluster axis itself
+
+## Centroid (pivot space) of a vertex subset, skinned with the CURRENT bone pose.
+func _cluster(sel: PackedInt32Array) -> Vector3:
+	var poses: Array[Transform3D] = []
+	for i in _sub_bind.size():
+		var b := _sub_bind[i]
+		poses.append((_skel.get_bone_global_pose(b) if b >= 0 else Transform3D.IDENTITY) * _sub_bindpose[i])
+	var acc := Vector3.ZERO
+	for k in sel:
+		var p := Vector3.ZERO
+		if _sub_stride == 0:
+			p = _sub_v[k]
+		else:
+			var ws := 0.0
+			for q in _sub_stride:
+				var w := _sub_w[k * _sub_stride + q]
+				if w > 0.0:
+					p += (poses[_sub_b[k * _sub_stride + q]] * _sub_v[k]) * w
+					ws += w
+			p = p / ws if ws > 0.0 else _sub_v[k]
+		acc += _to_root * p
+	return acc / float(sel.size())
+
+## Per frame: where the staff is NOW (ties + collision capsule), from the posed top slice of its mesh.
+func _track_staff() -> void:
+	if _skel == null:
+		return
+	var c_top := _cluster(_top_sel)
+	var c_mid := _cluster(_mid_sel)
+	var ax_now := (c_top - c_mid).normalized()
+	var rot := Basis(Quaternion(_ax0, ax_now))
+	for i in 2:
+		_tie_local[i] = c_top + rot * (_tie_rest[i] - _c_top0)
+	_pole_a = c_top + rot * (_pole_a0 - _c_top0)
+	_pole_b = c_top + rot * (_pole_b0 - _c_top0)
 
 func _build_cloth(ax: Vector3) -> void:
 	var rest := _rest_layout(ax)
@@ -175,6 +283,7 @@ func _apparent_wind(p: Vector3) -> Vector3:
 	return WindField.sample(p) - Vector3(fwd.x * spd, 0.0, fwd.y * spd)
 
 func _update_anchors() -> void:
+	_track_staff()
 	_cloth.pivot_inv = _pivot.get_global_transform_interpolated().affine_inverse()
 	_cloth.set_anchor(_anch[0], _tie_world(0))
 	_cloth.set_anchor(_anch[1], _tie_world(1))

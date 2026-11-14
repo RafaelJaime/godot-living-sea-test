@@ -19,6 +19,7 @@ var _frame_ms := PackedFloat32Array()
 var _shots_extra := {}
 var _gust_t0 := -1.0
 var _soak := false
+var _brace_t := 0.0
 
 func _ready() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
@@ -104,8 +105,8 @@ func _cam_index(arg) -> int:
 func _set_wind(ms: float, rel_ship_speed: float) -> void:
 	WindField.speed_override = ms
 	_ship.set("speed_scale", rel_ship_speed)
-	if rel_ship_speed == 0.0:
-		_ship.set("current_speed", 0.0)
+	# rigid-body ship: a frozen hull = dead calm for the flags (apparent wind = true wind)
+	_ship.set("freeze", rel_ship_speed == 0.0)
 
 func _process(delta: float) -> void:
 	_t += delta
@@ -117,6 +118,10 @@ func _process(delta: float) -> void:
 	if _soak:
 		WindField.speed_override = 15.5 + 12.5 * sin(_t / 11.0)
 		wind_rel = 95.0 + 85.0 * sin(_t / 23.0)
+	_brace_t += delta
+	if _brace_t > 0.5 and _ship.has_method("best_brace"):
+		_brace_t = 0.0
+		_ship.set("brace_cmd", _ship.best_brace()) # the autopilot does this in normal play
 	var f: Vector2 = _ship.get("forward")
 	WorldState.override_wind_deg = rad_to_deg(atan2(f.y, f.x)) + wind_rel
 	if _t > 1.0:

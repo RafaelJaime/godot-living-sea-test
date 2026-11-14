@@ -22,7 +22,6 @@ const RHO := 1.225
 const MAX_SPEED := 55.0
 
 static var _all: Array[ClothSolver] = []
-static var prof := [0.0, 0.0, 0.0, 0.0] ## wind, -, sim (us, averaged per cloth)
 static var disabled := OS.get_cmdline_user_args().has("--no-cloth") ## profiling aid
 static var step_ms := 0.0 ## wall time of the last parallel step of everything (ms)
 
@@ -300,7 +299,6 @@ func _step(delta_raw: float) -> void:
 		anchor_prev = anchor_t.duplicate()
 	_prev_xf = _launch_xf
 	# --- wind: sampled on a coarse lattice, bilinear to every particle (gusts/eddies are much larger than the cells)
-	var tp0 := Time.get_ticks_usec()
 	var lat := PackedVector3Array()
 	var gs := 0.0
 	for k in lat_idx.size():
@@ -319,7 +317,6 @@ func _step(delta_raw: float) -> void:
 			var p := P0[i]
 			W[i] += Vector3(sin(p.x * 2.1 + p.z * 1.3 + tt * 9.0 + float(i)), 0.6 * sin(p.y * 2.7 + p.x * 1.1 + tt * 12.0 - float(i) * 0.7), sin(p.z * 1.9 - p.y * 1.5 + tt * 10.0 + float(i) * 1.3)) * amp
 	wind = W
-	var tp1 := Time.get_ticks_usec()
 	var P := pos
 	var Q := prev
 	var V := vel
@@ -488,8 +485,6 @@ func _step(delta_raw: float) -> void:
 	vel = V
 	force = F
 	lam = LAM
-	prof[0] = lerpf(prof[0], tp1 - tp0, 0.02)
-	prof[2] = lerpf(prof[2], Time.get_ticks_usec() - tp1, 0.02)
 	aero_force = f_acc / float(nsub)
 	constraint_force = cf_acc / float(nsub)
 	aero_point = (pt_acc / w_acc) if w_acc > 1.0e-6 else pos[n / 2]
