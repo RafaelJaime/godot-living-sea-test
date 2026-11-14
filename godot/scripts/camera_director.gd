@@ -130,8 +130,11 @@ func _process(delta: float) -> void:
 	_apply_pose(_time, false)
 
 func _frame() -> Transform3D:
-	var yaw := _ship.rotation.y
-	return Transform3D(Basis(Vector3.UP, yaw), Vector3(_ship.global_position.x, 0.0, _ship.global_position.z))
+	# Use the interpolated ship transform (the body runs at the physics rate, the camera at the render rate).
+	var st: Transform3D = _ship.get_global_transform_interpolated()
+	var fwd := -st.basis.z
+	var yaw := atan2(-fwd.x, -fwd.z)
+	return Transform3D(Basis(Vector3.UP, yaw), Vector3(st.origin.x, 0.0, st.origin.z))
 
 func _sun_dir() -> Vector3:
 	var sun := get_node_or_null("../Sun") as Node3D
@@ -185,7 +188,7 @@ func _world_pose(i: int, t: float) -> Dictionary:
 			return {"pos": vp["pos"], "look": vp["look"], "fov": shots[i]["fov"], "att": false, "up": Vector3.UP}
 	var p := _shot_pose(i, t)
 	var att: bool = p.get("att", false)
-	var f: Transform3D = _pivot().global_transform if att else _frame()
+	var f: Transform3D = _pivot().get_global_transform_interpolated() if att else _frame()
 	var wl: Vector3 = f * (p["look"] as Vector3)
 	if not att:
 		wl.y += _ship_heave() * 0.5
@@ -227,8 +230,7 @@ func _apply_pose(t: float, _first: bool) -> void:
 	fov = fv
 
 func _ship_heave() -> float:
-	var h = _ship.get("heave")
-	return float(h) if h != null else 0.0
+	return _ship.get_global_transform_interpolated().origin.y
 
 func _free_fly(delta: float) -> void:
 	basis = Basis.from_euler(Vector3(_free_pitch, _free_yaw, 0.0))

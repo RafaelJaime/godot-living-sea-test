@@ -19,6 +19,9 @@ var _furled: Array[MeshInstance3D] = []
 var _ship: Node
 var _pivot: Node3D
 var _skel: Skeleton3D
+var _sail_bones: Array = []  # per sail: Array[int] bone indices
+var _mast_ship: Array = []   # per sail: Vector3 mast position (ship/pivot space)
+var _last_brace := 0.0
 var _rudder_bone := -1
 var _rudder_rest := Quaternion.IDENTITY
 var _fill := 0.0
@@ -59,7 +62,10 @@ func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 		if is_sail and nm.contains("_down"):
 			_make_cloth(mi, shader, pivot_inv)
 			cloth += 1
-	print("[sails] cloth=", cloth, " hidden furled/duplicate=", hidden, " rudder_bone=", _rudder_bone)
+	var tot := 0.0
+	if "sail_defs" in _ship:
+		for d in _ship.sail_defs: tot += float(d["area"])
+	print("[sails] total area m2=", snappedf(tot, 1.0), " cloth=", cloth, " hidden furled/duplicate=", hidden, " rudder_bone=", _rudder_bone)
 
 func _has_down(model: Node, nm: String) -> bool:
 	return model.find_child(nm + "_down", true, false) != null or model.find_child(nm.replace("geo_", "geo_") + "_down", true, false) != null
@@ -90,6 +96,18 @@ func _make_cloth(mi: MeshInstance3D, shader: Shader, pivot_inv: Transform3D) -> 
 	mi.extra_cull_margin = 30.0
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	_sails.append(sail)
+	var bl: Array = []
+	if _skel != null and mi.skin != null:
+		for bi in mi.skin.get_bind_count():
+			var bidx := _skel.find_bone(mi.skin.get_bind_name(bi))
+			if bidx >= 0 and not bl.has(bidx):
+				bl.append(bidx)
+	_sail_bones.append(bl)
+	_mast_ship.append(Vector3(0.0, box.get_center().y, box.get_center().z))
+	for m2 in sail.mats:
+		m2.set_shader_parameter("mast_pos", Vector3(0.0, box.get_center().y, box.get_center().z))
+	if "sail_defs" in _ship:
+		_ship.sail_defs.append({"pos": box.get_center(), "area": box.size.x * box.size.y * 0.85, "name": String(mi.name)})
 
 func _process(delta: float) -> void:
 	_time += delta
@@ -116,13 +134,26 @@ func _process(delta: float) -> void:
 	var gust := 1.0 + 0.18 * sin(_time * 0.9) * w.wind_strength + 0.1 * sin(_time * 2.3 + 1.0) * (0.3 + w.storm)
 	var furl_t := smoothstep(furl_storm - 0.06, furl_storm + 0.06, w.storm)
 	_furl = move_toward(_furl, furl_t, furl_speed * delta)
-	for s in _sails:
+	if "sail_power" in _ship:
+		_ship.sail_power = 1.0 - 0.75 * _furl # storm canvas: furled sails keep a little drive
+	var fills: Dictionary = _ship.get("sail_fill") if _ship.get("sail_fill") != null else {}
+	for si in _sails.size():
+		var s := _sails[si]
+		var phys_fill: float = clampf(float(fills[si]) / 8.0, -0.3, 1.1) if fills.has(si) else _fill
 		for m in s.mats:
-			m.set_shader_parameter("fill", clampf(_fill * gust * s.gain, -0.3, 1.1))
+			m.set_shader_parameter("fill", clampf(lerpf(_fill, phys_fill, 0.8) * gust * s.gain, -0.3, 1.1))
 			m.set_shader_parameter("flutter", _flutter)
 			m.set_shader_parameter("furl", _furl)
 			m.set_shader_parameter("time", _time)
 		s.mi.visible = _furl < 0.985
+	# Yard bracing: rotate the sails' bones (sail + yard + running rigging) about the vertical axis through the mast.
+	var br: float = _ship.get("brace") if _ship.get("brace") != null else 0.0
+	if _skel != null and absf(br - _last_brace) > 0.003:
+		_last_brace = br
+		_apply_brace(br)
+	for sx in _sails:
+		for mx in sx.mats:
+			mx.set_shader_parameter("brace", br)
 	# Furled bundles appear only once the sails are mostly up.
 	for f in _furled:
 		f.visible = _furl > 0.9
@@ -131,3 +162,23 @@ func _process(delta: float) -> void:
 		var rud: float = _ship.get("rudder") if _ship.get("rudder") != null else 0.0
 		var q := Quaternion(Vector3.UP, -rud * deg_to_rad(28.0))
 		_skel.set_bone_pose_rotation(_rudder_bone, _rudder_rest * q)
+
+func _apply_brace(beta: float) -> void:
+	var rot := Basis(Vector3.UP, beta)
+	var seen := {}
+	for si in _sails.size():
+		var pv_local: Vector3 = _mast_ship[si]
+		var ps: Vector3 = _skel.global_transform.affine_inverse() * (_pivot.global_transform * pv_local)
+		var t := Transform3D(rot, ps - rot * ps)
+		var bl: Array = _sail_bones[si]
+		bl.sort() # parents come before children in Godot's bone order
+		for bidx in bl:
+			if seen.has(bidx):
+				continue # a bone shared between sails keeps the first mast's pivot
+			seen[bidx] = true
+			var rest_g := _skel.get_bone_global_rest(bidx)
+			var parent := _skel.get_bone_parent(bidx)
+			var pg := _skel.get_bone_global_pose(parent) if parent >= 0 else Transform3D.IDENTITY
+			var local := pg.affine_inverse() * (t * rest_g)
+			_skel.set_bone_pose_position(bidx, local.origin)
+			_skel.set_bone_pose_rotation(bidx, local.basis.orthonormalized().get_rotation_quaternion())

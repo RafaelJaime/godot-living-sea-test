@@ -116,7 +116,7 @@ func _on_ship_ready() -> void:
 		_simulate(1.0 / 120.0)
 
 func _pin_world(r: int) -> Vector3:
-	return _pivot.global_transform * _pin_local[r]
+	return _pivot.get_global_transform_interpolated() * _pin_local[r]
 
 func _init_particles() -> void:
 	_pos.resize(rows * cols)

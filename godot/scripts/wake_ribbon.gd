@@ -72,7 +72,7 @@ func rebase(shift: Vector3) -> void:
 func _process(delta: float) -> void:
 	if Waves.ocean == null:
 		return
-	if not _scales_set:
+	if true: # refresh every frame: displacement scales follow sea_state
 		var scales := PackedVector4Array()
 		for p: WaveCascadeParameters in Waves.ocean.parameters:
 			var uv: Vector2 = Vector2.ONE / p.tile_length
@@ -80,7 +80,7 @@ func _process(delta: float) -> void:
 		_mat.set_shader_parameter("map_scales", scales)
 		_scales_set = true
 	var pos := Vector2(_ship.global_position.x, _ship.global_position.z)
-	var yaw := _ship.rotation.y
+	var yaw: float = _ship.get("yaw")
 	var fwd := Vector2(-sin(yaw), -cos(yaw))   # ship forward is -Z rotated by yaw about Y
 	var right := Vector2(fwd.y * -1.0, fwd.x)  # perpendicular
 	right = Vector2(cos(yaw), -sin(yaw))

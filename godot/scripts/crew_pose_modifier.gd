@@ -51,8 +51,8 @@ func _process_modification() -> void:
 		return
 	for i in _neutral_idx:
 		sk.set_bone_pose(i, sk.get_bone_rest(i))
-	var roll: float = pivot.rotation.z
-	var pitch: float = pivot.rotation.x
+	var roll: float = ship.get("roll")
+	var pitch: float = ship.get("pitch")
 	var roll_rate: float = ship.get("roll_rate") if ship.get("roll_rate") != null else 0.0
 	var yaw_rate: float = ship.get("yaw_rate") if ship.get("yaw_rate") != null else 0.0
 	var rudder: float = ship.get("rudder") if ship.get("rudder") != null else 0.0

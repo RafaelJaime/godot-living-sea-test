@@ -16,6 +16,8 @@ uniform float flutter = 0.3; // ripple amplitude 0..1.5
 uniform float furl = 0.0;    // 0 deployed .. 1 furled up to the yard
 uniform float time = 0.0;
 uniform float seed = 0.0;
+uniform float brace = 0.0;     // yard brace angle about the vertical axis through the mast (rad): the bones already rotated the sail
+uniform vec3 mast_pos = vec3(0.0); // ship space
 
 varying float v_shade;
 
@@ -36,21 +38,29 @@ float disp(vec3 p) {
 	return billow + ripple + edge;
 }
 
+vec3 rot_y(vec3 v, float a) {
+	float c = cos(a);
+	float sn = sin(a);
+	return vec3(v.x * c + v.z * sn, v.y, -v.x * sn + v.z * c);
+}
+
 void vertex() {
-	vec3 p = (to_ship * vec4(VERTEX, 1.0)).xyz;
-	// Furling: pull the sail up toward the yard.
+	vec3 ps = (to_ship * vec4(VERTEX, 1.0)).xyz;
+	// Work in the sail's own (unbraced) frame, then rotate the displacement back.
+	vec3 p = rot_y(ps - mast_pos, -brace) + mast_pos;
 	float top = bmax.y;
 	p.y = top - (top - p.y) * (1.0 - 0.92 * furl);
 	float d = disp(p) * (1.0 - 0.85 * furl);
 	float e = 0.12;
 	float dx = (disp(p + vec3(e, 0.0, 0.0)) - disp(p - vec3(e, 0.0, 0.0))) / (2.0 * e);
 	float dy = (disp(p + vec3(0.0, e, 0.0)) - disp(p - vec3(0.0, e, 0.0))) / (2.0 * e);
-	vec3 n = normalize((to_ship * vec4(NORMAL, 0.0)).xyz);
+	vec3 n0 = normalize((to_ship * vec4(NORMAL, 0.0)).xyz);
+	vec3 n = rot_y(n0, -brace);
 	float sg = n.z >= 0.0 ? 1.0 : -1.0;
 	n = normalize(vec3(n.x - dx * sg, n.y - dy * sg, n.z));
-	p.z += d;
-	VERTEX = (from_ship * vec4(p, 1.0)).xyz;
-	NORMAL = normalize((from_ship * vec4(n, 0.0)).xyz);
+	vec3 pq = ps + rot_y(vec3(0.0, p.y - (rot_y(ps - mast_pos, -brace) + mast_pos).y, d), brace); // vertical furl shift + billow
+	VERTEX = (from_ship * vec4(pq, 1.0)).xyz;
+	NORMAL = normalize((from_ship * vec4(rot_y(n, brace), 0.0)).xyz);
 	v_shade = d;
 }
 

@@ -7,8 +7,8 @@ extends Node
 @export var islands_path := NodePath("../../Islands")
 @export var arrive_radius := 110.0
 @export var pass_clearance := 150.0 ## distance to keep from an island's shore when sailing past
-@export var tack_angle_deg := 48.0
-@export var tack_corridor := 140.0
+@export var tack_angle_deg := 78.0
+@export var tack_corridor := 110.0
 
 var target := Vector2.ZERO
 var has_target := false
@@ -18,12 +18,19 @@ var _tack_side := 1.0
 var _pass_side := 1.0
 var _ship: Node3D
 var _islands: Node
+var _hold_yaw := 9999.0
+var _tack_test := false
 var _rudder_test := OS.get_cmdline_user_args().has("--rudder-test")
 
 func _ready() -> void:
 	add_to_group("rebase")
 	_ship = get_node(ship_path)
 	_islands = get_node(islands_path)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with('--hold-heading='):
+			_hold_yaw = deg_to_rad(float(a.get_slice('=', 1)))
+		elif a == '--tack-test':
+			_tack_test = true
 
 func rebase(shift: Vector3) -> void:
 	var s := Vector2(shift.x, shift.z)
@@ -46,6 +53,10 @@ func _pick_target(pos: Vector2, fwd: Vector2) -> void:
 			continue
 		var ang := acos(clampf(rel.normalized().dot(fwd), -1.0, 1.0))
 		var score := -d * 0.5 - ang * 350.0 + 400.0
+		# Avoid waypoints that need beating to windward (the ship can only point ~75 deg off the wind).
+		var wind_from := -WorldState.wind_vector()
+		if rel.normalized().dot(wind_from) > cos(deg_to_rad(88.0)):
+			score -= 700.0
 		if ang > 1.9:
 			continue
 		if score > best:
@@ -67,6 +78,10 @@ func _process(_delta: float) -> void:
 		return
 	var pos := Vector2(_ship.global_position.x, _ship.global_position.z)
 	var fwd: Vector2 = _ship.forward
+	if _tack_test and not has_target:
+		target = pos + (-WorldState.wind_vector()) * 700.0
+		has_target = true
+		_leg_start = pos
 	if not has_target or pos.distance_to(target) < arrive_radius:
 		_pick_target(pos, fwd)
 	var want := (target - pos).normalized()
@@ -103,10 +118,14 @@ func _process(_delta: float) -> void:
 		_ship.rudder_cmd = sin(Time.get_ticks_msec() / 1000.0 * 0.45)
 		return
 	var err := wrapf(_yaw_of(desired) - _ship.yaw, -PI, PI)
+	if _hold_yaw < 9000.0:
+		err = wrapf(_hold_yaw - _ship.yaw, -PI, PI)
 	# PD on heading error; rudder > 0 turns to starboard (yaw decreases).
 	var cmd := -clampf(err * 1.7 - _ship.yaw_rate * 5.0, -1.0, 1.0)
 	_ship.rudder_cmd = cmd
 	# Point of sail -> speed (slow into the wind, fast on a reach/run), more wind = faster.
 	var heading_vs_wind := acos(clampf(fwd.dot(upwind), -1.0, 1.0))
 	var eff := smoothstep(0.55, 2.2, heading_vs_wind)
+	if _ship.has_method("best_brace") and not _ship.legacy_motion:
+		_ship.brace_cmd = _ship.best_brace()
 	_ship.speed_scale = clampf(lerpf(0.7, 1.1, eff) * (0.7 + 0.5 * WorldState.wind_strength), 0.4, 1.3)

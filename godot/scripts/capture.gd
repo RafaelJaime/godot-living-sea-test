@@ -80,7 +80,7 @@ func _process(delta: float) -> void:
 		if fmod(_log_t, _log_period) < delta:
 			var sh := get_tree().root.get_node('Main/Ship')
 			var ap := get_tree().root.get_node('Main/Ship/Autopilot')
-			print('[log] t=', snappedf(_log_t, 0.1), ' pos=(', snappedf(sh.global_position.x, 1.0), ',', snappedf(sh.global_position.z, 1.0), ') yaw=', snappedf(rad_to_deg(sh.yaw), 1.0), ' roll=', snappedf(rad_to_deg(sh.roll), 0.1), ' pitch=', snappedf(rad_to_deg(sh.pitch), 0.1), ' rudder=', snappedf(sh.rudder, 0.01), ' speed=', snappedf(sh.current_speed, 0.1), ' tacking=', ap.tacking, ' target_dist=', snappedf(Vector2(sh.global_position.x, sh.global_position.z).distance_to(ap.target), 1.0), ' wind_ang=', snappedf(rad_to_deg(WorldState.wind_angle), 1.0), ' day=', snappedf(WorldState.day_phase, 0.01), ' cloud=', snappedf(WorldState.cloud, 0.01), ' storm=', snappedf(WorldState.storm, 0.01), ' sea=', snappedf(WorldState.sea_state, 0.01))
+			print('[log] t=', snappedf(_log_t, 0.1), ' pos=(', snappedf(sh.global_position.x, 1.0), ',', snappedf(sh.global_position.z, 1.0), ') yaw=', snappedf(rad_to_deg(sh.yaw), 1.0), ' roll=', snappedf(rad_to_deg(sh.roll), 0.1), ' pitch=', snappedf(rad_to_deg(sh.pitch), 0.1), ' rudder=', snappedf(sh.rudder, 0.01), ' speed=', snappedf(sh.current_speed, 0.1), ' tack_side=', ap._tack_side, ' tacking=', ap.tacking, ' target_dist=', snappedf(Vector2(sh.global_position.x, sh.global_position.z).distance_to(ap.target), 1.0), ' wind_ang=', snappedf(rad_to_deg(WorldState.wind_angle), 1.0), ' day=', snappedf(WorldState.day_phase, 0.01), ' cloud=', snappedf(WorldState.cloud, 0.01), ' storm=', snappedf(WorldState.storm, 0.01), ' sea=', snappedf(WorldState.sea_state, 0.01))
 		var sh2 := get_tree().root.get_node('Main/Ship')
 		_roll_samples.append([_log_t, rad_to_deg(sh2.roll), rad_to_deg(sh2.pitch)])
 		if _log_t >= _log_secs:
@@ -134,8 +134,10 @@ func _jitter_step(delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()
 	var ship := get_tree().root.get_node("Main/Ship") as Node3D
 	# Measured in the ship's yaw frame: a turning ship legitimately swings the camera around it in world space.
-	var to_local := Basis(Vector3.UP, ship.rotation.y).inverse()
-	var rel := to_local * (cam.global_position - ship.global_position)
+	var ist: Transform3D = ship.get_global_transform_interpolated()
+	var ifwd := -ist.basis.z
+	var to_local := Basis(Vector3.UP, atan2(-ifwd.x, -ifwd.z)).inverse()
+	var rel := to_local * (cam.global_position - ship.get_global_transform_interpolated().origin)
 	var fwd := to_local * (-cam.global_transform.basis.z)
 	if _frames > 0:
 		var d := rel - _prev_rel
@@ -167,6 +169,8 @@ func _jitter_step(delta: float) -> void:
 
 ## Period and amplitude of roll / pitch from the recorded samples (zero crossings of the de-meaned signal).
 func _report_motion() -> void:
+	var shp := get_tree().root.get_node('Main/Ship')
+	print('[keel] max centreline keel lift above the water over the run (m, <= 0 = keel never visible): ', snappedf(shp.keel_clear_min, 0.01), '  peak |roll| ', snappedf(shp.peak_heel, 0.1), ' deg  final speed ', snappedf(shp.current_speed, 0.1))
 	for ch in [1, 2]:
 		var name := "roll" if ch == 1 else "pitch"
 		var vals: Array = []

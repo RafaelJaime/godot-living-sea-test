@@ -116,11 +116,15 @@ func _update_scales() -> void:
 ## sea_state -> wind speed, whitecap threshold, foam amount for every cascade.
 func _apply_sea_state() -> void:
 	var s := sea_state
-	var wind := [lerpf(5.0, 19.0, s), lerpf(3.0, 11.0, s), lerpf(8.0, 22.0, s)]
+	var wind := [lerpf(3.0, 17.0, s), lerpf(2.5, 10.0, s), lerpf(6.0, 21.0, s)]
 	var whitecap := [lerpf(0.18, 0.5, s), lerpf(0.1, 0.3, s), lerpf(0.1, 0.3, s)]
 	var foam := [lerpf(2.5, 6.0, s), lerpf(0.3, 2.5, s), lerpf(0.8, 2.5, s)]
+	# Wave HEIGHT scale: the FFT spectrum is far taller than a sailor's calm sea, so small sea_state shrinks the displacement.
+	var amp := lerpf(0.16, 0.62, pow(s, 0.9))
+	var base_disp := [1.0, 0.75, 0.0]
 	for i in parameters.size():
 		var p := parameters[i]
+		p.displacement_scale = base_disp[i] * amp
 		p.wind_speed = wind[i]
 		p.wind_direction = wind_direction_deg + float(i) * 4.0
 		p.whitecap = whitecap[i]
@@ -152,8 +156,8 @@ func _push_dynamic() -> void:
 	if _ship:
 		var pv := _ship.get_node_or_null("Pivot") as Node3D
 		if pv:
-			_mat.set_shader_parameter("hull_inv", pv.global_transform.affine_inverse())
-		var y := _ship.rotation.y
+			_mat.set_shader_parameter("hull_inv", pv.get_global_transform_interpolated().affine_inverse())
+		var y: float = _ship.get("yaw") if _ship.get("yaw") != null else 0.0
 		# Ship forward is -Z; "right" in the shader is +X local, "back" is +Z local.
 		_mat.set_shader_parameter("ship_speed", float(_ship.get("current_speed")) if _ship.get("current_speed") != null else 6.0)
 		_mat.set_shader_parameter("ship_a", Vector4(_ship.global_position.x, _ship.global_position.z, cos(y), sin(y)))
@@ -233,7 +237,7 @@ func displacement_at(x: float, z: float) -> Vector3:
 func height_at(x: float, z: float) -> float:
 	var px := x
 	var pz := z
-	for _i in 3:
+	for _i in 2:
 		var d := displacement_at(px, pz)
 		px = x - d.x
 		pz = z - d.z

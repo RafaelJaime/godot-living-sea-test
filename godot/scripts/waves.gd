@@ -19,7 +19,10 @@ func register_ocean(o: Node) -> void:
 	ocean.sea_state = sea_state
 
 ## Surface height at world column (x, z), read back from the same FFT displacement maps that are rendered.
+var flat := OS.get_cmdline_user_args().has("--flat") ## test aid: perfectly flat sea for the physics
 func height_at(x: float, z: float) -> float:
+	if flat:
+		return 0.0
 	return ocean.height_at(x, z) if ocean else 0.0
 
 func add_world_shift(shift_x: float, shift_z: float) -> void:
