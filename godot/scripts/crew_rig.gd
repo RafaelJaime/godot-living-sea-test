@@ -41,6 +41,13 @@ func _update_clamped() -> void:
 		var d := src.global_position - shoulder
 		(c["proxy"] as Node3D).global_position = shoulder + d.limit_length(float(c["len"]) * 0.93)
 
+## Modifiers fade in over RAMP_TIME so enabling them never pops the pose.
+const RAMP_TIME := 1.2
+var _ramping: Array = []
+func _ramp_in(m: SkeletonModifier3D) -> void:
+	m.influence = 0.0
+	_ramping.append([m, 0.0])
+
 func _skeleton_of(slot: Node) -> Skeleton3D:
 	var v := slot.get("visual") as Node
 	if v == null:
@@ -73,6 +80,7 @@ func _on_crew_ready() -> void:
 			_:
 				mod.brace_gain = 0.5
 		sk.add_child(mod)
+		_ramp_in(mod)
 		if slot.name == "Papi_Fuego":
 			_setup_helmsman(slot, sk)
 		elif slot.name == "Don_Omar":
@@ -96,6 +104,7 @@ func _setup_helmsman(slot: Node3D, sk: Skeleton3D) -> void:
 		ik.set_target_node(i, ik.get_path_to(sides[i][1]))
 		if not OS.get_cmdline_user_args().has("--no-pole"):
 			ik.set_pole_node(i, ik.get_path_to(sides[i][2]))
+	_ramp_in(ik)
 	print("[rig] helmsman IK ready")
 
 func _setup_violin(_slot: Node3D, sk: Skeleton3D) -> void:
@@ -107,8 +116,14 @@ func _setup_violin(_slot: Node3D, sk: Skeleton3D) -> void:
 var _dbg_sk: Skeleton3D
 var _dbg_helm: Node
 var _dbg_n := 0
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_update_clamped()
+	for r in _ramping.duplicate():
+		r[1] += delta
+		var k := smoothstep(0.0, 1.0, clampf(float(r[1]) / RAMP_TIME, 0.0, 1.0))
+		(r[0] as SkeletonModifier3D).influence = k
+		if float(r[1]) >= RAMP_TIME:
+			_ramping.erase(r)
 	if _dbg_sk != null or not OS.get_cmdline_user_args().has("--debug-rig"):
 		return
 	var f := get_node(crew_path).get_node_or_null("Papi_Fuego")

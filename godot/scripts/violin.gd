@@ -34,6 +34,8 @@ func setup(sk: Skeleton3D, rig: Node) -> void:
 
 	var ik := TwoBoneIK3D.new()
 	ik.name = "ViolinIK"
+	ik.influence = 0.0
+	rig._ramp_in(ik)
 	ik.setting_count = 2
 	sk.add_child(ik)
 	var sides := [["Left", rig.make_clamped_target(sk, "Left", hold), _pole_l], ["Right", rig.make_clamped_target(sk, "Right", _bow_target), _pole_r]]

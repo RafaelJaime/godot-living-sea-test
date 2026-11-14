@@ -30,6 +30,7 @@ extends Marker3D
 @export var placeholder_model_yaw_deg := 90.0
 @export var ship_loader_path := NodePath("../../Model")
 
+const CROSSFADE := 0.35 ## seconds, for every clip change
 var visual: Node3D
 var _anim_player: AnimationPlayer
 var _sway_t := randf() * 10.0
@@ -74,6 +75,7 @@ func setup(ship_length: float, ship_beam: float, snap_y_func: Callable) -> void:
 	var yaw := deg_to_rad(facing_deg + (placeholder_model_yaw_deg if _is_placeholder else final_model_yaw_deg))
 	visual.rotation.y = yaw
 	_setup_animation(inst)
+	_fix_skinned_culling(inst)
 	print("[crew] ", character_name, " <- ", path, " at ", position)
 
 ## Scale so the character reaches target_height, feet at y=0 and centered on XZ.
@@ -102,6 +104,7 @@ func _setup_animation(root: Node) -> void:
 		return
 	var anim := _anim_player.get_animation(chosen)
 	anim.loop_mode = Animation.LOOP_LINEAR
+	_anim_player.playback_default_blend_time = CROSSFADE
 	_anim_player.play(chosen)
 	_anim_player.seek(randf() * maxf(anim.length, 0.01), true)
 	print("[crew] ", character_name, " playing animation '", chosen, "'")
@@ -141,3 +144,19 @@ func _make_barrels(deck_y: float) -> void:
 		var off := Vector3(0.0, 0.0, 0.0) if i == 0 else Vector3(0.75, 0.0, 0.35)
 		b.position = Vector3(position_x_hint, deck_y + h * 0.5, position_z_hint) + off
 		get_parent().add_child(b)
+
+## Switch clip with a crossfade (never a hard cut). Looping is forced for idle-like clips.
+func change_clip(clip: String, loop := true) -> void:
+	if _anim_player == null or not _anim_player.has_animation(clip) or _anim_player.current_animation == clip:
+		return
+	_anim_player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
+	_anim_player.play(clip, CROSSFADE)
+
+## Skinned meshes are rigged in centimetres under a 0.01-scaled armature: their static AABB can be tighter than the
+## animated pose, so limbs get culled at some angles. Grow the cull box generously for every skinned mesh.
+func _fix_skinned_culling(root: Node) -> void:
+	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.skin != null or not mi.get_skeleton_path().is_empty():
+			mi.extra_cull_margin = 250.0
+			mi.ignore_occlusion_culling = true
