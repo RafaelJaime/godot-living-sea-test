@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -15,6 +15,8 @@
 [ext_resource type="Script" path="res://scripts/wake_ribbon.gd" id="13_wake"]
 [ext_resource type="Script" path="res://scripts/weather_fx.gd" id="14_weather"]
 [ext_resource type="Script" path="res://scripts/autopilot.gd" id="15_auto"]
+[ext_resource type="Script" path="res://scripts/helm.gd" id="16_helm"]
+[ext_resource type="Script" path="res://scripts/crew_rig.gd" id="17_rig"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -43,6 +45,12 @@ script = ExtResource("12_fx")
 [node name="Model" type="Node3D" parent="Ship/Pivot"]
 script = ExtResource("4_loader")
 
+[node name="Helm" type="Node3D" parent="Ship/Pivot"]
+script = ExtResource("16_helm")
+
+[node name="CrewRig" type="Node" parent="Ship/Pivot"]
+script = ExtResource("17_rig")
+
 [node name="CrewMarkers" type="Node3D" parent="Ship/Pivot"]
 script = ExtResource("5_crewmgr")
 
@@ -52,8 +60,8 @@ character_name = "Papi_Fuego"
 final_path = "res://assets/characters/papi_fuego.glb"
 placeholder_path = "res://assets/placeholder/Papi_Fuego.glb"
 target_height = 1.85
-norm_u = 0.095
-norm_v = -0.12
+norm_u = 0.1
+norm_v = 0.0
 deck_height_frac = 0.189
 snap_to_deck = false
 facing_deg = 0.0
@@ -95,7 +103,7 @@ norm_u = 0.36
 norm_v = -0.4
 deck_height_frac = 0.0795
 snap_to_deck = false
-facing_deg = -80.0
+facing_deg = -170.0
 barrel_height = 0.85
 placeholder_y_offset = -0.38
 

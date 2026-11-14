@@ -18,6 +18,7 @@ var _tack_side := 1.0
 var _pass_side := 1.0
 var _ship: Node3D
 var _islands: Node
+var _rudder_test := OS.get_cmdline_user_args().has("--rudder-test")
 
 func _ready() -> void:
 	add_to_group("rebase")
@@ -98,6 +99,9 @@ func _process(_delta: float) -> void:
 			var side := signf(fwd.cross(rel))
 			var away := Vector2(-fwd.y, fwd.x) * -side
 			desired = (desired + away * clampf((danger + 120.0 - d) / 120.0, 0.0, 1.5)).normalized()
+	if _rudder_test:
+		_ship.rudder_cmd = sin(Time.get_ticks_msec() / 1000.0 * 0.45)
+		return
 	var err := wrapf(_yaw_of(desired) - _ship.yaw, -PI, PI)
 	# PD on heading error; rudder > 0 turns to starboard (yaw decreases).
 	var cmd := -clampf(err * 1.7 - _ship.yaw_rate * 5.0, -1.0, 1.0)

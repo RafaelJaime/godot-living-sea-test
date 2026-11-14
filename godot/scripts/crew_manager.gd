@@ -12,6 +12,9 @@ func _ready() -> void:
 	if loader.has_signal("ship_ready"):
 		loader.ship_ready.connect(_on_ship_ready)
 
+func loader_node() -> Node:
+	return get_node(ship_loader_path)
+
 func _on_ship_ready(length: float, beam: float, _ref: float) -> void:
 	var bodies: Array[Node] = []
 	if enabled_raycast_snap:
@@ -44,6 +47,17 @@ func _on_ship_ready(length: float, beam: float, _ref: float) -> void:
 				var hy: Variant = snap.call(v * beam * 0.5, z, 3.0)
 				row += "  v%.1f:%s" % [v, ("-" if hy == null else "%.2f" % float(hy))]
 			print(row)
+	if OS.get_cmdline_user_args().has("--debug-wheel"):
+		var holder := loader_node().get_node("Normalized") as Node3D
+		var verts := ModelUtil.sample_vertices(holder, 200000)
+		var lo := Vector3(INF, INF, INF)
+		var hi := Vector3(-INF, -INF, -INF)
+		var n := 0
+		for v in verts:
+			var p := holder.transform * v
+			if p.z > 6.2 and p.z < 8.6 and absf(p.x) < 1.6 and p.y > 4.3 and p.y < 7.0:
+				lo = lo.min(p); hi = hi.max(p); n += 1
+		print("[wheel] verts=", n, " lo=", lo, " hi=", hi)
 	for c in get_children():
 		if c.has_method("setup"):
 			c.setup(length, beam, snap)
