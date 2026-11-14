@@ -46,7 +46,17 @@ func rebase(shift: Vector3) -> void:
 	for isl in _islands:
 		isl.global_position -= shift
 
+func _push_to_ocean() -> void:
+	if Waves.ocean == null:
+		return
+	var list := PackedVector4Array()
+	for isl in _islands:
+		var sh: Vector2 = isl.get_meta("shore")
+		list.append(Vector4(isl.global_position.x, isl.global_position.z, maxf(sh.x, 8.0), maxf(sh.y, 8.0)))
+	Waves.ocean.set_islands(list)
+
 func _process(_delta: float) -> void:
+	_push_to_ocean()
 	_ring.global_position = Vector3(_ship.global_position.x, 0.0, _ship.global_position.z)
 	for isl in _islands.duplicate():
 		if isl.global_position.z > _ship.global_position.z + behind_recycle + float(isl.get_meta("radius")):
@@ -65,6 +75,7 @@ func _spawn(z: float) -> void:
 	var lateral := maxf(r.randf_range(min_lateral, max_lateral), radius + 170.0)
 	var isl := _make_island(seed_i, radius, peak)
 	isl.set_meta("radius", radius)
+	isl.set_meta("shore", isl.get_meta("shore_xz"))
 	add_child(isl)
 	isl.global_position = Vector3(_ship.global_position.x + _side * lateral, 0.0, z)
 	_islands.append(isl)
@@ -134,6 +145,22 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 			node.add_child(palm)
 	if seed_i % 3 == 0:
 		node.add_child(_make_lighthouse(height_fn.call(0.0, 0.0)))
+	# Waterline ellipse radii (where the height crosses 0 along +-X and +-Z), used for the turquoise shallows.
+	var shore := Vector2.ZERO
+	for axis in 2:
+		var acc := 0.0
+		for sgn in [-1.0, 1.0]:
+			var r := 0.0
+			var found := radius * 0.4
+			while r < ext:
+				var hx: float = height_fn.call(sgn * r if axis == 0 else 0.0, sgn * r if axis == 1 else 0.0)
+				if hx < 0.0:
+					found = r
+					break
+				r += 2.0
+			acc += found
+		shore[axis] = acc * 0.5
+	node.set_meta("shore_xz", shore)
 	return node
 
 func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, peak: float, noise: FastNoiseLite) -> void:

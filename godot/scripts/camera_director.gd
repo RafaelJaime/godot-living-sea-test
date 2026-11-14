@@ -26,7 +26,12 @@ var shots: Array[Dictionary] = [
 	{"name": "close Papi_Diagnostica", "mode": "crew", "slot": "Papi_Diagnostica", "off": Vector3(3.4, 2.3, -1.2), "fov": 45.0},
 	{"name": "close El_Salchipapa", "mode": "crew", "slot": "El_Salchipapa", "off": Vector3(-2.0, 1.4, -3.0), "fov": 45.0},
 	{"name": "close Don_Omar", "mode": "crew", "slot": "Don_Omar", "off": Vector3(-3.0, 0.6, -1.5), "fov": 45.0},
+	# Ocean inspection shots (not part of the auto cycle).
+	{"name": "water close", "pos": Vector3(-8.0, 1.5, -5.0), "look": Vector3(0.0, 0.8, -3.0), "fov": 55.0},
+	{"name": "wake", "pos": Vector3(3.0, 13.0, 27.0), "look": Vector3(0.0, 0.0, 14.0), "fov": 60.0},
 ]
+## Ocean inspection shots (not part of the auto cycle).
+## (appended below in _ready)
 ## Only the first N shots take part in the automatic cycle.
 var cycle_count := 7
 

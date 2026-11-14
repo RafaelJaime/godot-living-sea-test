@@ -3,8 +3,9 @@ extends Node3D
 ## group "rebase" is shifted back and the wave phase absorbs the shift (Waves.add_world_shift).
 
 @export var ship_path := NodePath("Ship")
-@export var rebase_distance := 1024.0
-@export var rebase_step := 1024.0
+## Must be a common multiple of every FFT cascade tile (200, 80, 20 m) so waves never jump on rebase.
+@export var rebase_distance := 1600.0
+@export var rebase_step := 1600.0
 
 var _ship: Node3D
 var total_shifted := 0.0

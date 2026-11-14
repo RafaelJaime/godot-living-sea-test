@@ -3,3 +3,4 @@
 _shots/
 __pycache__/
 *.blend1
+_vendor_eval/

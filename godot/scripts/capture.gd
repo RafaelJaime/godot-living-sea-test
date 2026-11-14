@@ -4,7 +4,7 @@ extends Node
 
 const SHOT_DIR := "res://_shots"
 # [capture time (s), camera shot index]
-const PLAN: Array = [[3.0, 0], [5.0, 7], [7.0, 8], [9.0, 9], [11.0, 10], [13.0, 5], [15.0, 6], [17.0, 3]]
+const PLAN: Array = [[3.0, 11, 0.2], [6.0, 12, 0.2], [9.0, 2, 0.2], [13.0, 11, 0.9], [16.0, 12, 0.9], [19.0, 2, 0.9]]
 
 var _active := false
 var _t := 0.0
@@ -21,8 +21,12 @@ var _max_d := 0.0
 var _max_dd := 0.0
 var _max_ang := 0.0
 var _max_dang := 0.0
+var _max_delta := 0.0
+var _sum_delta := 0.0
 
 func _ready() -> void:
+	if "--capture" in OS.get_cmdline_user_args() or "--jitter-test" in OS.get_cmdline_user_args():
+		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true) # never steal keyboard focus
 	process_priority = 1000 # measure after camera/ship have updated this frame
 	_jitter = "--jitter-test" in OS.get_cmdline_user_args()
 	if _jitter:
@@ -45,7 +49,9 @@ func _process(delta: float) -> void:
 		return
 	var when: float = PLAN[_step][0]
 	var cam_idx: int = PLAN[_step][1]
-	if not _jumped and _t >= when - 0.8 and _step > 0:
+	if _step < PLAN.size() and PLAN[_step].size() > 2 and not is_equal_approx(Waves.sea_state, float(PLAN[_step][2])):
+		Waves.sea_state = float(PLAN[_step][2])
+	if not _jumped and _t >= when - 0.8:
 		_jumped = true
 		var d := get_tree().get_first_node_in_group("camera_director")
 		if d:
@@ -82,18 +88,20 @@ func _jitter_step(delta: float) -> void:
 		_max_ang = maxf(_max_ang, rad_to_deg(av.length()))
 		if _frames > 1:
 			var acc := (v - _prev_d).length() / delta
-			if acc > 8.0:
+			if acc > 40.0:
 				print('[jitter] spike t=', snappedf(_t, 0.01), ' acc=', snappedf(acc, 0.1), ' delta=', snappedf(delta, 0.0001), ' v=', v, ' prev=', _prev_d)
 			_max_dd = maxf(_max_dd, acc)
 			_max_dang = maxf(_max_dang, rad_to_deg((av - _prev_dfwd).length()) / delta)
 		_prev_d = v
 		_prev_dfwd = av
+	_max_delta = maxf(_max_delta, delta)
+	_sum_delta += delta
 	_prev_rel = rel
 	_prev_fwd = fwd
 	_frames += 1
 	if _frames == 1 or _frames % 60 == 0:
 		pass
 	if _t > 14.0:
-		print("[jitter] frames=", _frames, " max cam speed(rel ship)=", snappedf(_max_d, 0.01), " m/s  max accel=", snappedf(_max_dd, 0.1),
+		print("[jitter] frametime avg=", snappedf(_sum_delta / maxf(_frames, 1) * 1000.0, 0.01), "ms max=", snappedf(_max_delta * 1000.0, 0.1), "ms  frames=", _frames, " max cam speed(rel ship)=", snappedf(_max_d, 0.01), " m/s  max accel=", snappedf(_max_dd, 0.1),
 			" m/s2  max view ang speed=", snappedf(_max_ang, 0.01), " deg/s  max ang accel=", snappedf(_max_dang, 0.1), " deg/s2")
 		get_tree().quit()

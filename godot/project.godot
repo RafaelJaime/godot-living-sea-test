@@ -35,3 +35,26 @@ anti_aliasing/quality/screen_space_aa=0
 lights_and_shadows/directional_shadow/size=4096
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
 environment/defaults/default_clear_color=Color(0.6, 0.72, 0.85, 1)
+
+[shader_globals]
+
+displacements={
+"type": "sampler2DArray",
+"value": ""
+}
+normals={
+"type": "sampler2DArray",
+"value": ""
+}
+water_color={
+"type": "color",
+"value": Color(0.0100228, 0.0196066, 0.0272118, 1)
+}
+foam_color={
+"type": "color",
+"value": Color(0.7, 0.7, 0.7, 1)
+}
+num_cascades={
+"type": "uint",
+"value": 0
+}

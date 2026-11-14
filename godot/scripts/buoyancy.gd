@@ -39,6 +39,8 @@ func _ready() -> void:
 	loader.ship_ready.connect(func(l: float, b: float, _r: float) -> void:
 		length = l
 		beam = b
+		if Waves.ocean:
+			Waves.ocean.set_ship_footprint(l * 0.46, b * 0.5)
 		active = true)
 
 func rebase(shift: Vector3) -> void:

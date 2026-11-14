@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/gulls.gd" id="9_gulls"]
 [ext_resource type="Script" path="res://scripts/camera_director.gd" id="10_cam"]
 [ext_resource type="Script" path="res://scripts/canto_sun.gd" id="11_canto"]
+[ext_resource type="Script" path="res://scripts/ship_fx.gd" id="12_fx"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -22,6 +23,9 @@ script = ExtResource("2_sky")
 
 [node name="Ship" type="Node3D" parent="."]
 script = ExtResource("3_ship")
+
+[node name="FX" type="Node3D" parent="Ship"]
+script = ExtResource("12_fx")
 
 [node name="Pivot" type="Node3D" parent="Ship"]
 
