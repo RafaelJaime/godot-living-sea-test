@@ -120,6 +120,11 @@ func _process(delta: float) -> void:
 	_pivot.rotation = Vector3(pitch, 0, roll)
 
 const HULL_BINS := 48
+const VOL_Z := 72     ## hull volume bake: z slices
+const VOL_Y := 32     ## hull volume bake: height slices
+const VOL_Y0 := -4.0  ## pivot-space height range of the bake (waterline = 0)
+const VOL_Y1 := 10.0
+const VOL_MESHES := ["hull", "deck", "aft", "interior"]
 ## Bakes the hull's waterline outline: vertices within a band around the waterline (pivot space y in [-0.7, 0.9])
 ## give the max half-width per slice along z. The ocean shader hugs foam to this outline.
 func _bake_hull_profile() -> void:
@@ -159,4 +164,56 @@ func _bake_hull_profile() -> void:
 	for i in range(1, HULL_BINS - 1):
 		sm[i] = (w[i - 1] + 2.0 * w[i] + w[i + 1]) * 0.25
 	Waves.ocean.set_hull_profile(sm, zmin, zmax)
+	_bake_hull_volume()
 	print("[hull] baked waterline profile z=", snappedf(zmin, 0.1), "..", snappedf(zmax, 0.1), " max half-width=", snappedf(Array(sm).max(), 0.01))
+
+## Hull volume for the ocean shader (T3b): table W(z, y) = max |x| of the hull structure in each (z, height) slice, in
+## the ship pivot frame. The water shader discards any fragment whose pivot-space position lies inside that cross-section,
+## so no water renders inside the hull or over the deck, whatever the heave/pitch/roll or wave height.
+func _bake_hull_volume() -> void:
+	var zmin := 1.0e9
+	var zmax := -1.0e9
+	var pts := PackedVector3Array()
+	for n in _pivot.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var low := mi.name.to_lower()
+		var ok := false
+		for k in VOL_MESHES:
+			if k in low:
+				ok = true
+		if not ok or mi.mesh == null:
+			continue
+		var inv := _pivot.global_transform.affine_inverse() as Transform3D
+		var t := inv * mi.global_transform
+		for si in mi.mesh.get_surface_count():
+			var v: PackedVector3Array = mi.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]
+			var step := maxi(1, v.size() / 60000)
+			for i in range(0, v.size(), step):
+				var p := t * v[i]
+				pts.append(p)
+				zmin = minf(zmin, p.z)
+				zmax = maxf(zmax, p.z)
+	if pts.size() < 100:
+		return
+	var tab := PackedFloat32Array()
+	tab.resize(VOL_Z * VOL_Y)
+	tab.fill(0.0)
+	for p in pts:
+		var zi := clampi(int((p.z - zmin) / (zmax - zmin) * (VOL_Z - 1) + 0.5), 0, VOL_Z - 1)
+		var yi := int((p.y - VOL_Y0) / (VOL_Y1 - VOL_Y0) * (VOL_Y - 1) + 0.5)
+		if yi < 0 or yi >= VOL_Y:
+			continue
+		var idx := yi * VOL_Z + zi
+		tab[idx] = maxf(tab[idx], absf(p.x))
+	# Close small holes: take the max of the z neighbours, and make each slice at least as wide as the slice below it
+	# only up to the point where the structure ends (so overhanging flare is covered but nothing floats above the rails).
+	var out := tab.duplicate()
+	for yi in VOL_Y:
+		for zi in VOL_Z:
+			var m := tab[yi * VOL_Z + zi]
+			if zi > 0: m = maxf(m, tab[yi * VOL_Z + zi - 1])
+			if zi < VOL_Z - 1: m = maxf(m, tab[yi * VOL_Z + zi + 1])
+			out[yi * VOL_Z + zi] = m
+	var img := Image.create_from_data(VOL_Z, VOL_Y, false, Image.FORMAT_RF, out.to_byte_array())
+	Waves.ocean.set_hull_volume(ImageTexture.create_from_image(img), Vector4(zmin, zmax, VOL_Y0, VOL_Y1))
+	print("[hull] baked hull volume z=", snappedf(zmin, 0.1), "..", snappedf(zmax, 0.1))

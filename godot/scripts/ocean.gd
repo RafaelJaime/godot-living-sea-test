@@ -150,6 +150,9 @@ func _push_dynamic() -> void:
 	_mat.set_shader_parameter("islands", _islands)
 	_mat.set_shader_parameter("island_count", _island_count)
 	if _ship:
+		var pv := _ship.get_node_or_null("Pivot") as Node3D
+		if pv:
+			_mat.set_shader_parameter("hull_inv", pv.global_transform.affine_inverse())
 		var y := _ship.rotation.y
 		# Ship forward is -Z; "right" in the shader is +X local, "back" is +Z local.
 		_mat.set_shader_parameter("ship_speed", float(_ship.get("current_speed")) if _ship.get("current_speed") != null else 6.0)
@@ -165,6 +168,11 @@ func set_ship_footprint(half_length: float, half_beam: float) -> void:
 	_mat.set_shader_parameter("ship_half", Vector2(half_length, half_beam))
 
 ## Waterline outline of the hull: half-width per bin from bow (first) to stern (last), and the z range it spans.
+func set_hull_volume(tex: Texture2D, dims: Vector4) -> void:
+	_mat.set_shader_parameter("hull_tex", tex)
+	_mat.set_shader_parameter("hull_dims", dims)
+	_mat.set_shader_parameter("hull_volume_on", true)
+
 func set_hull_profile(widths: PackedFloat32Array, z_bow: float, z_stern: float) -> void:
 	_mat.set_shader_parameter("hull_w", widths)
 	_mat.set_shader_parameter("hull_z", Vector2(z_bow, z_stern))

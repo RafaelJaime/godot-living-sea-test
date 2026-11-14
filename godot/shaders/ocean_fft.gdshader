@@ -26,6 +26,10 @@ uniform vec2 ship_half = vec2(11.0, 3.2);       // half length, half beam (m)
 uniform float hull_w[HULL_BINS];                // waterline half-width per bin, bow (index 0) .. stern (last)
 uniform vec2 hull_z = vec2(-11.0, 11.0);        // local z of bin 0 (bow) and the last bin (stern)
 uniform float ship_speed = 6.0;
+uniform bool hull_volume_on = false;
+uniform mat4 hull_inv;                          // world -> ship pivot space (full pose: yaw, pitch, roll, heave)
+uniform sampler2D hull_tex : filter_linear, repeat_disable; // W(z, y) = max |x| of the hull cross-section
+uniform vec4 hull_dims = vec4(-1.0, 1.0, -1.0, 1.0);        // z0, z1, y0, y1 of the table (pivot space)
 
 group_uniforms cascade_data;
 uniform vec4 map_scales[MAX_CASCADES]; // uv scale xy, displacement scale, normal scale
@@ -98,6 +102,17 @@ void fragment() {
 	}
 	vec3 world_pos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float dist = length(world_pos - CAMERA_POSITION_WORLD);
+	if (hull_volume_on) {
+		// No water inside the hull / over the deck: discard fragments inside the hull's cross-section.
+		vec3 hp = (hull_inv * vec4(world_pos, 1.0)).xyz;
+		vec2 huv = vec2((hp.z - hull_dims.x) / (hull_dims.y - hull_dims.x), (hp.y - hull_dims.z) / (hull_dims.w - hull_dims.z));
+		if (huv.x > 0.0 && huv.x < 1.0 && huv.y > 0.0 && huv.y < 1.0) {
+			float hw = texture(hull_tex, huv).r;
+			if (hw > 0.3 && abs(hp.x) < hw - 0.06) {
+				discard;
+			}
+		}
+	}
 	float map_size = float(textureSize(normals, 0).x);
 
 	vec3 gradient = vec3(0.0);
