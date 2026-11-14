@@ -82,7 +82,7 @@ One wind model for everything that reacts to air.
   26 m/s -> wind from the beam/bow (backed sails) -> travelling gust (following / head wind), saves `_shots/cloth_*.png` and prints `[cloth]`/`[gust]` logs.
 
 ## Quality presets (autoload `Quality`, scripts/quality.gd)
-`-- --quality=dev|final` (default `final`; ProjectSetting `game/quality` changes the default). Agents/tests use `--quality=dev` unless a step
+`-- --quality=dev|final` (DEFAULT `dev`, so any run without the flag is light; the shipped wallpaper launch passes `--quality=final`; unknown values warn and fall back to dev; ProjectSetting `game/quality` changes the default). Agents/tests use dev unless a step
 validates final visuals. `--uncap` removes the fps cap and vsync for benchmarking.
 | | dev | final |
 |---|---|---|

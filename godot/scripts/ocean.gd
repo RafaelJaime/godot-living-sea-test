@@ -47,6 +47,7 @@ func _ready() -> void:
 	levels = Quality.ocean_levels
 	map_size = Quality.fft_size
 	updates_per_second = Quality.fft_updates_per_second
+	print("[quality] ocean: rings=", levels, " fft=", map_size, " cascades=", Quality.ocean_cascades)
 	readback_hz = Quality.readback_hz
 	process_priority = 100 # after camera
 	_ship = get_node_or_null(ship_path)

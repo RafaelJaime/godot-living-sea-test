@@ -37,6 +37,7 @@ var gravity := Vector3(0, -9.81, 0)
 var flutter := 0.0 ## small-scale gust jitter per particle (0..1) on top of the lattice wind; makes flags snap and sails luff
 var damping := 0.012 ## velocity loss per substep
 var substeps := 3
+static var _qlogged := false
 var iterations := 9
 var max_extra_substeps := 2 ## strong wind adds up to this many substeps (> 14 and > 22 m/s)
 var sor := 1.0 ## successive over-relaxation factor of the Gauss-Seidel sweeps (faster tension propagation along the grid)

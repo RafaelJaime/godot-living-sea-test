@@ -18,6 +18,7 @@ var _accum := 0.0
 func _ready() -> void:
 	process_priority = 150
 	resolution = Quality.wake_resolution
+	print("[quality] wake: ", resolution, "^2 at ", Quality.wake_updates_per_second, " Hz (0 = every frame)")
 	_ship = get_node(ship_path)
 	var sh := load("res://shaders/wake_update.gdshader") as Shader
 	for i in 2:

@@ -9,8 +9,8 @@ extends Node
 
 enum Level { DEV, FINAL }
 
-var level: Level = Level.FINAL
-var name_: String = "final"
+var level: Level = Level.DEV
+var name_: String = "dev"
 
 # --- read by other scripts ---
 var ocean_levels := 11
@@ -29,13 +29,16 @@ var fft_updates_per_second := 40.0
 var readback_hz := 20.0
 
 func _init() -> void:
-	var want := str(ProjectSettings.get_setting("game/quality", "final"))
+	var want := str(ProjectSettings.get_setting("game/quality", "dev"))
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--quality="):
 			want = a.get_slice("=", 1)
 	set_level(want)
 
 func set_level(n: String) -> void:
+	if n != "dev" and n != "final":
+		push_warning("[quality] unknown preset '" + n + "', falling back to dev")
+		n = "dev"
 	name_ = n
 	if n == "dev":
 		level = Level.DEV
@@ -54,7 +57,6 @@ func set_level(n: String) -> void:
 		fft_updates_per_second = 20.0
 		readback_hz = 10.0
 	else:
-		name_ = "final"
 		level = Level.FINAL
 		ocean_levels = 11
 		fft_size = 512
@@ -83,6 +85,7 @@ func _ready() -> void:
 		vp.scaling_3d_scale = render_scale
 	print("[quality] ", name_, ": rings=", ocean_levels, " fft=", fft_size, " cascades=", ocean_cascades, " scale=", render_scale,
 		" msaa=", msaa, " fps_cap=", max_fps, " shadows=", shadows, " glow=", glow)
+	print("[quality] ", name_, ": SSR/SSAO/SSIL/volumetric fog disabled (none enabled in the scene; forced off here)")
 	_apply_scene.call_deferred()
 
 func _apply_scene() -> void:
