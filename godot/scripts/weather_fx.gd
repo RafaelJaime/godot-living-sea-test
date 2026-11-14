@@ -6,6 +6,8 @@ var _flash_light: DirectionalLight3D
 var _next_strike := 8.0
 var _pattern: Array = [] # [Vector2(delay, intensity)] queue
 var _pat_t := 0.0
+var _bolt: MeshInstance3D
+var _bolt_mat: StandardMaterial3D
 
 func _ready() -> void:
 	_rain = GPUParticles3D.new()
@@ -38,6 +40,20 @@ func _ready() -> void:
 	_rain.draw_pass_1 = cap
 	_rain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_rain)
+	_bolt_mat = StandardMaterial3D.new()
+	_bolt_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_bolt_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_bolt_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_bolt_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_bolt_mat.disable_fog = true
+	_bolt_mat.albedo_color = Color(0.75, 0.82, 1.0)
+	_bolt = MeshInstance3D.new()
+	_bolt.material_override = _bolt_mat
+	_bolt.top_level = true
+	_bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_bolt.extra_cull_margin = 5000.0
+	_bolt.visible = false
+	add_child(_bolt)
 	_flash_light = DirectionalLight3D.new()
 	_flash_light.light_color = Color(0.75, 0.8, 1.0)
 	_flash_light.light_energy = 0.0
@@ -67,9 +83,67 @@ func _process(delta: float) -> void:
 			_pattern = [Vector2(0.0, 1.0), Vector2(0.11, 0.65), Vector2(0.23, 0.9)] if randf() < 0.6 else [Vector2(0.0, 0.95)]
 			_pat_t = 0.0
 			_flash_light.rotation_degrees = Vector3(randf_range(-80, -55), randf_range(0, 360), 0)
+			_spawn_bolt()
 	if not _pattern.is_empty():
 		_pat_t += delta
 		while not _pattern.is_empty() and _pat_t >= _pattern[0].x:
 			w.flash = maxf(w.flash, _pattern[0].y)
 			_pattern.pop_front()
 	_flash_light.light_energy = w.flash * 2.5
+	_bolt.visible = w.flash > 0.04
+	_bolt_mat.albedo_color = Color(0.75, 0.82, 1.0) * clampf(w.flash * 1.6, 0.0, 1.6)
+	_bolt_mat.albedo_color.a = clampf(w.flash * 1.5, 0.0, 1.0)
+
+## Jagged branching bolt: midpoint-displaced polyline from the cloud base to the sea, plus 1-2 branches, as a camera-facing
+## ribbon that is only lit while the flash lasts (the pattern re-lights the same bolt, giving the flicker).
+func _jag(a: Vector3, b: Vector3, side: Vector3, amp: float, iters: int) -> PackedVector3Array:
+	var pts := PackedVector3Array([a, b])
+	for _i in iters:
+		var out := PackedVector3Array()
+		for k in pts.size() - 1:
+			out.append(pts[k])
+			var mid := (pts[k] + pts[k + 1]) * 0.5
+			mid += side * randf_range(-1.0, 1.0) * amp
+			out.append(mid)
+		out.append(pts[pts.size() - 1])
+		pts = out
+		amp *= 0.55
+	return pts
+
+func _ribbon(st: SurfaceTool, pts: PackedVector3Array, side: Vector3, w0: float, w1: float) -> void:
+	for k in pts.size() - 1:
+		var t0 := float(k) / float(pts.size() - 1)
+		var t1 := float(k + 1) / float(pts.size() - 1)
+		var wa := lerpf(w0, w1, t0) * 0.5
+		var wb := lerpf(w0, w1, t1) * 0.5
+		var a0 := pts[k] - side * wa
+		var a1 := pts[k] + side * wa
+		var b0 := pts[k + 1] - side * wb
+		var b1 := pts[k + 1] + side * wb
+		for v in [a0, a1, b0, a1, b1, b0]:
+			st.add_vertex(v)
+
+func _spawn_bolt() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var fwd := -cam.global_transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized().rotated(Vector3.UP, deg_to_rad(randf_range(-32.0, 32.0)))
+	var dist := randf_range(500.0, 1300.0)
+	var ground := cam.global_position + fwd * dist
+	ground.y = 0.0
+	var side := fwd.cross(Vector3.UP).normalized()
+	var top := ground + Vector3(randf_range(-80, 80), randf_range(420, 560), randf_range(-80, 80))
+	var main := _jag(top, ground, side, 90.0, 6)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var w := dist * 0.0085
+	_ribbon(st, main, side, w * 0.55, w)
+	for _b in randi_range(1, 2):
+		var i := randi_range(int(main.size() * 0.25), int(main.size() * 0.7))
+		var start := main[i]
+		var end := start + Vector3(randf_range(-1, 1) * 170.0, -randf_range(120, 240), randf_range(-1, 1) * 60.0)
+		_ribbon(st, _jag(start, end, side, 35.0, 5), side, w * 0.4, w * 0.12)
+	_bolt.mesh = st.commit()
+	_bolt.global_transform = Transform3D.IDENTITY

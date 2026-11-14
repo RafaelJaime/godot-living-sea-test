@@ -11,9 +11,12 @@ extends Node3D
 ## Triangles of the hull fully inside this box (Pivot space) are removed (the baked wheel).
 @export var cut_box := AABB(Vector3(-1.25, 4.45, 8.0), Vector3(2.5, 2.0, 0.62))
 ## Wheel angle (rad) per unit of rudder.
-@export var turn_per_rudder := 2.3
+@export var turn_per_rudder := 3.6
 @export var wheel_smooth := 6.0
+## Total wheel diameter incl. handles, in units of the grip diameter (asset only).
+@export var wheel_asset_diameter_scale := 1.2
 
+const WHEEL_ASSET := "res://assets/ship/ship_wheel.glb"
 var wheel: Node3D
 var hand_l: Node3D
 var hand_r: Node3D
@@ -86,6 +89,8 @@ func _build_wheel() -> void:
 	wheel.name = "Wheel"
 	wheel.position = wheel_pos
 	add_child(wheel)
+	if ModelUtil.file_present(WHEEL_ASSET) and _mount_wheel_asset():
+		return
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.36, 0.20, 0.10)
 	wood.roughness = 0.75
@@ -159,9 +164,9 @@ func _process(delta: float) -> void:
 	_handle_r = _pick_handle(_handle_r, grip_r)
 	var dl := _handle_pos(_handle_l)
 	var dr := _handle_pos(_handle_r)
-	var k := 1.0 - exp(-20.0 * delta)
-	_tgt_l = _tgt_l.lerp(dl, k)
-	_tgt_r = _tgt_r.lerp(dr, k)
+	# Hands glide to their handle with a speed limit (no snapping), so the arms never whip on a regrab.
+	_tgt_l = _glide(_tgt_l, dl, delta)
+	_tgt_r = _glide(_tgt_r, dr, delta)
 	hand_l.position = _tgt_l
 	hand_r.position = _tgt_r
 
@@ -179,3 +184,34 @@ func _pick_handle(current: int, grip_angle: float) -> int:
 			best_err = e
 			best = k
 	return best
+
+## Mounts res://assets/ship/ship_wheel.glb: finds the axle (smallest AABB axis), turns it to the ship's fore/aft axis,
+## scales it to the wheel size and centres the hub on the helm pivot. Returns false if the asset cannot be loaded.
+func _mount_wheel_asset() -> bool:
+	var inst := ModelUtil.load_glb(WHEEL_ASSET) as Node3D
+	if inst == null:
+		return false
+	var holder := Node3D.new()
+	wheel.add_child(holder)
+	holder.add_child(inst)
+	var box := ModelUtil.local_aabb(holder)
+	var sz := box.size
+	var axle := 0
+	if sz.y < sz[axle]: axle = 1
+	if sz.z < sz[axle]: axle = 2
+	var b := Basis.IDENTITY
+	if axle == 0:
+		b = Basis(Vector3.UP, PI * 0.5)
+	elif axle == 1:
+		b = Basis(Vector3.RIGHT, PI * 0.5)
+	var disc := maxf(maxf(sz.x, sz.y), sz.z)
+	var s := (wheel_radius * 2.0 * wheel_asset_diameter_scale) / maxf(disc, 0.0001)
+	holder.transform = Transform3D(b * Basis.from_scale(Vector3(s, s, s)), -(b * (box.get_center() * s)))
+	print("[helm] mounted ship_wheel.glb axle_axis=", axle, " scale=", s)
+	return true
+
+const HAND_MAX_SPEED := 0.9 # m/s
+func _glide(cur: Vector3, goal: Vector3, delta: float) -> Vector3:
+	var k := 1.0 - exp(-10.0 * delta)
+	var step := (goal - cur) * k
+	return cur + step.limit_length(HAND_MAX_SPEED * delta)

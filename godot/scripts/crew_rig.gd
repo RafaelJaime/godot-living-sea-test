@@ -10,11 +10,36 @@ extends Node
 
 var _ship: Node
 var _pivot: Node3D
+var _clamped: Array = [] # [{proxy, source, sk, side, len}]
 
 func _ready() -> void:
 	_ship = get_node(ship_path)
 	_pivot = get_parent() as Node3D
 	get_node(crew_path).crew_ready.connect(_on_crew_ready)
+
+## IK target proxy: follows `source` but is pulled inside 93% of the arm's reach from the shoulder, so the arm never
+## fully extends (a straight arm has an undefined elbow plane and flips).
+func make_clamped_target(sk: Skeleton3D, side: String, source: Node3D) -> Node3D:
+	var proxy := Node3D.new()
+	proxy.name = side + "ReachTarget"
+	proxy.top_level = true
+	sk.add_child(proxy)
+	var gt := sk.global_transform
+	var a := sk.get_bone_global_rest(sk.find_bone(side + "Arm")).origin
+	var f := sk.get_bone_global_rest(sk.find_bone(side + "ForeArm")).origin
+	var h := sk.get_bone_global_rest(sk.find_bone(side + "Hand")).origin
+	var length := (a.distance_to(f) + f.distance_to(h)) * gt.basis.get_scale().x
+	_clamped.append({"proxy": proxy, "source": source, "sk": sk, "side": side, "len": length})
+	proxy.global_position = source.global_position
+	return proxy
+
+func _update_clamped() -> void:
+	for c in _clamped:
+		var sk: Skeleton3D = c["sk"]
+		var shoulder := sk.global_transform * sk.get_bone_global_pose(sk.find_bone(String(c["side"]) + "Arm")).origin
+		var src: Node3D = c["source"]
+		var d := src.global_position - shoulder
+		(c["proxy"] as Node3D).global_position = shoulder + d.limit_length(float(c["len"]) * 0.93)
 
 func _skeleton_of(slot: Node) -> Skeleton3D:
 	var v := slot.get("visual") as Node
@@ -36,11 +61,15 @@ func _on_crew_ready() -> void:
 		match String(slot.name):
 			"Papi_Fuego":
 				mod.turn_lean = 1.0
-				mod.head_look = 0.55
+				mod.head_look = 0.3
 				mod.brace_gain = 1.0
+				# Helming: the idle only drives hips/legs; upper body, head and arms are neutral (IK/layers drive them).
+				mod.neutral_bones = PackedStringArray(["Spine02", "Spine01", "Spine", "neck", "Head", "headfront", "head_end",
+					"LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm", "RightHand"])
 			"Don_Omar":
 				mod.counter_roll = 0.6
 				mod.brace_gain = 0.0
+				mod.neutral_bones = PackedStringArray(["LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm", "RightHand"])
 			_:
 				mod.brace_gain = 0.5
 		sk.add_child(mod)
@@ -57,7 +86,7 @@ func _setup_helmsman(slot: Node3D, sk: Skeleton3D) -> void:
 	var ik := TwoBoneIK3D.new()
 	ik.name = "ArmsIK"
 	ik.setting_count = 2
-	var sides := [["Left", helm.hand_l, pole_l], ["Right", helm.hand_r, pole_r]]
+	var sides := [["Left", make_clamped_target(sk, "Left", helm.hand_l), pole_l], ["Right", make_clamped_target(sk, "Right", helm.hand_r), pole_r]]
 	sk.add_child(ik)
 	for i in 2:
 		var side: String = sides[i][0]
@@ -73,12 +102,13 @@ func _setup_violin(_slot: Node3D, sk: Skeleton3D) -> void:
 	var v := Violin.new()
 	v.name = "Violin"
 	sk.add_child(v)
-	v.setup(sk)
+	v.setup(sk, self)
 
 var _dbg_sk: Skeleton3D
 var _dbg_helm: Node
 var _dbg_n := 0
 func _process(_delta: float) -> void:
+	_update_clamped()
 	if _dbg_sk != null or not OS.get_cmdline_user_args().has("--debug-rig"):
 		return
 	var f := get_node(crew_path).get_node_or_null("Papi_Fuego")
@@ -87,13 +117,31 @@ func _process(_delta: float) -> void:
 		_dbg_helm = get_node(helm_path)
 		_dbg_sk.skeleton_updated.connect(_dbg_report)
 
+var _prev_q := {}
+var _prev_ms := 0
+var _max_w := {}
 func _dbg_report() -> void:
-	_dbg_n += 1
-	if _dbg_n % 90 != 0:
+	var now := Time.get_ticks_msec()
+	var dt := float(now - _prev_ms) / 1000.0
+	if dt < 0.05: # measure over >= 50 ms windows (skeleton_updated can fire several times per frame)
 		return
-	for side in ["Left", "Right"]:
-		var hb := _dbg_sk.find_bone(side + "Hand")
-		var hand := _dbg_sk.global_transform * _dbg_sk.get_bone_global_pose(hb).origin
-		var shoulder := _dbg_sk.global_transform * _dbg_sk.get_bone_global_pose(_dbg_sk.find_bone(side + "Arm")).origin
-		var tgt: Vector3 = (_dbg_helm.hand_l if side == "Left" else _dbg_helm.hand_r).global_position
-		print("[dbg] ", side, " hand-target err=", snappedf(hand.distance_to(tgt), 0.001), " shoulder-target=", snappedf(shoulder.distance_to(tgt), 0.001))
+	_prev_ms = now
+	if dt > 0.5:
+		_prev_q.clear()
+		return
+	_dbg_n += 1
+	for slot_name: String in ["Papi_Fuego", "Don_Omar"]:
+		var sk := _skeleton_of(get_node(crew_path).get_node(slot_name))
+		for b: String in ["LeftArm", "LeftForeArm", "RightArm", "RightForeArm"]:
+			var q := sk.get_bone_global_pose(sk.find_bone(b)).basis.get_rotation_quaternion()
+			var key: String = str(slot_name) + "/" + str(b)
+			if _prev_q.has(key):
+				var w := rad_to_deg((_prev_q[key] as Quaternion).angle_to(q)) / dt
+				_max_w[key] = maxf(_max_w.get(key, 0.0), w)
+			_prev_q[key] = q
+	if _dbg_n % 20 == 0:
+		var out := []
+		for k in _max_w:
+			out.append("%s=%d" % [k, int(_max_w[k])])
+		print("[armvel deg/s max] ", ", ".join(out))
+		_max_w.clear()

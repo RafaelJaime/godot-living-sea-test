@@ -96,7 +96,7 @@ func _update() -> void:
 	_sun.visible = _sun.light_energy > 0.01
 	if _moon:
 		_look_dir(_moon, w.moon_dir)
-		_moon.light_energy = 0.55 * w.night * (1.0 - 0.7 * cloud)
+		_moon.light_energy = 0.22 * w.night * (1.0 - 0.7 * cloud)
 		_moon.visible = _moon.light_energy > 0.01
 	# Ambient / fog.
 	var env := environment

@@ -84,6 +84,8 @@ func _process(delta: float) -> void:
 		if d:
 			d.jump_to(cam_idx, true)
 	if '--lightning' in OS.get_cmdline_user_args() and _step == 2 and _t >= when - 0.08:
+		if WorldState.flash < 0.5:
+			get_tree().root.get_node('Main/Weather')._spawn_bolt()
 		WorldState.flash = 1.0
 	if _t >= when:
 		var img := get_viewport().get_texture().get_image()

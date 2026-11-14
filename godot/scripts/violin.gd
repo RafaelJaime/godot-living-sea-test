@@ -13,7 +13,7 @@ var _t := 0.0
 @export var bow_speed := 1.9
 @export var bow_amplitude := 10.0
 
-func setup(sk: Skeleton3D) -> void:
+func setup(sk: Skeleton3D, rig: Node) -> void:
 	_sk = sk
 	_violin = _build_violin()
 	_violin.top_level = true # positioned every frame in the character frame (see _place)
@@ -36,7 +36,7 @@ func setup(sk: Skeleton3D) -> void:
 	ik.name = "ViolinIK"
 	ik.setting_count = 2
 	sk.add_child(ik)
-	var sides := [["Left", hold, _pole_l], ["Right", _bow_target, _pole_r]]
+	var sides := [["Left", rig.make_clamped_target(sk, "Left", hold), _pole_l], ["Right", rig.make_clamped_target(sk, "Right", _bow_target), _pole_r]]
 	for i in 2:
 		var side: String = sides[i][0]
 		ik.set_root_bone_name(i, side + "Arm")
