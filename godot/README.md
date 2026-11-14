@@ -103,3 +103,10 @@ off a field here: off in dev, on in final.
   `sky_horizon_color`, `sky_zenith_color`, `sky_fog_color` (vec3), `sky_sun_color` (vec3, colour x energy), `sky_sun_dir`, `sky_fog_density`,
   `sky_storminess`, `sky_night`, `sky_rain`, `sky_biolum` (float; night bioluminescence amount for the wake/ocean).
 - WorldState additions: `rainbow`, `fog_bank`, `biolum`, `wetness`, signals `thunder(delay_s, intensity)` and `storm_cleared`. Test aids: `--rainbow-test`, `--no-autoexp`.
+- Clouds are gated by the quality preset: SC2 runs with `--quality=final` (or `--sc2` in dev); dev uses the sky shader fbm layer.
+
+## Ambient life (R8)
+`scripts/ambient/ambient_life.gd` (node `AmbientLife`): dolphin pods at the bow (day, calm), distant whale spouts, a ship passing on the horizon (lanterns lit at night/storm),
+flotsam and seaweed on the swell (height + slope from `Waves.height_at`). `scripts/gulls.gd`: gull + albatross boids around the masts (diurnal).
+`scripts/ambient/lighthouse_beam.gd`: rotating beam on island lighthouses (night/storm). All world-space and rebase-safe (group `rebase`).
+Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-birds`. Bioluminescence hook for the ocean: `WorldState.biolum` and the global shader parameter `sky_biolum` (0..1, night only).

@@ -2,7 +2,7 @@ extends Node
 ## Volumetric clouds (Sunshine Clouds 2, MIT) attached to the Sky WorldEnvironment as a CompositorEffect.
 ## Driven by WorldState: coverage, density, layer height and colours follow weather and time of day; the sun AND the moon
 ## light the clouds (so night clouds are only moonlit) and lightning lights them from inside.
-## Disabled with `--no-sc2` (the sky shader's fbm layer then draws the clouds).
+## Enabled by `--quality=final` (or `--sc2` in dev); `--no-sc2` disables it (the sky shader's fbm layer then draws the clouds).
 ##
 ## Metal note: SC2's MSAA post pass writes an image2DMS, which the Metal driver rejects, so this node switches the viewport
 ## from MSAA to TAA while the clouds are on. Cost (Apple M5, 1920x1080, scene ~14.5 ms): see odd/tasks/living-sea-wallpaper.md R5.
@@ -13,7 +13,9 @@ var driver: Node
 var _sky: WorldEnvironment
 
 func _ready() -> void:
-	if "--no-sc2" in OS.get_cmdline_user_args():
+	var args := OS.get_cmdline_user_args()
+	# Heavy feature: off in the dev quality preset (the sky shader's fbm layer draws the clouds), on in final or with `--sc2`.
+	if "--no-sc2" in args or (Quality.level != Quality.Level.FINAL and not "--sc2" in args):
 		queue_free()
 		return
 	_sky = get_node("../Sky") as WorldEnvironment

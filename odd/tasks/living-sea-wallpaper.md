@@ -114,7 +114,7 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       time of day and weather, auto-exposure, SSAO/SSIL where affordable, crisp ship shadows, storm darkness
       and rain like ref_15s/ref_18s.
 - [ ] R6 Physics ship (T8/T8b) and crew physics (T10) as already specified.
-- [ ] R8 Ambient life (watchability): gull/albatross boids, dolphins at the bow, distant whale spouts, passing
+- [x] R8 Ambient life (done on feat/sky-ambient: gull/albatross boids, bow dolphins, whale spouts, horizon ships with lanterns, lighthouse beams, flotsam/seaweed; biolum hook = WorldState.biolum / global sky_biolum; wet deck and cat's paws NOT done (ship/ocean side). Final preset 1080p: 13.3 ms with everything on, ambient cost within noise): gull/albatross boids, dolphins at the bow, distant whale spouts, passing
       ships on the horizon (lights at night), lighthouse with rotating beam on islands, night bioluminescence in the
       wake, visible wind gusts on the water (cat's paws), flotsam/seaweed, wet deck in rain, rainbow after storms,
       morning fog. See odd/research/realism-techniques.md.

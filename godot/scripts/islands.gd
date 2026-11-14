@@ -229,6 +229,10 @@ func _make_lighthouse(base_y: float) -> Node3D:
 	lamp.material_override = lm
 	lamp.position = Vector3(0, base_y + 17.1, 0)
 	n.add_child(lamp)
+	var beam := Node3D.new()
+	beam.set_script(load("res://scripts/ambient/lighthouse_beam.gd"))
+	beam.position = lamp.position
+	n.add_child(beam)
 	var roof := MeshInstance3D.new()
 	var rc := CylinderMesh.new()
 	rc.bottom_radius = 2.0; rc.top_radius = 0.1; rc.height = 1.8; rc.radial_segments = 8
