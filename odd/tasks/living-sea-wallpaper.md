@@ -78,6 +78,13 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
 - [ ] T10 Hybrid character physics (APPROVED 2026-11-14): foot IK on the tilting deck + stumbles/balance recovery
       in storms over keyframed base clips. Hair/clothing physics explicitly OUT of scope. — delegated
 
+## Ownership split (user 2026-11-14)
+- NPCs/crew behaviour (sandbox T7, foot IK/stumbles T10, helm/violin/crew poses, character assets) are owned by the
+  USER in a separate session. This feature's agents must not modify crew/NPC code or assets; they expose an
+  "Integration API for NPCs" (deck query, ship motion signals, WorldState, rudder/heading) documented in README.
+- This feature owns: ocean, horizon, water shading, wake/spray, cloth sails+flags+wind, sky/light, physics ship,
+  lashed boat, ambient "living wallpaper" mechanics, QA.
+
 ## Phase 2 — Realism pass (user 2026-11-14: "lo más realista posible")
 Reference frames: refs/reference_krautdev/ref_*.jpg (from the KrautDev video). Every task closes with a
 side-by-side capture at fixed camera presets vs. the matching reference frame + an objective check.
