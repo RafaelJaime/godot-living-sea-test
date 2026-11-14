@@ -35,11 +35,18 @@ extends Marker3D
 
 const CROSSFADE := 0.35 ## seconds, for every clip change
 var visual: Node3D
+var _test_clip := ""
+var _test_t := 0.0
 var _anim_player: AnimationPlayer
 var _sway_t := randf() * 10.0
 var _is_placeholder := false
 var position_x_hint := 0.0
 var position_z_hint := 0.0
+
+func _enter_tree() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--test-clip="):
+			_test_clip = a.get_slice("=", 1)
 
 func setup(ship_length: float, ship_beam: float, snap_y_func: Callable) -> void:
 	var path := final_path if ModelUtil.file_present(final_path) else placeholder_path
@@ -112,11 +119,18 @@ func _setup_animation(root: Node) -> void:
 	var anim := _anim_player.get_animation(chosen)
 	anim.loop_mode = Animation.LOOP_LINEAR
 	_anim_player.playback_default_blend_time = CROSSFADE
+	var sk_l := root.find_children("*", "Skeleton3D", true, false)
+	if not sk_l.is_empty():
+		CrewAnim.install(_anim_player, sk_l[0] as Skeleton3D)
 	_anim_player.play(chosen)
 	_anim_player.seek(randf() * maxf(anim.length, 0.01), true)
 	print("[crew] ", character_name, " playing animation '", chosen, "'")
 
 func _process(delta: float) -> void:
+	if _test_clip != "" and character_name == "Papi_Diagnostica":
+		_test_t += delta
+		if _test_t > 3.0 and _anim_player and _anim_player.current_animation != "shared/" + _test_clip:
+			play_shared(_test_clip)
 	# Procedural breathing/sway only when the model has no animation of its own.
 	if visual == null or _anim_player != null:
 		return
@@ -153,6 +167,9 @@ func _make_barrels(deck_y: float) -> void:
 		get_parent().add_child(b)
 
 ## Switch clip with a crossfade (never a hard cut). Looping is forced for idle-like clips.
+func play_shared(clip: String) -> void:
+	change_clip("shared/" + clip)
+
 func change_clip(clip: String, loop := true) -> void:
 	if _anim_player == null or not _anim_player.has_animation(clip) or _anim_player.current_animation == clip:
 		return
