@@ -85,6 +85,9 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
 - This feature owns: ocean, horizon, water shading, wake/spray, cloth sails+flags+wind, sky/light, physics ship,
   lashed boat, ambient "living wallpaper" mechanics, QA.
 
+Resource rule: all Godot runs go through ~/.claude/bin/testsem (max 2 machine-wide), batched captures, focus-free.
+Parallel tracks (2026-11-14): godot-ship (R0-R3, R9, R6) and cloth-wind (R4/T9/T9b); sky-ambient stopped (R5/R8 backlog) to reduce load.
+
 ## Phase 2 — Realism pass (user 2026-11-14: "lo más realista posible")
 Research: odd/research/realism-techniques.md (sources + top 10). Reference frames: refs/reference_krautdev/ref_*.jpg (from the KrautDev video). Every task closes with a
 side-by-side capture at fixed camera presets vs. the matching reference frame + an objective check.
@@ -115,6 +118,10 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       ships on the horizon (lights at night), lighthouse with rotating beam on islands, night bioluminescence in the
       wake, visible wind gusts on the water (cat's paws), flotsam/seaweed, wet deck in rain, rainbow after storms,
       morning fog. See odd/research/realism-techniques.md.
+- [ ] R9 Ship night lighting, NPC-gated: stern/deck lanterns + cabin glow, OFF by default; turned on only when a
+      crew member lights them via the NPC Integration API (ShipLights.get_lanterns/light/extinguish/is_lit,
+      signals lighting_needed at dusk / extinguish_suggested at dawn). NPC behaviour belongs to the user's session.
+      — delegated (godot-ship, after R0)
 - [ ] R7 Final QA: 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
       no visual defects checklist (cracks, popping, floating crew, clipping, keel visible).
 
