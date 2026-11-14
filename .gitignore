@@ -7,3 +7,5 @@ _vendor_eval/
 godot/assets/ship/pinnace/*.png
 godot/assets/anim_src/*_Image_*.jpg
 godot/assets/anim_src/*_normal.png
+# addons need their import settings (e.g. Sunshine Clouds 2 3D textures)
+!godot/addons/**/*.import
