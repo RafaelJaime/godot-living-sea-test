@@ -55,3 +55,12 @@ Ocean: `Waves.sea_state` (0 calm .. 1 storm); FFT pipeline vendored in `addons/o
 The autopilot (`Ship/Autopilot`) sails between islands, tacks when the waypoint is upwind and drives `Ship.rudder_cmd`; `Ship.rudder` (-1..1) is the shared steering signal.
 Test args: `--timescale=N` (day/weather clocks only), `--start-phase=0..1` (0 midnight, .5 noon), `--weather=clear|cloudy|storm` (hold),
 `--sea=0..1`, `--wind=<deg>` (fixed wind direction), `--no-day`, `--engine-scale=N`, `--lightning`, `--plan=world|sky`, `--autopilot-log=<secs>`.
+
+## Integration API for NPCs (ship lights)
+Autoload `ShipLights` (scripts/ship_lights.gd); lanterns are `ShipLantern` nodes created under `Ship/Pivot/Lights` (table in
+`scripts/ship_lights_builder.gd`: stern_port, stern_starboard, helm, waist, forecastle, cabin). They are OFF by default.
+- `ShipLights.get_lanterns()` -> `[{id, position (world), interaction_point (world deck point where the NPC stands), facing_deg (yaw of the stance, 0 = bow, +90 = port), lit, is_window}]`
+- `ShipLights.light(id)` / `ShipLights.extinguish(id)` / `ShipLights.is_lit(id)`; ignition takes ~2.4 s (flame grows, light fades in), extinguish ~1.2 s.
+- Signals: `lighting_needed(ids)` when `WorldState.daylight` drops below 0.30 (dusk), `extinguish_suggested(ids)` when it rises above 0.50 (dawn), `lantern_changed(id, lit)`.
+- Test aid: `--auto-light[=delay_s]` lights every lantern (staggered) that long after dusk; use `--start-phase=0.0 --no-day` for a night capture.
+Other hooks for NPC code: ship deck query = raycast against the ship meshes (see crew_manager.gd), `Ship.roll/pitch/roll_rate/pitch_rate/yaw/yaw_rate/rudder/forward/current_speed`, `Ship.linear_velocity` (RigidBody3D), `WorldState` (daylight, night, storm, cloud, wind_vector(), wind_speed_ms(), sun_elevation_deg).

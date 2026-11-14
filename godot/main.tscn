@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://scripts/crew_rig.gd" id="17_rig"]
 [ext_resource type="Script" path="res://scripts/pinnace_rig.gd" id="18_pin"]
 [ext_resource type="Script" path="res://scripts/flag.gd" id="19_flag"]
+[ext_resource type="Script" path="res://scripts/ship_lights_builder.gd" id="99_lights"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -69,6 +70,9 @@ script = ExtResource("18_pin")
 
 [node name="CrewRig" type="Node" parent="Ship/Pivot"]
 script = ExtResource("17_rig")
+
+[node name="Lights" type="Node3D" parent="Ship/Pivot"]
+script = ExtResource("99_lights")
 
 [node name="CrewMarkers" type="Node3D" parent="Ship/Pivot"]
 script = ExtResource("5_crewmgr")
