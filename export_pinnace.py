@@ -1,9 +1,12 @@
 # Blender CLI: FBX (Poly Haven "Ship Pinnace" rig) -> glTF for Godot. Rebuilds materials from the 1k textures
 # (diffuse with alpha, GL normal), keeps the armature and per-object meshes, alpha-clips the sails.
 import bpy, os
-ROOT = "/Users/rafael/Documents/workspace/autonomo/el-terraria-blender/"
-TEX = ROOT + "refs/sketchfab_pirate_ship_rigged/textures/"
-OUT = ROOT + "godot/assets/ship/pinnace/barco_pinnace.glb"
+import os
+# Inputs (untracked refs) come from REFS_ROOT, the output goes to the checkout that runs the script.
+REFS_ROOT = os.environ.get("REFS_ROOT", "/Users/rafael/Documents/workspace/autonomo/el-terraria-blender/")
+ROOT = REFS_ROOT
+TEX = REFS_ROOT + "refs/sketchfab_pirate_ship_rigged/textures/"
+OUT = os.path.dirname(os.path.abspath(__file__)) + "/godot/assets/ship/pinnace/barco_pinnace.glb"
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=ROOT + "refs/sketchfab_pirate_ship_rigged/source/fbx/ship_pinnace_1k.fbx")
 # The FBX keeps the deployed (*_down) sails as hidden objects whose mesh data is local to the object's own location,
@@ -25,6 +28,46 @@ for o in [o for o in bpy.data.objects if o.type == 'MESH']:
     o.matrix_basis.identity()
     o.hide_viewport = False
     o.hide_set(False)
+bpy.context.view_layer.update()
+
+# --- Split the ship's rowing boat out of the details mesh: the loose component whose bbox matches the boat. ---
+import bmesh
+BOAT_MIN = (-0.89, -6.26, 4.05)
+BOAT_MAX = (0.90, -1.25, 5.06)
+det = bpy.data.objects["geo_ship_pinnace_details"]
+def components(bm):
+    seen = set(); out = []
+    for v in bm.verts:
+        if v.index in seen: continue
+        st = [v]; seen.add(v.index); comp = []
+        while st:
+            c = st.pop(); comp.append(c.index)
+            for e in c.link_edges:
+                w = e.other_vert(c)
+                if w.index not in seen: seen.add(w.index); st.append(w)
+        out.append(comp)
+    return out
+bm = bmesh.new(); bm.from_mesh(det.data); bm.verts.ensure_lookup_table()
+boat_idx = None
+for comp in components(bm):
+    if len(comp) < 150: continue
+    pts = [bm.verts[i].co for i in comp]
+    mn = [min(p[i] for p in pts) for i in range(3)]; mx = [max(p[i] for p in pts) for i in range(3)]
+    if all(abs(mn[i] - BOAT_MIN[i]) < 0.2 and abs(mx[i] - BOAT_MAX[i]) < 0.2 for i in range(3)):
+        boat_idx = set(comp)
+print("BOAT component vertices:", None if boat_idx is None else len(boat_idx))
+if boat_idx:
+    bm2 = bmesh.new(); bm2.from_mesh(det.data); bm2.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm2, geom=[v for v in bm2.verts if v.index not in boat_idx], context='VERTS')
+    me2 = bpy.data.meshes.new("geo_ship_boat"); bm2.to_mesh(me2); bm2.free()
+    for mat in det.data.materials: me2.materials.append(mat)
+    boat = bpy.data.objects.new("geo_ship_boat", me2)
+    bpy.context.scene.collection.objects.link(boat)
+    boat.parent = arm
+    boat.matrix_parent_inverse.identity()
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in boat_idx], context='VERTS')
+    bm.to_mesh(det.data)
+bm.free()
 bpy.context.view_layer.update()
 for m in bpy.data.materials:
     base = m.name.split(".")[0]
