@@ -80,3 +80,19 @@ One wind model for everything that reacts to air.
   `.total_sail_force()` -> `{force, point}`. `flag.debug_info()` gives tension / pressure / gust for the flags.
 - QA: `-- --cloth-demo=full|calm|moderate|storm|beam|gust|gusthead [--no-day --start-phase=0.6 --weather=clear]` drives calm -> 12 m/s ->
   26 m/s -> wind from the beam/bow (backed sails) -> travelling gust (following / head wind), saves `_shots/cloth_*.png` and prints `[cloth]`/`[gust]` logs.
+
+## Quality presets (autoload `Quality`, scripts/quality.gd)
+`-- --quality=dev|final` (default `final`; ProjectSetting `game/quality` changes the default). Agents/tests use `--quality=dev` unless a step
+validates final visuals. `--uncap` removes the fps cap and vsync for benchmarking.
+| | dev | final |
+|---|---|---|
+| render scale / MSAA / fps cap | 0.6 FSR / off / 30 | 1.0 / 4x / vsync |
+| directional shadows, glow | off | on |
+| ocean rings / FFT / cascades | 6 / 128 / 2 | 11 / 512 / 3 |
+| wake field | 256^2 at 20 Hz | 1024^2 every frame |
+| cloth substeps+iterations | x0.5 | x1 |
+| particles (rain, spray) | x0.25 | x1 |
+Other systems read `Quality.<field>` (ocean_levels, fft_size, ocean_cascades, wake_resolution, cloth_scale, particle_scale, shadows, glow,
+render_scale, msaa, max_fps, readback_hz); it loads before everything else, so `_ready()` code can use it directly. The environment and lights
+are patched two frames after start (glow, SSR/SSAO off, shadows off in dev). New heavy features (SSR, volumetric clouds, higher FFT...) should hang
+off a field here: off in dev, on in final.

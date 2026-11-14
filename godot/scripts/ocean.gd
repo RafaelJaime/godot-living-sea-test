@@ -9,16 +9,16 @@ extends Node3D
 		sea_state = clampf(v, 0.0, 1.0)
 		_sea_dirty = true
 @export var wind_direction_deg := 60.0
-@export_enum("256:256", "512:512") var map_size := 512
-@export var updates_per_second := 40.0
-@export var readback_hz := 20.0
+var map_size := 512 # from Quality.fft_size
+var updates_per_second := 40.0 # from Quality
+var readback_hz := 20.0
 @export_color_no_alpha var water_color := Color(0.02, 0.15, 0.30)
 @export_color_no_alpha var foam_color := Color(0.80, 0.84, 0.86)
 @export var ship_path := NodePath("../Ship")
 @export_group("Clipmap")
 @export var base_cell := 0.8
 @export var cells_per_level := 96 ## multiple of 4
-@export var levels := 11 ## outer rings reach ~40 km: the sea meets the horizon
+var levels := 11 ## from Quality (11 rings reach ~40 km: the sea meets the horizon)
 
 ## Cascade tile sizes (m). Free: rebase shifts are folded in per cascade (cascade_shifts()).
 const TILES := [211.0, 79.0, 23.0] # deliberately non-integer ratios: no visible super-tiling
@@ -44,6 +44,10 @@ var _islands := PackedVector4Array()
 var _island_count := 0
 
 func _ready() -> void:
+	levels = Quality.ocean_levels
+	map_size = Quality.fft_size
+	updates_per_second = Quality.fft_updates_per_second
+	readback_hz = Quality.readback_hz
 	process_priority = 100 # after camera
 	_ship = get_node_or_null(ship_path)
 	RenderingServer.global_shader_parameter_set(&"water_color", water_color.srgb_to_linear())
@@ -81,7 +85,7 @@ func _make_parameters() -> void:
 		{"tile": TILES[1], "disp": 0.75, "norm": 1.0, "fetch": 150.0, "swell": 0.8, "spread": 0.4},
 		{"tile": TILES[2], "disp": 0.0, "norm": 0.25, "fetch": 550.0, "swell": 0.8, "spread": 0.4},
 	]
-	for i in defs.size():
+	for i in mini(defs.size(), Quality.ocean_cascades):
 		var p := WaveCascadeParameters.new()
 		var d: Dictionary = defs[i]
 		p.tile_length = Vector2(d["tile"], d["tile"])

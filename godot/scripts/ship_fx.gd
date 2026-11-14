@@ -58,7 +58,7 @@ func _scale_curve(a: float, b: float) -> CurveTexture:
 func _build() -> void:
 	# Droplets: tiny capsules aligned to their velocity (a thin, sharp streak), unshaded white.
 	_drops = GPUParticles3D.new()
-	_drops.amount = 1400
+	_drops.amount = int(1400 * Quality.particle_scale)
 	_drops.lifetime = 1.3
 	_drops.local_coords = false
 	_drops.amount_ratio = 0.0
@@ -93,7 +93,7 @@ func _build() -> void:
 	add_child(_drops)
 	# Mist: few, small, faint soft sprites (not the main read).
 	_mist = GPUParticles3D.new()
-	_mist.amount = 120
+	_mist.amount = maxi(8, int(120 * Quality.particle_scale))
 	_mist.lifetime = 1.6
 	_mist.local_coords = false
 	_mist.amount_ratio = 0.0

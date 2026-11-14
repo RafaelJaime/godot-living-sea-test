@@ -331,8 +331,8 @@ func _step(delta_raw: float) -> void:
 	var LAM := lam
 	# strong wind -> stiffer problem: more substeps (cost only when it blows)
 	var ws := WindField.mean_speed()
-	var nsub := substeps + mini((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0), max_extra_substeps)
-	var niter := iterations + boost_iters * ((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0))
+	var nsub := maxi(1, roundi(float(substeps + mini((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0), max_extra_substeps)) * Quality.cloth_scale))
+	var niter := maxi(3, roundi(float(iterations + boost_iters * ((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0))) * Quality.cloth_scale))
 	var h := delta / float(nsub)
 	var inv_h := 1.0 / h
 	var inv_h2 := inv_h * inv_h

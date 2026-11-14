@@ -11,7 +11,7 @@ var _bolt_mat: StandardMaterial3D
 
 func _ready() -> void:
 	_rain = GPUParticles3D.new()
-	_rain.amount = 7000
+	_rain.amount = int(7000 * Quality.particle_scale)
 	_rain.lifetime = 0.9
 	_rain.local_coords = false
 	_rain.amount_ratio = 0.0

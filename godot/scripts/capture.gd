@@ -74,6 +74,7 @@ func _ready() -> void:
 					PLAN.append([3.0 + 2.5 * k, int(i)])
 					k += 1
 		print('[capture] active')
+		get_tree().create_timer(0.1).timeout.connect(func() -> void: pass)
 
 func _process(delta: float) -> void:
 	_t += delta

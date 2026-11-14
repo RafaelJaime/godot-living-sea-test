@@ -5,7 +5,7 @@ extends Node
 
 @export var ship_path := NodePath("../Ship")
 @export var size := 320.0
-@export var resolution := 1024
+var resolution := 1024 # from Quality.wake_resolution
 
 var _ship: Node3D
 var _vp: Array[SubViewport] = []
@@ -13,9 +13,11 @@ var _mat: Array[ShaderMaterial] = []
 var _cur := 0
 var _origin_w := Vector2.INF # window origin in world coordinates (doubles via floats in GDScript)
 var _time := 0.0
+var _accum := 0.0
 
 func _ready() -> void:
 	process_priority = 150
+	resolution = Quality.wake_resolution
 	_ship = get_node(ship_path)
 	var sh := load("res://shaders/wake_update.gdshader") as Shader
 	for i in 2:
@@ -40,6 +42,12 @@ func _process(delta: float) -> void:
 	if Waves.ocean == null or delta <= 0.0:
 		return
 	_time += delta
+	if Quality.wake_updates_per_second > 0.0:
+		_accum += delta
+		if _accum < 1.0 / Quality.wake_updates_per_second:
+			return
+		delta = _accum
+		_accum = 0.0
 	var ship_l := Vector2(_ship.global_position.x, _ship.global_position.z)
 	var ship_w := ship_l + Vector2(Waves.offset_x, Waves.offset_z)
 	var texel := size / float(resolution)
