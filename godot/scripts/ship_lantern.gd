@@ -98,6 +98,11 @@ func _process(delta: float) -> void:
 	var flick := 1.0 + 0.10 * sin(t * 13.0) * sin(t * 5.3) + 0.06 * sin(t * 31.0 + 1.0)
 	var e := smoothstep(0.0, 1.0, _level)
 	_light.visible = e > 0.01
+	if is_window:
+		_glass.visible = e > 0.01 # unlit window panes must not show as white quads in daylight
+		for c in get_children():
+			if c is MeshInstance3D and c != _glass:
+				c.visible = e > 0.01
 	_light.light_energy = light_energy * e * flick
 	_mat.emission_energy_multiplier = 3.0 * e * flick
 	if _flame:

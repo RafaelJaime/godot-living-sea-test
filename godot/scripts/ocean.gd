@@ -12,7 +12,7 @@ extends Node3D
 @export_enum("256:256", "512:512") var map_size := 512
 @export var updates_per_second := 40.0
 @export var readback_hz := 20.0
-@export_color_no_alpha var water_color := Color(0.012, 0.10, 0.17)
+@export_color_no_alpha var water_color := Color(0.02, 0.15, 0.30)
 @export_color_no_alpha var foam_color := Color(0.80, 0.84, 0.86)
 @export var ship_path := NodePath("../Ship")
 @export_group("Clipmap")

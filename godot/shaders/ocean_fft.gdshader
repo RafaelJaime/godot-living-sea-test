@@ -156,11 +156,19 @@ void fragment() {
 	float broken = smoothstep(-0.15, 0.55, lace + 0.25 + 0.5 * bow_k * speed_k);
 	hull_foam = hull_foam_gain * band * broken * (0.30 + 0.55 * speed_k * (0.4 + 0.6 * bow_k));
 
-	float whitecap = smoothstep(0.0, 1.0, gradient.z * 0.75) * exp(-dist * 0.0035);
+	// Lacy foam: the accumulated foam is broken up by the fine slope field so it reads as patches and strands, not blobs.
+	float lace_n = fract(sin(dot(floor((UV + vec2(TIME * 0.03)) * 3.0), vec2(12.9, 78.2))) * 43758.5) * 0.5 + 0.5 * abs(sin(gradient.x * 55.0) * cos(gradient.y * 47.0));
+	float whitecap = smoothstep(0.0, 1.0, gradient.z * 0.75) * smoothstep(0.18, 0.7, lace_n + gradient.z * 0.45) * exp(-dist * 0.0035);
 	foam_factor = clamp(whitecap * (1.0 - 0.7 * shallow) + shore_foam * 0.9 + hull_foam, 0.0, 1.0);
 
+	// Own water colour: absorption body + teal scattering that grows toward wave crests (independent of the sky IBL).
+	float crest01 = smoothstep(-0.6, 1.4, wave_height);
 	vec3 deep = water_color.rgb;
-	vec3 base = mix(deep, shallow_color * 0.55, shallow * 0.9);
+	vec3 scatter = vec3(0.04, 0.32, 0.42);
+	vec3 body = mix(deep, scatter, crest01 * 0.4);
+	float sh = pow(shallow, 1.4);
+	vec3 shallow_tint = shallow_color * (0.5 + 0.35 * sh);
+	vec3 base = mix(body, shallow_tint, sh * 0.85);
 	ALBEDO = mix(base, foam_color.rgb, foam_factor);
 	if (debug_mode > 0.5 && debug_mode < 1.5) { ALBEDO = vec3(whitecap, hull_foam, shallow); }
 
@@ -192,12 +200,12 @@ void light() {
 	float view_mask = smith_masking_shadowing(ROUGHNESS, dot_nl);
 	float microfacet_distribution = ggx_distribution(dot(NORMAL, halfway), ROUGHNESS);
 	float geometric_attenuation = 1.0 / (1.0 + light_mask + view_mask);
-	SPECULAR_LIGHT += min(fresnel * microfacet_distribution * geometric_attenuation / (4.0 * dot_nv + 0.1), 6.0) * ATTENUATION; // clamped: no blown-out glints
+	SPECULAR_LIGHT += min(fresnel * microfacet_distribution * geometric_attenuation / (4.0 * dot_nv + 0.1), 5.0) * LIGHT_COLOR * 0.22 * ATTENUATION; // light colour+energy included (the moon must not glint like the sun); clamped
 
 	const vec3 sss_modifier = vec3(0.9, 1.15, 0.85);
 	float sss_height = 1.0 * max(0.0, wave_height + 2.5) * pow(max(dot(LIGHT, -VIEW), 0.0), 4.0) * pow(0.5 - 0.5 * dot(LIGHT, NORMAL), 3.0);
-	float sss_near = 0.5 * pow(dot_nv, 2.0);
-	float lambertian = 0.5 * dot_nl;
+	float sss_near = 0.34 * pow(dot_nv, 2.0);
+	float lambertian = 0.16 * dot_nl; // water is not a diffuse surface: keep sunlit faces from turning into pale patches
 	vec3 sss_tint = mix(vec3(1.0), vec3(0.6, 1.3, 1.2), shallow);
 	DIFFUSE_LIGHT += mix((sss_height + sss_near) * sss_modifier * sss_tint / (1.0 + light_mask) + lambertian, foam_color.rgb, foam_factor) * (1.0 - fresnel) * ATTENUATION * LIGHT_COLOR;
 }
