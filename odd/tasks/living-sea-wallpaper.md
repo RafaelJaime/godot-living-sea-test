@@ -57,6 +57,15 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
       - Crew balance: all crew sway/brace with ship roll (procedural hip/spine counter-lean). — delegated
 - [ ] T6 Camera fixes (Canto shot unoccluded, close-ups unobstructed, shots that show helmsman steering
       and storm) + nicer islands (beach, vegetation, shallows). — delegated
+- [ ] T6b Polish from user review: hull contact foam hugs the hull (no big white circle); smooth animation
+      blending, no model glitches. — delegated
+- [ ] T7 Sandbox crew: Papi Diagnostica and El Salchipapa roam the ship autonomously (deck waypoint graph,
+      cabin door in/out, stairs up to the helm to talk to Papi Fuego, gather to listen to Don Omar's violin,
+      idle chores), AnimationTree state machine with walk / climb_stairs / talk / listen clips (Meshy
+      re-rig clips: Casual_Walk 30, Climb_Stairs 441, Talk_with_Hands_Open 313, + idle/look; shared
+      AnimationLibrary across same-rig characters if retarget works, else per character). Helmsman and
+      violinist react (turn head toward visitor). Depends on final ship choice (door/stairs). — delegated
+- [ ] T3 note: flag cloth physics confirmed in scope (user asked 2026-11-14).
 
 ## Acceptance criteria
 - Water reads as realistic ocean (foam, wake behind ship, spray at bow) in captures; no seams.
