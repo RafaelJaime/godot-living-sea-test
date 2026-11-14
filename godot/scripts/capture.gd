@@ -116,8 +116,10 @@ func _jitter_step(delta: float) -> void:
 		return
 	var cam := get_viewport().get_camera_3d()
 	var ship := get_tree().root.get_node("Main/Ship") as Node3D
-	var rel := cam.global_position - ship.global_position
-	var fwd := -cam.global_transform.basis.z
+	# Measured in the ship's yaw frame: a turning ship legitimately swings the camera around it in world space.
+	var to_local := Basis(Vector3.UP, ship.rotation.y).inverse()
+	var rel := to_local * (cam.global_position - ship.global_position)
+	var fwd := to_local * (-cam.global_transform.basis.z)
 	if _frames > 0:
 		var d := rel - _prev_rel
 		var dfwd := fwd - _prev_fwd

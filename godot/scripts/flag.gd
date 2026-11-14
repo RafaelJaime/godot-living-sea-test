@@ -8,7 +8,9 @@ extends Node3D
 @export var staff_mesh_name := "pavillion_mast"
 @export var cols := 17
 @export var rows := 10
-@export var spacing := 0.2
+@export var spacing := 0.25   ## along the flag (m)
+@export var spacing_v := 0.30 ## down the flag (m); 16 x 0.25 by 9 x 0.30 = 4.0 x 2.7 m, the texture's 1.49 aspect
+@export var texture_path := "res://assets/ship/flag_pirat.png"
 @export var attach_drop := 0.35 ## the flag hangs this far below the staff tip
 
 var _ship: Node
@@ -30,7 +32,14 @@ func _ready() -> void:
 	_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	_mi.extra_cull_margin = 5.0
 	var m := StandardMaterial3D.new()
-	m.albedo_texture = _make_texture()
+	if ResourceLoader.exists(texture_path):
+		m.albedo_texture = load(texture_path)
+		# Crop the thin margin around the cloth in the supplied image so no border shows.
+		m.uv1_scale = Vector3(0.975, 0.97, 1.0)
+		m.uv1_offset = Vector3(0.0125, 0.015, 0.0)
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	else:
+		m.albedo_texture = _make_texture()
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.alpha_scissor_threshold = 0.5
@@ -57,7 +66,7 @@ func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 	var top := tip - Vector3(0, attach_drop, 0)
 	for r in rows:
 		for c in cols:
-			var p := top + Vector3(0.0, -float(r) * spacing, -float(c) * spacing) # initial: streaming toward the bow
+			var p := top + Vector3(0.0, -float(r) * spacing_v, -float(c) * spacing) # initial: streaming toward the bow
 			_pos.append(p); _prev.append(p)
 			if c == 0:
 				_pin.append(p)
@@ -121,6 +130,7 @@ func _simulate(dt: float, wind: Vector3, w: Node) -> void:
 			_prev[i] = _pos[i]
 			_pos[i] = np
 	# Structural + shear constraints.
+	var hypot := Vector2(spacing, spacing_v).length()
 	for _it in 5:
 		for r in rows:
 			for c in cols:
@@ -128,10 +138,10 @@ func _simulate(dt: float, wind: Vector3, w: Node) -> void:
 				if c < cols - 1:
 					_constrain(i, i + 1, spacing)
 				if r < rows - 1:
-					_constrain(i, i + cols, spacing)
+					_constrain(i, i + cols, spacing_v)
 				if c < cols - 1 and r < rows - 1:
-					_constrain(i, i + cols + 1, spacing * 1.4142)
-					_constrain(i + 1, i + cols, spacing * 1.4142)
+					_constrain(i, i + cols + 1, hypot)
+					_constrain(i + 1, i + cols, hypot)
 
 func _constrain(a: int, b: int, rest: float) -> void:
 	var d := _pos[b] - _pos[a]

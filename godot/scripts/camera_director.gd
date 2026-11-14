@@ -42,6 +42,7 @@ var free_mode := false
 ## Shots are authored for a 22 m ship; this scales them to the real ship length (set from ship_ready).
 var shot_scale := 1.0
 var _lift := 0.0
+var _env := -1000.0
 var _dt := 0.016
 var _ship: Node3D
 var _from := 0
@@ -161,11 +162,12 @@ func _shot_pose(i: int, t: float) -> Dictionary:
 		var wpos2 := f.origin + rel
 		wpos2.y = float(s["height"])
 		return {"pos": f.affine_inverse() * wpos2, "look": Vector3(0, 6.0, 0), "fov": s["fov"]}
-	var drift := sin(t * 0.045 + float(i) * 1.7) * 0.22 # slow orbit around the look target
+	var ss := maxf(shot_scale, 1.0)
+	var drift := sin(t * 0.045 / ss + float(i) * 1.7) * 0.22 # slow orbit; angular rate shrinks with ship size so m/s stays small
 	var look: Vector3 = s["look"]
 	var off: Vector3 = (s["pos"] as Vector3) - look
 	off = Basis(Vector3.UP, drift) * off
-	off.y += sin(t * 0.07 + float(i)) * 0.5
+	off.y += sin(t * 0.07 / ss + float(i)) * 0.5 * ss
 	return {"pos": look + off, "look": look, "fov": s["fov"]}
 
 func _apply_pose(t: float, _first: bool) -> void:
@@ -186,11 +188,14 @@ func _apply_pose(t: float, _first: bool) -> void:
 	var env := Waves.height_at(wpos.x, wpos.z)
 	for off in [Vector2(0, 0), fwd_xz * 5.0, fwd_xz * 11.0, side * 5.0, -side * 5.0, -fwd_xz * 4.0]:
 		env = maxf(env, Waves.height_at(wpos.x + off.x, wpos.z + off.y))
-	var margin := 1.0 + 1.6 * Waves.sea_state
+	# The envelope itself is low-passed (0.45 s) so single crests do not jerk the camera; the margin covers the lag.
+	_env = lerpf(_env, env, 1.0 - exp(-_dt / 0.45)) if _env > -900.0 else env
+	env = maxf(_env, env - 1.2)
+	var margin := 1.0 + 2.2 * Waves.sea_state
 	var deficit := env + margin - wpos.y
 	var lift := 0.5 * (deficit + sqrt(deficit * deficit + 0.35))
 	# Asymmetric low-pass: rises quickly (the envelope look-ahead + margin anticipate crests), falls slowly.
-	_lift = lerpf(_lift, lift, 1.0 - exp(-(5.0 if lift > _lift else 1.2) * _dt))
+	_lift = lerpf(_lift, lift, 1.0 - exp(-(1.3 if lift > _lift else 0.6) * _dt))
 	wpos.y += _lift
 	global_position = wpos
 	look_at(wlook, Vector3.UP)
