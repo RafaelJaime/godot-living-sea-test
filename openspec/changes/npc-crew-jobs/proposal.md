@@ -227,7 +227,13 @@ existing code. The `stable` worktree is never modified.
 4. Mixamo allowed (repo local/private); the user needs a free Adobe account; clips live in the project only.
 5. Helm watch: skill-weighted (Fuego more often) but rotating.
 
-### Pending (returned to the orchestrator; dependent work noted)
+### Confirmed by the user (2026-11-15) — all pending defaults accepted
+GUT as dev-only test framework (not shipped in the plugin); plugin name `npc_life`, MIT; ship-integration defaults
+(markers/simple geometry for missing rigging/crow's nest/door/stairs; crew-driven furl with auto-furl fallback at
+storm > 0.86; calm = few relaxed jobs, storm = all hands; Mixamo allowed with clips kept project-side only;
+skill-weighted rotating helm watch with Fuego favoured); NPC frame budget <= 1.0 ms on `final`; idle limit 20 s.
+
+### Previously pending (now confirmed above)
 1. Test framework for the addon: adopt GUT (pure GDScript, MIT, headless CLI; proposed default) or gdUnit4 (richer
    scene runner and CLI, heavier), dev-only and not shipped inside the addon; or none (functional CLI checks only).
    Godot 4.7 compatibility of both is unverified. Gates A0 and the "unit tests" verification in A1–A5.
