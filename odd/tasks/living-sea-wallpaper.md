@@ -86,7 +86,7 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
   lashed boat, ambient "living wallpaper" mechanics, QA.
 
 ## Phase 2 — Realism pass (user 2026-11-14: "lo más realista posible")
-Reference frames: refs/reference_krautdev/ref_*.jpg (from the KrautDev video). Every task closes with a
+Research: odd/research/realism-techniques.md (sources + top 10). Reference frames: refs/reference_krautdev/ref_*.jpg (from the KrautDev video). Every task closes with a
 side-by-side capture at fixed camera presets vs. the matching reference frame + an objective check.
 Order is priority; runnable main at all times (agent works on a branch/worktree, user runs the stable worktree).
 
@@ -111,6 +111,10 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       time of day and weather, auto-exposure, SSAO/SSIL where affordable, crisp ship shadows, storm darkness
       and rain like ref_15s/ref_18s.
 - [ ] R6 Physics ship (T8/T8b) and crew physics (T10) as already specified.
+- [ ] R8 Ambient life (watchability): gull/albatross boids, dolphins at the bow, distant whale spouts, passing
+      ships on the horizon (lights at night), lighthouse with rotating beam on islands, night bioluminescence in the
+      wake, visible wind gusts on the water (cat's paws), flotsam/seaweed, wet deck in rain, rainbow after storms,
+      morning fog. See odd/research/realism-techniques.md.
 - [ ] R7 Final QA: 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
       no visual defects checklist (cracks, popping, floating crew, clipping, keel visible).
 
