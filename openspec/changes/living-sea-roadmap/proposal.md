@@ -172,11 +172,19 @@ NPC behaviour is out of scope; this roadmap only keeps these hooks stable and do
 - Delivery: single-pr per change; the 400-line budget is a planning heuristic; a slice that naturally exceeds it is
   explained in its PR.
 
-## Decisions pending user confirmation
+## Decisions
 
-Each has a proposed default; none is assumed accepted.
+### Confirmed by the user (2026-11-14)
+1. QUALITY PRESETS replace the single 60 fps floor: a low `dev` preset used for all development and agent
+   tests/captures (reduced render scale, 30 fps cap, no SSR/SSAO/SSIL/volumetrics, fewer ocean rings/FFT res,
+   halved cloth iterations, fewer particles) to keep the machine responsive, and a `final` preset for the
+   shipped wallpaper with graphics "much better" than today (full quality and room for SSR, volumetric clouds,
+   higher FFT resolution, soft shadows, TAA/FSR2). Centralised in a `quality.gd` autoload read by every system.
+   Performance budgets apply per preset (dev: smooth on the dev Mac under load; final: target 60 fps at
+   1920x1080 on Apple Silicon, scaling features rather than dropping them).
 
-1. Hard 60 fps floor with quality tiers that may drop SSR/clouds. Proposed default: yes.
+### Pending user confirmation (defaults proposed, not assumed accepted)
+1. (superseded by the confirmed quality-preset decision above)
 2. R5 clouds: custom layered shader vs Sunshine Clouds 2 addon. Proposed default: try the addon behind a gate
    (works on Godot 4.7.2 and costs <= 2.5 ms at 1920x1080), otherwise fall back to a custom layered shader.
 3. Keel ends target. Proposed default: accept the current 1.1 m (sea 0.5) / 2.3 m (sea 0.9) as interim; keep
