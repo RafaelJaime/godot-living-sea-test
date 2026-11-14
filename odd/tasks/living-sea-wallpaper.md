@@ -37,9 +37,8 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
 ## Tasks (ordered plan, revised 2026-11-14 after user feedback)
 - [x] T1 Ocean upgrade: FFT + foam + wake + spray + shallows, `sea_state` 0..1, buoyancy in sync — delegated (godot-ship) — done in the `feat(ocean)` commit (see git log --grep "feat(ocean)")
 - [x] T1b Ocean FX polish: wake as streaky foam ribbon meshes (replaces blob billboards), spray as sharp velocity-aligned droplets + faint mist, camera clearance against the wave envelope (look-ahead, raised with sea_state) — delegated (godot-ship)
-- [ ] T2 Realistic hull asset: hull-only multi-view 3D (job 43aef847). Quality gate: compare against the
-      characters in a close-up capture; if still uglier, iterate (higher polycount / better refs / texture_prompt)
-      before T3. — inline (Higgsfield)
+- [x] T2 Realistic hull asset — SUPERSEDED: two Meshy hulls rejected (duplicated wheel/lanterns, missing yard);
+      user chose Sketchfab "Pirate ship (Rigged)" by TIG (CC BY 4.0, = Poly Haven Ship Pinnace CC0) — see ATTRIBUTION.md.
 - [x] T3 Ship rebuild on the new hull: cloth sails + flag (wind-driven), ropes/rigging, extra props — done in the `feat(ship)` commit
       (barrels/crates for Don Omar's seat). — delegated
 - [x] T3b No water through the hull: water must never render inside the hull/deck (hull interior mask: — done in the `feat(ocean)` hull-mask commit
@@ -57,8 +56,8 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
       - Crew balance: all crew sway/brace with ship roll (procedural hip/spine counter-lean). — delegated
 - [ ] T6 Camera fixes (Canto shot unoccluded, close-ups unobstructed, shots that show helmsman steering
       and storm) + nicer islands (beach, vegetation, shallows). — delegated
-- [ ] T6b Polish from user review: hull contact foam hugs the hull (no big white circle); smooth animation
-      blending, no model glitches. — delegated
+- [x] T6b Polish from user review: hull-hugging foam (cdab617), animation crossfades/ramps (700ee14), arm IK
+      stabilised (acdbe66), Omar seated on barrels via deck raycast (1242bc9), Pirat flag + camera smoothing (55da2dc).
 - [ ] T7 Sandbox crew: Papi Diagnostica and El Salchipapa roam the ship autonomously (deck waypoint graph,
       cabin door in/out, stairs up to the helm to talk to Papi Fuego, gather to listen to Don Omar's violin,
       idle chores), AnimationTree state machine with walk / climb_stairs / talk / listen clips (Meshy
@@ -66,6 +65,13 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
       AnimationLibrary across same-rig characters if retarget works, else per character). Helmsman and
       violinist react (turn head toward visitor). Depends on final ship choice (door/stairs). — delegated
 - [x] T3 note: flag cloth physics confirmed in scope (user asked 2026-11-14). — done in the `feat(ship)` commit
+- [ ] T8 Realistic ship motion: physical roll/pitch (damped oscillators, roll ~10 s, pitch ~6 s, amplitude by
+      sea_state), heave averaged over the hull footprint, deeper draft, keel never visible (min keel clearance
+      logged over 120 s, storm + moderate). — delegated (in progress)
+- [ ] T9 Flags: stern flag pinned to the real (bone-posed) staff, flying with apparent wind like the sails;
+      second Pirat flag at the main masthead. — delegated (in progress)
+- [ ] T10 Hybrid character physics (PROPOSED, awaiting user OK): SpringBoneSimulator3D hair/coat/mane, foot IK
+      on the tilting deck, PhysicalBoneSimulator3D stumbles in storms, over keyframed base clips. — delegated
 
 ## Acceptance criteria
 - Water reads as realistic ocean (foam, wake behind ship, spray at bow) in captures; no seams.
