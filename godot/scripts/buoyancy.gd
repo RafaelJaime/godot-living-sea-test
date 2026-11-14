@@ -559,7 +559,32 @@ func _physics_process(delta: float) -> void:
 	if linear_velocity.length() > 14.0:
 		apply_central_force(-linear_velocity * m * 0.5)
 
+## Sail forces come from the cloth simulation (what the sails visibly do is what pushes the ship). Falls back to the
+## analytic flat-plate model when no cloth rig is present (or `--analytic-sails`).
+var _sail_rig: Node
+var _analytic_sails := OS.get_cmdline_user_args().has("--analytic-sails")
+var cloth_force_used := false
 func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
+	if _sail_rig == null or not is_instance_valid(_sail_rig):
+		_sail_rig = get_tree().get_first_node_in_group("sail_rig")
+	if _sail_rig != null and not _analytic_sails and _sail_rig.has_method("get_sail_forces"):
+		var heel_d := 1.0 - smoothstep(heel_depower_start_deg, heel_depower_end_deg, absf(rad_to_deg(roll)))
+		var tot := Vector3.ZERO
+		for sd in _sail_rig.get_sail_forces():
+			var fs: Vector3 = sd["force"] * heel_d
+			if not fs.is_finite():
+				continue
+			var cap := mass * 9.81 * 0.35 # a single sail can never push harder than 0.35 g of the ship
+			if fs.length() > cap:
+				fs = fs.normalized() * cap
+			var pw: Vector3 = gt * (sd["point"] as Vector3)
+			apply_force(b * fs, pw - gt.origin)
+			tot += fs
+		last_thrust = tot
+		last_heel_scale = heel_d
+		cloth_force_used = true
+		return
+	cloth_force_used = false
 	var w := WorldState
 	var tw := w.wind_vector() * w.wind_speed_ms()
 	var wind := Vector3(tw.x, 0.0, tw.y)
@@ -605,9 +630,8 @@ func sail_force_local(vrel: Vector3, n: Vector3, area: float) -> Vector3:
 
 ## Brace angle that maximises forward thrust for the current wind (used by the autopilot).
 func best_brace(max_deg := 72.0) -> float:
-	var w := WorldState
-	var tw := w.wind_vector() * w.wind_speed_ms()
-	var vrel_w := Vector3(tw.x, 0.0, tw.y) - Vector3(linear_velocity.x, 0.0, linear_velocity.z)
+	var wv := WindField.sample(global_position + Vector3(0.0, 12.0, 0.0)) # same gusty field the cloth sees
+	var vrel_w := Vector3(wv.x, 0.0, wv.z) - Vector3(linear_velocity.x, 0.0, linear_velocity.z)
 	var vrel := global_transform.basis.inverse() * vrel_w
 	vrel.y = 0.0
 	var best := 0.0
