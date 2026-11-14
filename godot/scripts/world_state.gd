@@ -122,4 +122,4 @@ func wind_vector() -> Vector2:
 	return Vector2(cos(wind_angle), sin(wind_angle))
 
 func wind_speed_ms() -> float:
-	return 3.0 + 17.0 * wind_strength
+	return 6.0 + 22.0 * wind_strength

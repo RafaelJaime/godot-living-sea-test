@@ -103,3 +103,45 @@ static func _skinned_aabb(mi: MeshInstance3D, skel: Skeleton3D, root_inv: Transf
 			lo = lo.min(p)
 			hi = hi.max(p)
 	return AABB(lo, hi - lo)
+
+
+## Posed vertices of a mesh (CPU-skinned with the skeleton's CURRENT pose), expressed in `root`'s local space.
+## Needed because MeshInstance3D.get_aabb() of a skinned mesh is the bind-pose box, not the posed geometry.
+static func posed_points(mi: MeshInstance3D, root: Node3D, max_points := 6000) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var root_inv := root.global_transform.affine_inverse()
+	var skel := _skeleton_of(mi)
+	for s in mi.mesh.get_surface_count():
+		var arr := mi.mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var step: int = maxi(1, verts.size() / max_points)
+		if skel == null or mi.skin == null:
+			var t := root_inv * mi.global_transform
+			for i in range(0, verts.size(), step):
+				out.append(t * verts[i])
+			continue
+		var to_root := root_inv * skel.global_transform
+		var poses: Array[Transform3D] = []
+		for i in mi.skin.get_bind_count():
+			var bone := mi.skin.get_bind_bone(i)
+			if bone < 0:
+				bone = skel.find_bone(mi.skin.get_bind_name(i))
+			var pose := skel.get_bone_global_pose(bone) if bone >= 0 else Transform3D.IDENTITY
+			poses.append(pose * mi.skin.get_bind_pose(i))
+		var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES] if arr[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+		var weights: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS] if arr[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+		var stride := (bones.size() / verts.size()) if (verts.size() > 0 and bones.size() > 0) else 0
+		for vi in range(0, verts.size(), step):
+			var p := verts[vi]
+			if stride > 0:
+				var acc := Vector3.ZERO
+				var wsum := 0.0
+				for k in stride:
+					var w := weights[vi * stride + k]
+					if w > 0.0:
+						acc += (poses[bones[vi * stride + k]] * verts[vi]) * w
+						wsum += w
+				if wsum > 0.0:
+					p = acc / wsum
+			out.append(to_root * p)
+	return out

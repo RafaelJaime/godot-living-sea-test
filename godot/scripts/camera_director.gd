@@ -31,6 +31,8 @@ var shots: Array[Dictionary] = [
 	{"name": "helm", "attached": true, "mode": "crew", "slot": "Papi_Fuego", "off": Vector3(-1.9, 0.7, 1.9), "fov": 48.0},
 	{"name": "violin", "attached": true, "mode": "crew", "slot": "Don_Omar", "off": Vector3(1.9, 0.5, -0.4), "fov": 42.0},
 	{"name": "top down", "pos": Vector3(0.5, 30.0, 1.0), "look": Vector3(0.0, 0.0, 0.0), "fov": 45.0},
+	{"name": "flag stern", "mode": "flag", "group": "flag_pavillion_mast", "dist": 7.0, "fov": 45.0},
+	{"name": "flag main", "mode": "flag", "group": "flag_main_mast", "dist": 7.0, "fov": 45.0},
 	{"name": "wake", "pos": Vector3(3.0, 13.0, 27.0), "look": Vector3(0.0, 0.0, 14.0), "fov": 60.0},
 ]
 ## Ocean inspection shots (not part of the auto cycle).
@@ -176,6 +178,11 @@ func _pivot() -> Node3D:
 ## World-space pose of one shot. Attached shots live in the ship's full frame (yaw, pitch, roll, heave), so the horizon
 ## tilts with the roll; the others use the yaw-only frame and watch the ship rock.
 func _world_pose(i: int, t: float) -> Dictionary:
+	if shots[i].get("mode", "") == "flag":
+		var fl := get_tree().get_first_node_in_group(String(shots[i]["group"]))
+		if fl:
+			var vp: Dictionary = fl.view_pose(float(shots[i]["dist"]))
+			return {"pos": vp["pos"], "look": vp["look"], "fov": shots[i]["fov"], "att": false, "up": Vector3.UP}
 	var p := _shot_pose(i, t)
 	var att: bool = p.get("att", false)
 	var f: Transform3D = _pivot().global_transform if att else _frame()
