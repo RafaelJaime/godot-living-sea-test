@@ -29,7 +29,7 @@ rules:
   proposal: [keep scope within authorized ODD feature doc; flag NPC/crew code as out of scope]
   specs: [behavior stated as observable capture/jitter/log results]
   design: [single wave source scripts/waves.gd; autoload-based state; scripts per concern]
-  tasks: [forecast against 400 changed-line budget; delivery single-pr]
+  tasks: [forecast against 400 changed-line budget; delivery direct-merge to local main (no PRs, user 2026-11-14)]
   apply: [no Godot/Blender run outside testsem; do not touch crew_*.gd without user ok]
   verify: [run capture + jitter-test via testsem; report absence of unit runner honestly]
   archive: [keep ODD feature doc in sync]

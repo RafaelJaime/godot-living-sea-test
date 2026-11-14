@@ -2,6 +2,12 @@
 
 Scope rule: this file lists ONLY work that remains. Already on `main` and NOT tasked: quality presets `dev`/`final` with `dev` default (a789aff, 839e7a9), ship propulsion from `get_sail_forces()` + WindField (4593c47), world-anchored advected wake field (aab27d1), R0/R1, partial R2/R3, lanterns (R9), lashed boat, cloth. Hardening gaps in those areas (per design Decisions 4 and 6) ARE tasked.
 
+> DELIVERY OVERRIDE (user, 2026-11-14): NO pull requests. Every slice is merged DIRECTLY into local `main`
+> (fast-forward after rebasing the agent's worktree branch) once its observable verification passes; verify with
+> `git merge-base --is-ancestor <commit> main`, then the orchestrator advances the `stable` worktree. "PR-xx" labels
+> below are just slice names; the ≤400-line slice size remains a planning heuristic only, so `size:exception`
+> decisions (MQ-c) no longer apply. The repo has no remote; nothing is pushed.
+
 ## Review Workload Forecast
 
 | Field | Value |
