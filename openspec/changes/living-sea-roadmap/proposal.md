@@ -183,17 +183,15 @@ NPC behaviour is out of scope; this roadmap only keeps these hooks stable and do
    Performance budgets apply per preset (dev: smooth on the dev Mac under load; final: target 60 fps at
    1920x1080 on Apple Silicon, scaling features rather than dropping them).
 
-### Pending user confirmation (defaults proposed, not assumed accepted)
-1. (superseded by the confirmed quality-preset decision above)
-2. R5 clouds: custom layered shader vs Sunshine Clouds 2 addon. Proposed default: try the addon behind a gate
+2. CONFIRMED (user accepted default): R5 clouds: custom layered shader vs Sunshine Clouds 2 addon. Proposed default: try the addon behind a gate
    (works on Godot 4.7.2 and costs <= 2.5 ms at 1920x1080), otherwise fall back to a custom layered shader.
-3. Keel ends target. Proposed default: accept the current 1.1 m (sea 0.5) / 2.3 m (sea 0.9) as interim; keep
+3. CONFIRMED (user accepted default): Keel ends target. Proposed default: accept the current 1.1 m (sea 0.5) / 2.3 m (sea 0.9) as interim; keep
    0.5 / 1.5 m as an M5 stretch goal without hull/draft edits.
-4. R8 must-haves for "done". Proposed default: boids, dolphins, passing ships with lights, lighthouse beam,
+4. CONFIRMED (user accepted default): R8 must-haves for "done". Proposed default: boids, dolphins, passing ships with lights, lighthouse beam,
    bioluminescence, cat's paws; whale, flotsam, wet deck, rainbow, morning fog optional.
-5. Deleting merged branches/worktrees in M0. Proposed default: require explicit user OK at M0 time; never delete
+5. CONFIRMED (user accepted default): Deleting merged branches/worktrees in M0. Proposed default: require explicit user OK at M0 time; never delete
    `stable`.
-6. T6 camera/island polish included. Proposed default: yes, in M3 with leftovers in M6.
+6. CONFIRMED (user accepted default): T6 camera/island polish included. Proposed default: yes, in M3 with leftovers in M6.
 
 Dependent work: decision 1 gates the M2a/M3 tier design; 2 gates M3 cloud tasks; 3 gates M5 acceptance; 4 gates
 M4 slice scope; 5 gates the M0 pruning step only; 6 gates the T6 part of M3. All other work can proceed.
