@@ -11,6 +11,27 @@ var _t := 0.0
 var _step := 0
 var _jumped := false
 
+## Fixed regression presets (design Decision 13): name, day_phase, weather, sea_state, wind direction (deg).
+const REG_PRESETS := [
+	{"name": "day_calm", "phase": 0.45, "weather": "clear", "sea": 0.2, "wind": -100.0},
+	{"name": "dusk_moderate", "phase": 0.73, "weather": "cloudy", "sea": 0.5, "wind": -100.0},
+	{"name": "storm", "phase": 0.55, "weather": "storm", "sea": 0.9, "wind": -100.0},
+	{"name": "night", "phase": 0.02, "weather": "clear", "sea": 0.35, "wind": -100.0},
+]
+const REG_SHOTS := [1, 14, 0] # camera shot indices (side low, top down, 3/4 bow)
+const REG_SETTLE := 8.0
+
+var _perf_secs := 0.0
+var _perf_t := 0.0
+var _perf_frame: PackedFloat64Array = PackedFloat64Array()
+var _perf_cpu: PackedFloat64Array = PackedFloat64Array()
+var _perf_phys: PackedFloat64Array = PackedFloat64Array()
+var _perf_gpu: PackedFloat64Array = PackedFloat64Array()
+var _reg := false
+var _reg_i := 0
+var _reg_shot := 0
+var _reg_t := 0.0
+var _reg_state := 0 # 0 apply, 1 settle, 2 shots
 var _jitter := false
 var _log_secs := 0.0
 var _log_period := 2.0
@@ -44,6 +65,10 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with('--autopilot-log='):
 			_log_secs = float(a.get_slice('=', 1))
+		elif a.begins_with('--perf-log='):
+			_perf_secs = float(a.get_slice('=', 1))
+		elif a == '--plan=regression':
+			_reg = true
 		elif a.begins_with('--roll-extreme='):
 			_roll_thr = float(a.get_slice('=', 1))
 		elif a.begins_with('--log-period='):
@@ -52,7 +77,9 @@ func _ready() -> void:
 		_active = true
 		return
 	_active = "--capture" in OS.get_cmdline_user_args()
-	_active = _active or _log_secs > 0.0
+	_active = _active or _log_secs > 0.0 or _perf_secs > 0.0 or _reg
+	if _perf_secs > 0.0:
+		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	set_process(_active)
 	if _active:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SHOT_DIR))
@@ -78,6 +105,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _perf_secs > 0.0:
+		_perf_step(delta)
+		return
+	if _reg:
+		_reg_step(delta)
+		return
 	if _log_secs > 0.0:
 		_log_t += delta
 		if fmod(_log_t, _log_period) < delta:
@@ -197,3 +230,73 @@ func _report_motion() -> void:
 		if ups.size() >= 2:
 			period = (ups[ups.size() - 1] - ups[0]) / float(ups.size() - 1)
 		print("[motion] ", name, " mean=", snappedf(mean, 0.1), " deg  min=", snappedf(mn, 0.1), " max=", snappedf(mx, 0.1), " deg  peak amplitude=", snappedf((mx - mn) * 0.5, 0.1), " deg  mean period=", snappedf(period, 0.1), " s  (", ups.size(), " cycles)")
+
+
+# --- --perf-log=<secs>: percentiles of frame time, CPU and GPU after a 5 s warm-up -----------------------------------
+func _pct(a: PackedFloat64Array, q: float) -> float:
+	if a.is_empty():
+		return 0.0
+	var b := a.duplicate()
+	b.sort()
+	return b[clampi(int(ceil(q * float(b.size()))) - 1, 0, b.size() - 1)]
+
+func _perf_step(delta: float) -> void:
+	_perf_t += delta
+	if _perf_t > 5.0:
+		_perf_frame.append(delta * 1000.0)
+		_perf_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
+		_perf_phys.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
+		_perf_gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()))
+	if _perf_t >= 5.0 + _perf_secs:
+		var res := get_viewport().get_visible_rect().size
+		var p99 := _pct(_perf_frame, 0.99)
+		print("[perf] preset=%s quality=%s res=%dx%d frames=%d frame_ms p50=%.2f p95=%.2f p99=%.2f 1%%low_fps=%.1f avg_fps=%.1f cpu_ms p50=%.2f p95=%.2f phys_ms p50=%.2f gpu_ms p50=%.2f p95=%.2f" % [
+			Quality.name_, Quality.name_, int(res.x), int(res.y), _perf_frame.size(), _pct(_perf_frame, 0.5), _pct(_perf_frame, 0.95), p99,
+			1000.0 / maxf(p99, 0.001), 1000.0 / maxf(_pct(_perf_frame, 0.5), 0.001), _pct(_perf_cpu, 0.5), _pct(_perf_cpu, 0.95),
+			_pct(_perf_phys, 0.5), _pct(_perf_gpu, 0.5), _pct(_perf_gpu, 0.95)])
+		get_tree().quit()
+
+# --- --plan=regression: 4 fixed presets x 3 shots -> reg_<preset>_<n>.png ------------------------------------------------
+func _reg_step(delta: float) -> void:
+	_reg_t += delta
+	if _reg_i >= REG_PRESETS.size():
+		print("[capture] regression done: ", REG_PRESETS.size() * REG_SHOTS.size(), " images")
+		get_tree().quit()
+		return
+	var pr: Dictionary = REG_PRESETS[_reg_i]
+	if _reg_state == 0:
+		WorldState.day_enabled = false
+		WorldState.day_phase = float(pr["phase"])
+		WorldState.set_weather(String(pr["weather"]), true)
+		WorldState.override_sea = float(pr["sea"])
+		WorldState.override_wind_deg = float(pr["wind"])
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SHOT_DIR))
+		_reg_state = 1
+		_reg_t = 0.0
+		print("[capture] preset ", pr["name"], ": phase=", pr["phase"], " weather=", pr["weather"], " sea=", pr["sea"])
+	elif _reg_state == 1:
+		if str(pr["name"]) == "night" and _reg_t > 1.0:
+			for l in ShipLights.get_lanterns():
+				ShipLights.light(l["id"])
+		if _reg_t >= REG_SETTLE:
+			_reg_state = 2
+			_reg_t = 0.0
+			_reg_shot = 0
+			var d := get_tree().get_first_node_in_group("camera_director")
+			if d:
+				d.jump_to(REG_SHOTS[0], true)
+	else:
+		if _reg_t >= 1.2:
+			var img := get_viewport().get_texture().get_image()
+			var path := "%s/reg_%s_%d.png" % [SHOT_DIR, pr["name"], _reg_shot + 1]
+			img.save_png(ProjectSettings.globalize_path(path))
+			print("[capture] saved ", path, " ", img.get_size())
+			_reg_shot += 1
+			_reg_t = 0.0
+			if _reg_shot >= REG_SHOTS.size():
+				_reg_i += 1
+				_reg_state = 0
+			else:
+				var d2 := get_tree().get_first_node_in_group("camera_director")
+				if d2:
+					d2.jump_to(REG_SHOTS[_reg_shot], true)
