@@ -16,15 +16,18 @@ extends RigidBody3D
 @export var columns_x := 5
 @export var gm_target := 1.4 ## metacentric height (m): sets the centre-of-mass height -> roll period emerges from it
 @export var roll_gyradius := 4.2 ## m, incl. added mass
-@export var pitch_gyradius := 15.0 ## m, incl. added water mass
+@export var pitch_gyradius := 18.0 ## m, incl. added water mass
 @export var yaw_gyradius := 11.0
 ## 1 = every column feels the full local wave height; < 1 blends toward the hull-mean height (Froude-Krylov depth
 ## attenuation + diffraction: a hull is not a perfect wave follower, so wave slope forces it less than a buoy).
-@export_range(0.2, 1.0) var wave_coupling := 0.55
+@export_range(0.2, 1.0) var wave_coupling := 0.6
+## Soft spring that pulls a keel point back down once it is more than this far above the local water (m).
+@export var keel_free_lift := 0.3
+@export var keel_suction := 3.0e5 ## N per metre of excess lift (per column)
 @export var column_damping := 250.0 ## N s / m^3 of waterplane area (vertical, per column)
 @export var heave_damping_ratio := 0.18
 @export var roll_damping_ratio := 0.22
-@export var pitch_damping_ratio := 0.2
+@export var pitch_damping_ratio := 0.3
 @export var drag_longitudinal := 500.0 ## 0.5 rho Cd A  (N s^2/m^2)
 @export var drag_lateral := 1.1 ## quadratic coefficient per section: 0.5 rho Cd (times section area)
 @export var rudder_area := 5.0
@@ -101,6 +104,7 @@ var _phys_ready := false
 var _com_local := Vector3.ZERO
 var _kz := 0.0
 var keel_clear_min := -99.0 ## MAX over the run of centreline keel height above the local water (>0 would show the keel)
+var keel_mid_lift := -99.0
 var peak_heel := 0.0
 var min_keel_clear := -99.0 ## min over keel columns of (keel world y - water height); negative = under water
 @onready var _pivot: Node3D = get_node(pivot_path)
@@ -457,6 +461,7 @@ func _physics_process(delta: float) -> void:
 	var origin := gt.origin
 	var com_w := gt * _com_local
 	var min_clear := -99.0
+	var mid_clear := -99.0
 	# --- hydrostatics: one vertical prism of hull per column --------------------------------------------
 	var vsub := 0.0
 	var hsum := 0.0
@@ -471,8 +476,15 @@ func _physics_process(delta: float) -> void:
 		var span: float = _col_top - float(c["yb"])
 		if absf(c["x"]) < 1.2:
 			min_clear = maxf(min_clear, pb.y - hw_l) # keel lift above the water along the centreline
+			if absf(c["z"] - (_zr.x + _zr.y) * 0.5) < 0.32 * (_zr.y - _zr.x):
+				mid_clear = maxf(mid_clear, pb.y - hw_l) # midship keel only (the ends of the keel line rise to stem/stern)
 		var depth := clampf((hw - pb.y) / upy, 0.0, span) # submerged length along the hull-fixed column axis
 		if depth <= 0.0:
+			# Keel point out of the water: suction/slam keeps it from flying (soft spring beyond a small free lift).
+			var lift_o := pb.y - hw_l
+			if absf(c["x"]) < 1.5 and lift_o > keel_free_lift:
+				var fo := minf((lift_o - keel_free_lift) * keel_suction, mass * 9.81 * 0.25)
+				apply_force(Vector3(0.0, -fo, 0.0), pb - origin)
 			continue
 		var dA: float = c["dA"]
 		var f := water_density * 9.81 * dA * depth
@@ -485,6 +497,7 @@ func _physics_process(delta: float) -> void:
 	min_keel_clear = min_clear
 	if _t > 12.0:
 		keel_clear_min = maxf(keel_clear_min, min_clear)
+		keel_mid_lift = maxf(keel_mid_lift, mid_clear)
 		peak_heel = maxf(peak_heel, absf(rad_to_deg(roll)))
 	if _cols.size() > 0:
 		_hmean = hsum / float(_cols.size())

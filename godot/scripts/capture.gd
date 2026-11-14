@@ -170,7 +170,7 @@ func _jitter_step(delta: float) -> void:
 ## Period and amplitude of roll / pitch from the recorded samples (zero crossings of the de-meaned signal).
 func _report_motion() -> void:
 	var shp := get_tree().root.get_node('Main/Ship')
-	print('[keel] max centreline keel lift above the water over the run (m, <= 0 = keel never visible): ', snappedf(shp.keel_clear_min, 0.01), '  peak |roll| ', snappedf(shp.peak_heel, 0.1), ' deg  final speed ', snappedf(shp.current_speed, 0.1))
+	print('[keel] max centreline keel lift above the water over the run (m, <= 0 = keel never visible): ', snappedf(shp.keel_clear_min, 0.01), '  peak |roll| ', snappedf(shp.peak_heel, 0.1), ' deg  midship-only lift ', snappedf(shp.keel_mid_lift, 0.01), '  final speed ', snappedf(shp.current_speed, 0.1))
 	for ch in [1, 2]:
 		var name := "roll" if ch == 1 else "pitch"
 		var vals: Array = []

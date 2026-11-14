@@ -125,7 +125,7 @@ func _apply_sea_state() -> void:
 	var whitecap := [lerpf(0.18, 0.5, s), lerpf(0.1, 0.3, s), lerpf(0.1, 0.3, s)]
 	var foam := [lerpf(2.5, 6.0, s), lerpf(0.3, 2.5, s), lerpf(0.8, 2.5, s)]
 	# Wave HEIGHT scale: the FFT spectrum is far taller than a sailor's calm sea, so small sea_state shrinks the displacement.
-	var amp := lerpf(0.16, 0.62, pow(s, 0.9))
+	var amp := lerpf(0.12, 0.46, pow(s, 0.9))
 	var base_disp := [1.0, 0.75, 0.0]
 	for i in parameters.size():
 		var p := parameters[i]
