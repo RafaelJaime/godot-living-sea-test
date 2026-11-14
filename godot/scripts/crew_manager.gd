@@ -41,8 +41,8 @@ func _on_ship_ready(length: float, beam: float, _ref: float) -> void:
 		bodies = loader.find_children("*", "StaticBody3D", true, false)
 	var space := get_world_3d().direct_space_state
 	var snap := func(x: float, z: float, ref_y: float) -> Variant:
-		var from := to_global(Vector3(x, ref_y + 14.0, z))
-		var to := to_global(Vector3(x, ref_y - 14.0, z))
+		var from := to_global(Vector3(x, ref_y + 2.5, z))
+		var to := to_global(Vector3(x, ref_y - 6.0, z))
 		var q := PhysicsRayQueryParameters3D.create(from, to)
 		var hit := space.intersect_ray(q)
 		if hit.is_empty():
@@ -53,7 +53,7 @@ func _on_ship_ready(length: float, beam: float, _ref: float) -> void:
 			var z := lerpf(length * 0.5, -length * 0.5, float(u) / 20.0)
 			var row := "[deck] u=%.2f z=%6.1f" % [float(u) / 20.0, z]
 			for v in [-0.8, -0.5, -0.25, 0.0, 0.25, 0.5, 0.8]:
-				var hy: Variant = snap.call(v * beam * 0.5, z, 12.0)
+				var hy: Variant = snap.call(v * beam * 0.5, z, 6.0)
 				row += "  v%.2f:%s" % [v, ("  -  " if hy == null else "%5.1f" % float(hy))]
 			print(row)
 	if OS.get_cmdline_user_args().has("--debug-wheel"):

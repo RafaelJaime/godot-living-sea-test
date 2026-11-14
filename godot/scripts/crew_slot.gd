@@ -59,16 +59,13 @@ func setup(ship_length: float, ship_beam: float, snap_y_func: Callable) -> void:
 		x = fixed_position.x
 		z = fixed_position.z
 		y = fixed_position.y
-		snap_to_deck = false
 	position_x_hint = x
 	position_z_hint = z
 	if snap_to_deck:
 		var hit: Variant = snap_y_func.call(x, z, y)
 		if hit != null and absf(float(hit) - y) <= snap_tolerance:
 			y = float(hit)
-	if barrel_height > 0.0:
-		_make_barrels(y)
-		y += barrel_height
+	var deck_y := y
 	if _is_placeholder:
 		y += placeholder_y_offset
 	position = Vector3(x, y, z)
@@ -84,6 +81,8 @@ func setup(ship_length: float, ship_beam: float, snap_y_func: Callable) -> void:
 	visual.rotation.y = yaw
 	_setup_animation(inst)
 	_fix_skinned_culling(inst)
+	if barrel_height > 0.0:
+		_seat_on_prop(deck_y)
 	print("[crew] ", character_name, " <- ", path, " at ", position)
 
 ## Scale so the character reaches target_height, feet at y=0 and centered on XZ.
@@ -168,3 +167,38 @@ func _fix_skinned_culling(root: Node) -> void:
 		if mi.skin != null or not mi.get_skeleton_path().is_empty():
 			mi.extra_cull_margin = 250.0
 			mi.ignore_occlusion_culling = true
+
+## Seated pose: measured from the sit clip itself (no hard-coded heights). Samples Hips and the feet/toes in the clip,
+## lowers the character so its soles rest on the (snapped) deck, and builds a barrel stack whose top is exactly at the
+## pelvis -- so the seat height follows the character, and the deck height follows the real deck mesh.
+const PELVIS_OFFSET := 0.09 ## hips bone centre above the seat surface (m)
+func _seat_on_prop(deck_y: float) -> void:
+	var sks := visual.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty() or _anim_player == null:
+		_make_barrels(deck_y)
+		position.y = deck_y + barrel_height
+		return
+	var sk := sks[0] as Skeleton3D
+	_anim_player.seek(0.0, true)
+	_anim_player.advance(0.0)
+	sk.force_update_all_bone_transforms()
+	var by := func(n: String) -> Vector3:
+		var i := sk.find_bone(n)
+		return to_local(sk.global_transform * sk.get_bone_global_pose(i).origin) if i >= 0 else Vector3.ZERO
+	var hips: Vector3 = by.call("Hips")
+	var sole := minf(minf((by.call("LeftToeBase") as Vector3).y, (by.call("RightToeBase") as Vector3).y),
+		minf((by.call("LeftFoot") as Vector3).y, (by.call("RightFoot") as Vector3).y)) - 0.03
+	var sit_h := hips.y - sole
+	var seat := sit_h - PELVIS_OFFSET
+	if seat < 0.15 or seat > 1.3:
+		seat = barrel_height # measurement failed: keep the authored height
+		sole = hips.y - (seat + PELVIS_OFFSET)
+	# Soles on the deck (slot origin is the deck point), pelvis centred over the seat.
+	visual.position.y -= sole
+	position_x_hint = position.x + hips.x
+	position_z_hint = position.z + hips.z
+	var h := barrel_height
+	barrel_height = seat
+	_make_barrels(deck_y)
+	barrel_height = h
+	print("[crew] ", character_name, " seated: pelvis ", snappedf(sit_h, 0.01), " m above soles, seat height ", snappedf(seat, 0.01), " m, deck y ", snappedf(deck_y, 0.01))

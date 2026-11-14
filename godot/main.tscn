@@ -73,10 +73,11 @@ target_height = 1.85
 norm_u = 0.1
 norm_v = 0.0
 deck_height_frac = 0.189
-snap_to_deck = false
+snap_to_deck = true
 facing_deg = 0.0
 use_fixed_position = true
 fixed_position = Vector3(0, 6.5, 17.7)
+snap_tolerance = 1.2
 
 [node name="Papi_Diagnostica" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
 script = ExtResource("6_slot")
@@ -90,7 +91,7 @@ norm_v = 0.35
 deck_height_frac = 0.0795
 snap_to_deck = true
 facing_deg = -90.0
-snap_tolerance = 0.6
+snap_tolerance = 1.2
 use_fixed_position = true
 fixed_position = Vector3(2.0, 3.35, -7.0)
 
@@ -103,10 +104,11 @@ target_height = 1.8
 norm_u = 0.71
 norm_v = 0.0
 deck_height_frac = 0.108
-snap_to_deck = false
+snap_to_deck = true
 facing_deg = 0.0
 use_fixed_position = true
 fixed_position = Vector3(0, 3.5, -10.6)
+snap_tolerance = 1.2
 
 [node name="Don_Omar" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
 script = ExtResource("6_slot")
@@ -118,12 +120,13 @@ placeholder_target_height = 1.45
 norm_u = 0.36
 norm_v = -0.4
 deck_height_frac = 0.0795
-snap_to_deck = false
+snap_to_deck = true
 facing_deg = -170.0
 barrel_height = 0.85
 placeholder_y_offset = -0.38
 use_fixed_position = true
 fixed_position = Vector3(-2.3, 1.6, -2.6)
+snap_tolerance = 1.2
 
 [node name="Ocean" type="MeshInstance3D" parent="."]
 script = ExtResource("7_ocean")

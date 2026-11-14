@@ -25,7 +25,7 @@ var shots: Array[Dictionary] = [
 	{"name": "close Papi_Fuego", "mode": "crew", "slot": "Papi_Fuego", "off": Vector3(-2.6, 0.5, -2.6), "fov": 45.0},
 	{"name": "close Papi_Diagnostica", "mode": "crew", "slot": "Papi_Diagnostica", "off": Vector3(3.4, 2.3, -1.2), "fov": 45.0},
 	{"name": "close El_Salchipapa", "mode": "crew", "slot": "El_Salchipapa", "off": Vector3(-2.0, 1.4, -3.0), "fov": 45.0},
-	{"name": "close Don_Omar", "mode": "crew", "slot": "Don_Omar", "off": Vector3(-3.0, 0.6, -1.5), "fov": 45.0},
+	{"name": "close Don_Omar", "mode": "crew", "slot": "Don_Omar", "off": Vector3(2.4, 0.15, 2.4), "fov": 40.0},
 	# Ocean inspection shots (not part of the auto cycle).
 	{"name": "water close", "pos": Vector3(-8.0, 1.5, -5.0), "look": Vector3(0.0, 0.8, -3.0), "fov": 55.0},
 	{"name": "helm", "mode": "crew", "slot": "Papi_Fuego", "off": Vector3(-1.9, 0.7, 1.9), "fov": 48.0},
