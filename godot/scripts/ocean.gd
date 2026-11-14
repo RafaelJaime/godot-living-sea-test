@@ -292,7 +292,7 @@ func _snap(cam_pos: Vector3) -> void:
 	for l in levels:
 		var c := _level_cell[l]
 		_level_nodes[l].global_position = Vector3(snappedf(cam_pos.x, c), 0.0, snappedf(cam_pos.z, c))
-		_level_nodes[l].set_instance_shader_parameter("lod_bias", 0.035 * float(l))
+		_level_nodes[l].set_instance_shader_parameter("lod_bias", 0.08 * float(l))
 
 func _exit_tree() -> void:
 	# Detach the compute textures before the generator frees them (avoids RID errors on shutdown).

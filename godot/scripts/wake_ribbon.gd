@@ -18,6 +18,8 @@ class Track:
 	var w0 := 2.0
 	var w1 := 10.0
 	var strength := 1.0
+	var drift := 0.0 ## lateral speed (m/s) of a point after emission: Kelvin arms diverge at ~19.5 deg from the track
+	var side := 0.0
 
 var _ship: Node3D
 var _mat: ShaderMaterial
@@ -59,7 +61,10 @@ func _ready() -> void:
 	var stern := Track.new(); stern.life = stern_life; stern.w0 = 3.0; stern.w1 = 15.0; stern.strength = 1.0
 	var bp := Track.new(); bp.life = bow_life * 0.7; bp.w0 = 0.35; bp.w1 = 2.0; bp.strength = 0.55
 	var bs := Track.new(); bs.life = bow_life * 0.7; bs.w0 = 0.35; bs.w1 = 2.0; bs.strength = 0.55
-	_tracks = [stern, bp, bs]
+	# Kelvin arms: divergent waves that leave the stern; lateral drift = ship speed * tan(19.5 deg).
+	var ka := Track.new(); ka.life = stern_life; ka.w0 = 0.8; ka.w1 = 3.2; ka.strength = 0.5; ka.drift = 2.2; ka.side = -1.0
+	var kb := Track.new(); kb.life = stern_life; kb.w0 = 0.8; kb.w1 = 3.2; kb.strength = 0.5; kb.drift = 2.2; kb.side = 1.0
+	_tracks = [stern, bp, bs, ka, kb]
 	mesh = ArrayMesh.new()
 
 func rebase(shift: Vector3) -> void:
@@ -94,8 +99,14 @@ func _process(delta: float) -> void:
 		_push(_tracks[0], stern_pos, fwd)
 		_push(_tracks[1], bow_pos - right * (_beam * 0.40), fwd)
 		_push(_tracks[2], bow_pos + right * (_beam * 0.40), fwd)
+		_push(_tracks[3], bow_pos - right * (_beam * 0.45), fwd)
+		_push(_tracks[4], bow_pos + right * (_beam * 0.45), fwd)
 	var intensity := clampf(0.55 + 0.6 * Waves.sea_state, 0.0, 1.0)
 	_tracks[0].strength = intensity
+	var spd: float = _ship.get("current_speed") if _ship.get("current_speed") != null else 6.0
+	for kt in [3, 4]:
+		_tracks[kt].drift = clampf(spd, 0.0, 12.0) * 0.354 # tan(19.5 deg)
+		_tracks[kt].strength = 0.25 + 0.4 * clampf(spd / 7.0, 0.0, 1.2)
 	for t in _tracks:
 		for i in t.ages.size():
 			t.ages[i] += delta
@@ -124,7 +135,7 @@ func _rebuild(ship_pos: Vector2, fwd: Vector2) -> void:
 		var base := verts.size()
 		for i in n:
 			var age_k := t.ages[i] / t.life
-			var fade := (1.0 - age_k) * smoothstep(0.0, 0.12, age_k) # fast fade-in at the source
+			var fade := (1.0 - age_k) * smoothstep(0.0, 0.06, age_k + 0.02)
 			fade = fade * fade * (3.0 - 2.0 * fade) if fade < 1.0 else 1.0
 			fade *= t.strength
 			var w := lerpf(t.w0, t.w1, sqrt(age_k)) * 0.5
@@ -132,7 +143,7 @@ func _rebuild(ship_pos: Vector2, fwd: Vector2) -> void:
 			var perp := Vector2(d.y, -d.x)
 			for k in av:
 				var u := float(k) / float(av - 1)
-				var off := (u * 2.0 - 1.0) * w
+				var off := (u * 2.0 - 1.0) * w + t.side * t.drift * t.ages[i]
 				var q := t.pts[i] + perp * off
 				verts.append(Vector3(q.x, 0.0, q.y))
 				uvs.append(Vector2(u, t.dist[i]))

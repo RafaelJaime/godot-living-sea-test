@@ -101,6 +101,7 @@ vec4 texture_bicubic(in sampler2DArray sampler, in vec3 uvw) {
 }
 
 void fragment() {
+	bool masked_dbg = false;
 	vec3 world_pos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float dist = length(world_pos - CAMERA_POSITION_WORLD);
 	if (hull_volume_on) {
@@ -110,7 +111,7 @@ void fragment() {
 		if (huv.x > 0.0 && huv.x < 1.0 && huv.y > 0.0 && huv.y < 1.0) {
 			float hw = texture(hull_tex, huv).r;
 			if (hw > 0.3 && abs(hp.x) < hw - 0.06) {
-				discard;
+				if (debug_mode > 1.5) { masked_dbg = true; } else { discard; }
 			}
 		}
 	}
@@ -162,7 +163,12 @@ void fragment() {
 	foam_factor = clamp(whitecap * (1.0 - 0.7 * shallow) + shore_foam * 0.9 + hull_foam, 0.0, 1.0);
 
 	// Own water colour: absorption body + teal scattering that grows toward wave crests (independent of the sky IBL).
-	float crest01 = smoothstep(-0.6, 1.4, wave_height);
+	// Height sampled per fragment (the per-vertex varying differs between overlapping LOD rings -> visible patches).
+	float frag_h = 0.0;
+	for (uint i = 0U; i < num_cascades; ++i) {
+		frag_h += texture(displacements, vec3((UV + cascade_shift[i]) * map_scales[i].xy, float(i))).y * map_scales[i].z;
+	}
+	float crest01 = smoothstep(-0.6, 1.4, frag_h);
 	vec3 deep = water_color.rgb;
 	vec3 scatter = vec3(0.04, 0.32, 0.42);
 	vec3 body = mix(deep, scatter, crest01 * 0.4);
@@ -176,6 +182,7 @@ void fragment() {
 	NORMAL = (VIEW_MATRIX * vec4(normalize(vec3(-gradient.x, 1.0, -gradient.y)), 0.0)).xyz;
 
 	fresnel = mix(pow(1.0 - dot(VIEW, NORMAL), 5.0 * exp(-2.69 * roughness)) / (1.0 + 22.7 * pow(roughness, 1.5)), 1.0, REFLECTANCE);
+	if (masked_dbg) { ALBEDO = vec3(1.0, 0.0, 1.0); EMISSION = vec3(1.0, 0.0, 1.0); }
 	ROUGHNESS = clamp(sqrt(roughness * roughness + 1.0 * min(slope_var, 0.2)) + foam_factor * 0.25, 0.08, 0.9);
 }
 
