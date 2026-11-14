@@ -32,6 +32,7 @@ var _reg_i := 0
 var _reg_shot := 0
 var _reg_t := 0.0
 var _reg_state := 0 # 0 apply, 1 settle, 2 shots
+var _poll_state := false
 var _jitter := false
 var _log_secs := 0.0
 var _log_period := 2.0
@@ -67,6 +68,8 @@ func _ready() -> void:
 			_log_secs = float(a.get_slice('=', 1))
 		elif a.begins_with('--perf-log='):
 			_perf_secs = float(a.get_slice('=', 1))
+		elif a == '--poll-sail-state':
+			_poll_state = true
 		elif a == '--plan=regression':
 			_reg = true
 		elif a.begins_with('--roll-extreme='):
@@ -116,6 +119,11 @@ func _process(delta: float) -> void:
 		if fmod(_log_t, _log_period) < delta:
 			var sh := get_tree().root.get_node('Main/Ship')
 			var ap := get_tree().root.get_node('Main/Ship/Autopilot')
+			if _poll_state:
+				var rg := get_tree().get_first_node_in_group('sail_rig')
+				if rg:
+					var st: Dictionary = rg.sail_state()
+					print('[sail_state] ', st)
 			print('[log] t=', snappedf(_log_t, 0.1), ' pos=(', snappedf(sh.global_position.x, 1.0), ',', snappedf(sh.global_position.z, 1.0), ') yaw=', snappedf(rad_to_deg(sh.yaw), 1.0), ' roll=', snappedf(rad_to_deg(sh.roll), 0.1), ' pitch=', snappedf(rad_to_deg(sh.pitch), 0.1), ' rudder=', snappedf(sh.rudder, 0.01), ' speed=', snappedf(sh.current_speed, 0.1), ' tack_side=', ap._tack_side, ' tacking=', ap.tacking, ' target_dist=', snappedf(Vector2(sh.global_position.x, sh.global_position.z).distance_to(ap.target), 1.0), ' wind_ang=', snappedf(rad_to_deg(WorldState.wind_angle), 1.0), ' day=', snappedf(WorldState.day_phase, 0.01), ' cloud=', snappedf(WorldState.cloud, 0.01), ' storm=', snappedf(WorldState.storm, 0.01), ' sea=', snappedf(WorldState.sea_state, 0.01))
 		var sh2 := get_tree().root.get_node('Main/Ship')
 		_roll_samples.append([_log_t, rad_to_deg(sh2.roll), rad_to_deg(sh2.pitch)])

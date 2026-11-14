@@ -127,6 +127,26 @@ func get_sail_forces() -> Array[Dictionary]:
 		out.append(s.info())
 	return out
 
+## Read-only summary for gameplay/NPC code (does not touch any simulation state):
+## furl 0..1, brace_deg, mean_pressure_pa (area-weighted), luffing/backed (any sail in that state), gust (max gust factor).
+func sail_state() -> Dictionary:
+	var area := 0.0
+	var psum := 0.0
+	var luff := false
+	var backed := false
+	var gust := 1.0
+	var br := 0.0
+	for s in _sails:
+		var i: Dictionary = s.info()
+		var a: float = float(i["area"])
+		area += a
+		psum += float(i["pressure"]) * a
+		luff = luff or str(i["state"]) == "luffing"
+		backed = backed or str(i["state"]) == "backed"
+		gust = maxf(gust, float(i["gust"]))
+		br = float(i["brace_deg"])
+	return {"furl": _furl, "brace_deg": br, "mean_pressure_pa": psum / area if area > 0.0 else 0.0, "luffing": luff, "backed": backed, "gust": gust}
+
 ## Sum of all sail forces (ship space, N) and the force-weighted centre of effort (ship space, m).
 func total_sail_force() -> Dictionary:
 	var f := Vector3.ZERO

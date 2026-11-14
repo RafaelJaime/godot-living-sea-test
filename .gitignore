@@ -9,3 +9,5 @@ godot/assets/anim_src/*_Image_*.jpg
 godot/assets/anim_src/*_normal.png
 # addons need their import settings (e.g. Sunshine Clouds 2 3D textures)
 !godot/addons/**/*.import
+godot/assets/ship/ship_wheel_*.jpg
+godot/assets/ship/ship_wheel_normal.png

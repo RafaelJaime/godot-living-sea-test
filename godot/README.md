@@ -117,3 +117,9 @@ Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-bir
 - `--analytic-sails` uses the analytic flat-plate model fed by `WindField.sample` at each sail's centre; the log prints `[ship] sail path: analytic (WindField per sail)` or `cloth forces` once.
 - `--settle-log` prints roll, pitch, heave and keel lift each second for the first 12 s.
 (`PinnaceRig.sail_state()` from M1.7 is not implemented yet.)
+
+### Ocean shader layout (godot/shaders/ocean/)
+`ocean_fft.gdshader` is a shell: header, four includes and `fragment()`. Owners: `common.gdshaderinc` = all (defines, uniforms, varyings, island_distance);
+`surface.gdshaderinc` = M2a/M2b (vertex displacement, bicubic normal sampling); `foam.gdshaderinc` = M2b/M1.9 (`hull_foam_term` heel-aware via `hull_inv`
+and the hull cross-section table, `whitecap_term`, `wake_term`); `shading.gdshaderinc` = M2a (GGX, SSS, `light()`).
+Other hooks: `PinnaceRig.sail_state()` -> furl, brace_deg, mean_pressure_pa, luffing, backed, gust (read-only; `--poll-sail-state` logs it each `--autopilot-log` period).
