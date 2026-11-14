@@ -5,19 +5,20 @@ extends Node3D
 
 signal ship_ready(length: float, beam: float, deck_ref_y: float)
 
-const FINAL_PATH := "res://assets/ship/barco.glb"
-const PLACEHOLDER_PATH := "res://assets/placeholder/ship_placeholder.glb"
+## The ship in use (Poly Haven "Ship Pinnace" rigged, converted by ../export_pinnace.py). Old hulls stay in assets/ship.
+@export var model_path := "res://assets/ship/pinnace/barco_pinnace.glb"
+const PLACEHOLDER_PATH := "res://assets/ship/barco.glb"
 
-@export var target_length := 22.0
+@export var target_length := 22.0 ## ignored when ship_scale_override > 0
 ## Extra yaw (degrees) applied after auto-orientation, in case the bow guess is wrong.
 @export var ship_yaw_offset_deg := 0.0
 ## If > 0 replaces the auto scale factor (scale applied to the raw model).
-@export var ship_scale_override := 0.0
+@export var ship_scale_override := 1.0 ## 1 = real-world metres (the pinnace is modelled in metres)
 ## Shift of the waterline (meters, positive raises the hull out of the water).
 @export var waterline_offset := 0.0
 ## Hull depth (keel to deck) as a fraction of ship length; the waterline sits at 35% of it above the keel.
-@export var hull_depth_ratio := 0.2
-@export_range(0.0, 1.0) var submerged_fraction := 0.35
+@export var hull_depth_ratio := 0.27
+@export_range(0.0, 1.0) var submerged_fraction := 0.33
 ## Force the bow detection: 0 = auto, 1 = bow at +end of the long axis, -1 = bow at -end.
 @export var force_bow_sign := 0
 @export var sail_flutter := true
@@ -32,9 +33,9 @@ var _sail_phase: Array[float] = []
 var _t := 0.0
 
 func _ready() -> void:
-	var path := FINAL_PATH if ModelUtil.file_present(FINAL_PATH) else PLACEHOLDER_PATH
+	var path := model_path if ModelUtil.file_present(model_path) else PLACEHOLDER_PATH
 	var inst := ModelUtil.load_glb(path)
-	if inst == null and path == FINAL_PATH:
+	if inst == null and path == model_path:
 		push_warning("Final ship GLB failed to load, using placeholder")
 		path = PLACEHOLDER_PATH
 		inst = ModelUtil.load_glb(path)

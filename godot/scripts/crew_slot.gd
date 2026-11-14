@@ -16,6 +16,9 @@ extends Marker3D
 ## Fallback deck height above the waterline, as a fraction of ship length.
 @export var deck_height_frac := 0.12
 ## Snap to the deck mesh with a downward raycast (disabled for seated poses).
+## Place the character at an exact ship-local position (metres, y up from the waterline) instead of norm_u/norm_v.
+@export var use_fixed_position := false
+@export var fixed_position := Vector3.ZERO
 @export var snap_to_deck := true
 ## Raycast hits further than this (m) from the fallback deck height are ignored (rigging, wheel...).
 @export var snap_tolerance := 1.2
@@ -52,6 +55,11 @@ func setup(ship_length: float, ship_beam: float, snap_y_func: Callable) -> void:
 	var x := norm_v * ship_beam * 0.5
 	var z := lerpf(ship_length * 0.5, -ship_length * 0.5, norm_u)
 	var y := deck_height_frac * ship_length
+	if use_fixed_position:
+		x = fixed_position.x
+		z = fixed_position.z
+		y = fixed_position.y
+		snap_to_deck = false
 	position_x_hint = x
 	position_z_hint = z
 	if snap_to_deck:

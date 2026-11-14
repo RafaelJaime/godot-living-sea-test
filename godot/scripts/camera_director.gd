@@ -39,6 +39,8 @@ var shots: Array[Dictionary] = [
 var cycle_count := 7
 
 var free_mode := false
+## Shots are authored for a 22 m ship; this scales them to the real ship length (set from ship_ready).
+var shot_scale := 1.0
 var _lift := 0.0
 var _dt := 0.016
 var _ship: Node3D
@@ -57,6 +59,13 @@ func _ready() -> void:
 	add_to_group("rebase")
 	process_priority = 10
 	_ship = get_node(ship_path)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cam="): # debug: --cam=x,y,z,lx,ly,lz[,fov] in ship space, metres (index 16, mode raw)
+			var v := a.get_slice("=", 1).split_floats(",")
+			shots.append({"name": "debug", "mode": "raw", "pos": Vector3(v[0], v[1], v[2]), "look": Vector3(v[3], v[4], v[5]), "fov": v[6] if v.size() > 6 else 55.0})
+	var ld := get_node_or_null("../Ship/Pivot/Model")
+	if ld and ld.has_signal("ship_ready"):
+		ld.ship_ready.connect(func(l: float, _b: float, _r: float) -> void: shot_scale = l / 22.0)
 	far = 25000.0
 	near = 0.15
 	_noise.frequency = 0.35
@@ -127,6 +136,10 @@ func _sun_dir() -> Vector3:
 
 func _shot_pose(i: int, t: float) -> Dictionary:
 	var s := shots[i]
+	if shot_scale != 1.0 and s.get("mode", "") in ["", "sun_look"]:
+		s = s.duplicate()
+		if s.has("pos"): s["pos"] = (s["pos"] as Vector3) * shot_scale
+		if s.has("look"): s["look"] = (s["look"] as Vector3) * shot_scale
 	var f := _frame()
 	var mode: String = s.get("mode", "")
 	if mode == "crew":

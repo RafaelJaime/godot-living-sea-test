@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -17,6 +17,8 @@
 [ext_resource type="Script" path="res://scripts/autopilot.gd" id="15_auto"]
 [ext_resource type="Script" path="res://scripts/helm.gd" id="16_helm"]
 [ext_resource type="Script" path="res://scripts/crew_rig.gd" id="17_rig"]
+[ext_resource type="Script" path="res://scripts/pinnace_rig.gd" id="18_pin"]
+[ext_resource type="Script" path="res://scripts/flag.gd" id="19_flag"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -33,6 +35,8 @@ script = ExtResource("2_sky")
 
 [node name="Ship" type="Node3D" parent="."]
 script = ExtResource("3_ship")
+heave_smooth_time = 0.9
+rotate_smooth_time = 1.25
 
 [node name="Autopilot" type="Node" parent="Ship"]
 script = ExtResource("15_auto")
@@ -47,6 +51,12 @@ script = ExtResource("4_loader")
 
 [node name="Helm" type="Node3D" parent="Ship/Pivot"]
 script = ExtResource("16_helm")
+
+[node name="Flag" type="Node3D" parent="Ship/Pivot"]
+script = ExtResource("19_flag")
+
+[node name="PinnaceRig" type="Node" parent="Ship/Pivot"]
+script = ExtResource("18_pin")
 
 [node name="CrewRig" type="Node" parent="Ship/Pivot"]
 script = ExtResource("17_rig")
@@ -65,6 +75,8 @@ norm_v = 0.0
 deck_height_frac = 0.189
 snap_to_deck = false
 facing_deg = 0.0
+use_fixed_position = true
+fixed_position = Vector3(0, 6.5, 17.7)
 
 [node name="Papi_Diagnostica" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
 script = ExtResource("6_slot")
@@ -72,13 +84,15 @@ character_name = "Papi_Diagnostica"
 final_path = "res://assets/characters/papi_diagnostica.glb"
 placeholder_path = "res://assets/placeholder/Papi_Diagnostica.glb"
 target_height = 2.0
-placeholder_target_height = 3.2
+placeholder_target_height = 0.0
 norm_u = 0.58
 norm_v = 0.35
 deck_height_frac = 0.0795
 snap_to_deck = true
 facing_deg = -90.0
 snap_tolerance = 0.6
+use_fixed_position = true
+fixed_position = Vector3(2.0, 3.35, -7.0)
 
 [node name="El_Salchipapa" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
 script = ExtResource("6_slot")
@@ -91,6 +105,8 @@ norm_v = 0.0
 deck_height_frac = 0.108
 snap_to_deck = false
 facing_deg = 0.0
+use_fixed_position = true
+fixed_position = Vector3(0, 3.5, -10.6)
 
 [node name="Don_Omar" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
 script = ExtResource("6_slot")
@@ -106,6 +122,8 @@ snap_to_deck = false
 facing_deg = -170.0
 barrel_height = 0.85
 placeholder_y_offset = -0.38
+use_fixed_position = true
+fixed_position = Vector3(-2.3, 1.6, -2.6)
 
 [node name="Ocean" type="MeshInstance3D" parent="."]
 script = ExtResource("7_ocean")

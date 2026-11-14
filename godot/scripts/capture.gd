@@ -54,7 +54,15 @@ func _ready() -> void:
 					'world': PLAN = [[3.0, 0], [6.0, 5], [9.0, 3], [12.0, 2], [15.0, 6], [18.0, 4], [21.0, 0]]
 					'crew': PLAN = [[3.0, 12], [6.0, 12], [9.0, 13], [12.0, 13], [15.0, 10], [18.0, 3]]
 					'foam': PLAN = [[3.0, 14], [6.0, 11], [9.0, 1], [12.0, 0]]
+					'ship': PLAN = [[3.0, 0], [6.0, 2], [9.0, 14], [12.0, 7], [15.0, 8], [18.0, 9], [21.0, 10], [24.0, 12]]
 					'sky': PLAN = [[3.0, 5], [6.0, 6], [9.0, 2], [12.0, 3], [15.0, 0], [18.0, 5]]
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with('--shots='):
+				PLAN = []
+				var k := 0
+				for i in a.get_slice('=', 1).split(','):
+					PLAN.append([3.0 + 2.5 * k, int(i)])
+					k += 1
 		print('[capture] active')
 
 func _process(delta: float) -> void:

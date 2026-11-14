@@ -6,11 +6,13 @@ extends Node3D
 @export var ship_path := NodePath("../..")
 @export var loader_path := NodePath("../Model")
 ## Wheel hub position and radius for the current hull (retune when the hull changes).
-@export var wheel_pos := Vector3(0.0, 5.3, 8.5)
-@export var wheel_radius := 0.62
+@export var wheel_pos := Vector3(0.0, 7.6, 16.6)
+@export var wheel_radius := 0.72
 ## Triangles of the hull fully inside this box (Pivot space) are removed (the baked wheel).
 @export var cut_box := AABB(Vector3(-1.25, 4.45, 8.0), Vector3(2.5, 2.0, 0.62))
 ## Wheel angle (rad) per unit of rudder.
+## Remove a wheel baked into the hull mesh (only for the old Meshy hull; the pinnace has none).
+@export var cut_baked_wheel := false
 @export var turn_per_rudder := 3.6
 @export var wheel_smooth := 6.0
 ## Total wheel diameter incl. handles, in units of the grip diameter (asset only).
@@ -36,7 +38,8 @@ func _ready() -> void:
 	hand_r = Node3D.new(); hand_r.name = "HandR"; add_child(hand_r)
 
 func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
-	_cut_baked_wheel()
+	if cut_baked_wheel:
+		_cut_baked_wheel()
 	_build_wheel()
 	_tgt_l = _grip(-1.0, 0)
 	_tgt_r = _grip(1.0, 0)
