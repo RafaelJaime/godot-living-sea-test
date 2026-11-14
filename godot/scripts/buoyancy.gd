@@ -430,7 +430,26 @@ func _build_columns() -> void:
 func _start_physics() -> void:
 	if not _phys_ready or legacy_motion:
 		return
+	# Settled start: level hull, heave solved so the buoyancy of the columns against the ACTUAL water surface equals the weight
+	# (bisection), cruise speed from the start, and the sail force ramps in (see _apply_sails) instead of kicking the hull.
+	var gt0 := global_transform
+	var lo := -4.0
+	var hi := 4.0
+	for _i in 28:
+		var mid := 0.5 * (lo + hi)
+		var f := 0.0
+		for c in _cols:
+			var wp := gt0 * Vector3(c["x"], c["yb"], c["z"])
+			var depth := clampf(Waves.height_at(wp.x, wp.z) - (wp.y + mid), 0.0, _col_top - float(c["yb"]))
+			f += water_density * 9.81 * float(c["dA"]) * depth
+		if f > mass * 9.81:
+			lo = mid # too deep: raise the hull
+		else:
+			hi = mid
+	global_position.y = gt0.origin.y + 0.5 * (lo + hi)
 	freeze = false
+	_phys_age = 0.0
+	settled = false
 	linear_velocity = Vector3(forward.x, 0.0, forward.y) * 4.0
 	angular_velocity = Vector3.ZERO
 	for a in OS.get_cmdline_user_args():
@@ -461,6 +480,13 @@ func _point_velocity(world_off: Vector3) -> Vector3:
 func _physics_process(delta: float) -> void:
 	if legacy_motion or not _phys_ready or freeze or Waves.ocean == null:
 		return
+	_phys_age += delta
+	if not settled and _phys_age >= 6.0:
+		settled = true
+		settled_changed.emit(true)
+		print('[ship] settled at t=', snappedf(_phys_age, 0.1), ' s')
+	if _settle_log and _phys_age < 12.0 and int(_phys_age) != int(_phys_age - delta):
+		print('[settle] t=', int(_phys_age), ' roll=', snappedf(rad_to_deg(roll), 0.1), ' pitch=', snappedf(rad_to_deg(pitch), 0.1), ' y=', snappedf(global_position.y, 0.02), ' mid keel lift=', snappedf(min_mid, 0.02), ' ends=', snappedf(min_keel_clear, 0.02))
 	var gt := global_transform
 	var origin := gt.origin
 	var com_w := gt * _com_local
@@ -499,6 +525,7 @@ func _physics_process(delta: float) -> void:
 		apply_force(Vector3(0.0, f, 0.0), at - origin)
 		vsub += dA * depth
 	min_keel_clear = min_clear
+	min_mid = mid_clear
 	if _t > 12.0:
 		keel_clear_min = maxf(keel_clear_min, min_clear)
 		keel_mid_lift = maxf(keel_mid_lift, mid_clear)
@@ -570,6 +597,11 @@ func _physics_process(delta: float) -> void:
 var _sail_rig: Node
 var _analytic_sails := OS.get_cmdline_user_args().has("--analytic-sails")
 var cloth_force_used := false
+var settled := false ## false while the start-up ramp runs (~6 s), then true: NPC code may start moving around
+var _phys_age := 0.0
+var _settle_log := OS.get_cmdline_user_args().has('--settle-log')
+var min_mid := -99.0
+signal settled_changed(is_settled: bool)
 ## Calibration of the cloth sail forces against the hull drag (the cloth pressure integration is conservative).
 @export var cloth_sail_gain := 4.0 ## calibrated (with drag_wave): beam reach ~4-4.5 m/s at 11 m/s wind
 func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
@@ -579,7 +611,7 @@ func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
 		var heel_d := 1.0 - smoothstep(heel_depower_start_deg, heel_depower_end_deg, absf(rad_to_deg(roll)))
 		var tot := Vector3.ZERO
 		for sd in _sail_rig.get_sail_forces():
-			var fs: Vector3 = sd["force"] * heel_d * cloth_sail_gain * (1.0 - 0.75 * WorldState.storm) # storm canvas: less sail area / reefed
+			var fs: Vector3 = sd["force"] * heel_d * cloth_sail_gain * _canvas_factor()
 			if not fs.is_finite():
 				continue
 			var cap := mass * 9.81 * 0.35 # a single sail can never push harder than 0.35 g of the ship
@@ -654,3 +686,10 @@ func best_brace(max_deg := 72.0) -> float:
 			best_f = score
 			best = a
 	return best
+
+
+## Effective sail area: the crew reefs and furls as the storm builds (tied to the cloth furl state), and the start-up ramps in.
+func _canvas_factor() -> float:
+	var reef := 1.0 - 0.94 * smoothstep(0.35, 0.9, WorldState.storm)
+	var furl_k: float = clampf(sail_power, 0.1, 1.0) if "sail_power" in self else 1.0
+	return reef * lerpf(1.0, furl_k, 0.8) * smoothstep(0.0, 6.0, _phys_age)
