@@ -40,3 +40,12 @@ Crew: height normalized per slot (`target_height`), first/"idle" animation loope
 ## Infinite sailing
 The ship moves along -Z; every 1024 m everything in group `rebase` is shifted back to the origin and the shift is folded into the
 wave phase in double precision (`Waves.add_world_shift`), so there is no jitter after hours. Test: `-- --rebase-test=50`.
+
+## Running automated captures / tests without stealing focus (macOS)
+```
+open -g -n -W -a /Applications/Godot.app --args --path <project> --position 20,40 --resolution 1280x720 \
+     --log-file <project>/_shots/godot.log -- --capture
+```
+`-g` keeps the current app frontmost, `-W` waits for exit; output goes to the log file. In `--capture` and `--jitter-test`
+modes `capture.gd` also sets `WINDOW_FLAG_NO_FOCUS`. Other flags: `--jitter-test [--jitter-shot=N]`, `--rebase-test=<m>`, `--debug-deck`.
+Ocean: `Waves.sea_state` (0 calm .. 1 storm); FFT pipeline vendored in `addons/ocean_fft` (MIT, see its README).
