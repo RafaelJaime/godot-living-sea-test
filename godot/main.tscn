@@ -1,0 +1,101 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
+[ext_resource type="Script" path="res://scripts/buoyancy.gd" id="3_ship"]
+[ext_resource type="Script" path="res://scripts/ship_loader.gd" id="4_loader"]
+[ext_resource type="Script" path="res://scripts/crew_manager.gd" id="5_crewmgr"]
+[ext_resource type="Script" path="res://scripts/crew_slot.gd" id="6_slot"]
+[ext_resource type="Script" path="res://scripts/ocean.gd" id="7_ocean"]
+[ext_resource type="Script" path="res://scripts/islands.gd" id="8_islands"]
+[ext_resource type="Script" path="res://scripts/gulls.gd" id="9_gulls"]
+[ext_resource type="Script" path="res://scripts/camera_director.gd" id="10_cam"]
+[ext_resource type="Script" path="res://scripts/canto_sun.gd" id="11_canto"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+
+[node name="Sky" type="WorldEnvironment" parent="."]
+script = ExtResource("2_sky")
+
+[node name="Ship" type="Node3D" parent="."]
+script = ExtResource("3_ship")
+
+[node name="Pivot" type="Node3D" parent="Ship"]
+
+[node name="Model" type="Node3D" parent="Ship/Pivot"]
+script = ExtResource("4_loader")
+
+[node name="CrewMarkers" type="Node3D" parent="Ship/Pivot"]
+script = ExtResource("5_crewmgr")
+
+[node name="Papi_Fuego" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
+script = ExtResource("6_slot")
+character_name = "Papi_Fuego"
+final_path = "res://assets/characters/papi_fuego.glb"
+placeholder_path = "res://assets/placeholder/Papi_Fuego.glb"
+target_height = 1.85
+norm_u = 0.095
+norm_v = -0.12
+deck_height_frac = 0.189
+snap_to_deck = false
+facing_deg = 0.0
+
+[node name="Papi_Diagnostica" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
+script = ExtResource("6_slot")
+character_name = "Papi_Diagnostica"
+final_path = "res://assets/characters/papi_diagnostica.glb"
+placeholder_path = "res://assets/placeholder/Papi_Diagnostica.glb"
+target_height = 2.0
+placeholder_target_height = 3.2
+norm_u = 0.58
+norm_v = 0.35
+deck_height_frac = 0.0795
+snap_to_deck = true
+facing_deg = -90.0
+snap_tolerance = 0.6
+
+[node name="El_Salchipapa" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
+script = ExtResource("6_slot")
+character_name = "El_Salchipapa"
+final_path = "res://assets/characters/el_salchipapa.glb"
+placeholder_path = "res://assets/placeholder/El_Salchipapa.glb"
+target_height = 1.8
+norm_u = 0.71
+norm_v = 0.0
+deck_height_frac = 0.108
+snap_to_deck = false
+facing_deg = 0.0
+
+[node name="Don_Omar" type="Marker3D" parent="Ship/Pivot/CrewMarkers"]
+script = ExtResource("6_slot")
+character_name = "Don_Omar"
+final_path = "res://assets/characters/don_omar.glb"
+placeholder_path = "res://assets/placeholder/Don_Omar.glb"
+target_height = 1.85
+placeholder_target_height = 1.45
+norm_u = 0.36
+norm_v = -0.4
+deck_height_frac = 0.0795
+snap_to_deck = false
+facing_deg = -80.0
+barrel_height = 0.85
+placeholder_y_offset = -0.38
+
+[node name="Ocean" type="MeshInstance3D" parent="."]
+script = ExtResource("7_ocean")
+
+[node name="Islands" type="Node3D" parent="."]
+script = ExtResource("8_islands")
+
+[node name="Gulls" type="Node3D" parent="."]
+script = ExtResource("9_gulls")
+
+[node name="Camera" type="Camera3D" parent="."]
+current = true
+script = ExtResource("10_cam")
+
+[node name="CantoSun" type="MeshInstance3D" parent="."]
+script = ExtResource("11_canto")

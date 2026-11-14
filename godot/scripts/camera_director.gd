@@ -1,0 +1,191 @@
+extends Camera3D
+## Cinematic auto camera: preset shots (defined in the ship's yaw-only frame) blended every
+## `shot_duration` seconds, with slow orbit drift and handheld-like noise.
+## C toggles a free-fly debug camera, 1-4 jump to shots.
+
+@export var ship_path := NodePath("../Ship")
+@export var shot_duration := 20.0
+@export var blend_time := 5.0
+@export var handheld_deg := 0.35
+## Noise sampling speed for the handheld sway (noise frequency 0.35 -> ~0.5 Hz at 1.5).
+@export var handheld_rate := 1.5
+@export var free_speed := 25.0
+
+# Positions are in the ship frame (+X starboard, -Z bow) for a ~22 m ship.
+var shots: Array[Dictionary] = [
+	{"name": "3/4 bow", "pos": Vector3(-13.0, 4.6, -19.0), "look": Vector3(0.0, 4.2, -1.5), "fov": 58.0},
+	{"name": "side low", "pos": Vector3(-25.0, 1.8, 3.0), "look": Vector3(0.0, 4.5, -1.0), "fov": 52.0},
+	{"name": "high wide", "pos": Vector3(15.0, 21.0, 30.0), "look": Vector3(0.0, 2.0, -50.0), "fov": 64.0},
+	{"name": "captain", "pos": Vector3(-1.3, 7.3, 13.4), "look": Vector3(0.0, 4.0, -14.0), "fov": 60.0},
+	{"name": "deck crew", "pos": Vector3(-9.0, 7.0, 4.0), "look": Vector3(0.0, 3.0, 0.0), "fov": 55.0},
+	# Sun-relative shots (computed from the DirectionalLight3D direction at runtime).
+	{"name": "Canto", "mode": "sun_look", "pos": Vector3(-2.5, 4.9, 2.0), "fov": 62.0},
+	{"name": "silhouette", "mode": "sun_behind", "dist": 34.0, "height": 2.6, "fov": 56.0},
+	# Crew close-ups (not part of the auto cycle): offset is relative to the character, in the ship frame.
+	{"name": "close Papi_Fuego", "mode": "crew", "slot": "Papi_Fuego", "off": Vector3(-2.6, 0.5, -2.6), "fov": 45.0},
+	{"name": "close Papi_Diagnostica", "mode": "crew", "slot": "Papi_Diagnostica", "off": Vector3(3.4, 2.3, -1.2), "fov": 45.0},
+	{"name": "close El_Salchipapa", "mode": "crew", "slot": "El_Salchipapa", "off": Vector3(-2.0, 1.4, -3.0), "fov": 45.0},
+	{"name": "close Don_Omar", "mode": "crew", "slot": "Don_Omar", "off": Vector3(-3.0, 0.6, -1.5), "fov": 45.0},
+]
+## Only the first N shots take part in the automatic cycle.
+var cycle_count := 7
+
+var free_mode := false
+var _lift := 0.0
+var _dt := 0.016
+var _ship: Node3D
+var _from := 0
+var _to := 0
+var _blend := 1.0
+var _blend_len := 5.0
+var _timer := 0.0
+var _time := 0.0
+var _noise := FastNoiseLite.new()
+var _free_yaw := 0.0
+var _free_pitch := 0.0
+
+func _ready() -> void:
+	add_to_group("camera_director")
+	add_to_group("rebase")
+	process_priority = 10
+	_ship = get_node(ship_path)
+	far = 25000.0
+	near = 0.15
+	_noise.frequency = 0.35
+	_noise.fractal_octaves = 2
+	_apply_pose(_time, true)
+
+func rebase(shift: Vector3) -> void:
+	if free_mode:
+		global_position -= shift
+
+func jump_to(index: int, instant := false) -> void:
+	index = clampi(index, 0, shots.size() - 1)
+	_from = _to if _blend >= 1.0 else _from
+	_to = index
+	_blend = 1.0 if instant else 0.0
+	if instant:
+		_from = index
+	_blend_len = 1.6
+	_timer = 0.0
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		var k := (event as InputEventKey).keycode
+		if k == KEY_C:
+			free_mode = not free_mode
+			if free_mode:
+				var e := global_transform.basis.get_euler()
+				_free_yaw = e.y
+				_free_pitch = e.x
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if free_mode else Input.MOUSE_MODE_VISIBLE
+		elif k >= KEY_1 and k <= KEY_7:
+			free_mode = false
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			jump_to(k - KEY_1)
+		elif k == KEY_ESCAPE:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif free_mode and event is InputEventMouseMotion:
+		var mm := event as InputEventMouseMotion
+		_free_yaw -= mm.relative.x * 0.0028
+		_free_pitch = clampf(_free_pitch - mm.relative.y * 0.0028, -1.5, 1.5)
+
+func _process(delta: float) -> void:
+	_time += delta
+	_dt = delta
+	if free_mode:
+		_free_fly(delta)
+		return
+	_timer += delta
+	if _blend >= 1.0 and _timer >= shot_duration:
+		_timer = 0.0
+		_from = _to
+		_to = (_to + 1) % cycle_count
+		_blend = 0.0
+		_blend_len = blend_time
+	if _blend < 1.0:
+		_blend = minf(1.0, _blend + delta / _blend_len)
+		if _blend >= 1.0:
+			_from = _to
+	_apply_pose(_time, false)
+
+func _frame() -> Transform3D:
+	var yaw := _ship.rotation.y
+	return Transform3D(Basis(Vector3.UP, yaw), Vector3(_ship.global_position.x, 0.0, _ship.global_position.z))
+
+func _sun_dir() -> Vector3:
+	var sun := get_node_or_null("../Sun") as Node3D
+	return sun.global_transform.basis.z.normalized() if sun else Vector3(0, 0.34, -0.9)
+
+func _shot_pose(i: int, t: float) -> Dictionary:
+	var s := shots[i]
+	var f := _frame()
+	var mode: String = s.get("mode", "")
+	if mode == "crew":
+		var slot := get_node_or_null("../Ship/Pivot/CrewMarkers/" + str(s["slot"])) as Node3D
+		var c := (slot.position if slot else Vector3.ZERO) + Vector3(0, 1.0, 0)
+		return {"pos": c + (s["off"] as Vector3), "look": c, "fov": s["fov"]}
+	if mode == "sun_look":
+		# Stand on deck and look up toward the sun, keeping it in the upper third of the frame.
+		var wp: Vector3 = f * (s["pos"] as Vector3)
+		var wl: Vector3 = wp + _sun_dir() * 100.0 - Vector3(0, 13.0, 0)
+		return {"pos": s["pos"], "look": f.affine_inverse() * wl, "fov": s["fov"]}
+	if mode == "sun_behind":
+		# Camera on the far side of the ship from the sun: the ship is silhouetted against it.
+		var h := Vector3(_sun_dir().x, 0.0, _sun_dir().z).normalized()
+		var wp2: Vector3 = Vector3(f.origin.x, float(s["height"]), f.origin.z) - h * float(s["dist"])
+		wp2 = wp2.rotated(Vector3.UP, 0.0)
+		var sway := sin(t * 0.05) * 0.18
+		var rel := (wp2 - f.origin).rotated(Vector3.UP, sway)
+		var wpos2 := f.origin + rel
+		wpos2.y = float(s["height"])
+		return {"pos": f.affine_inverse() * wpos2, "look": Vector3(0, 6.0, 0), "fov": s["fov"]}
+	var drift := sin(t * 0.045 + float(i) * 1.7) * 0.22 # slow orbit around the look target
+	var look: Vector3 = s["look"]
+	var off: Vector3 = (s["pos"] as Vector3) - look
+	off = Basis(Vector3.UP, drift) * off
+	off.y += sin(t * 0.07 + float(i)) * 0.5
+	return {"pos": look + off, "look": look, "fov": s["fov"]}
+
+func _apply_pose(t: float, _first: bool) -> void:
+	var a := _shot_pose(_from, t)
+	var b := _shot_pose(_to, t)
+	var w := smoothstep(0.0, 1.0, _blend)
+	var pos: Vector3 = (a["pos"] as Vector3).lerp(b["pos"], w)
+	var look: Vector3 = (a["look"] as Vector3).lerp(b["look"], w)
+	var fv: float = lerpf(a["fov"], b["fov"], w)
+	var f := _frame()
+	var wpos := f * pos
+	var wlook := f * look
+	wlook.y += _ship_heave() * 0.5
+	# Soft water clearance: smooth-max of the wanted height and (wave + 1 m), then low-passed,
+	# so the camera never snaps against a hard clamp.
+	var deficit := Waves.height_at(wpos.x, wpos.z) + 1.0 - wpos.y
+	var lift := 0.5 * (deficit + sqrt(deficit * deficit + 0.35))
+	_lift = lerpf(_lift, lift, 1.0 - exp(-3.0 * _dt))
+	wpos.y += _lift
+	global_position = wpos
+	look_at(wlook, Vector3.UP)
+	# Handheld sway must be slow (<1 Hz); sampling the noise fast reads as vibration.
+	var hh := deg_to_rad(handheld_deg)
+	var ht := t * handheld_rate
+	var rot := Vector3(_noise.get_noise_1d(ht) * hh, _noise.get_noise_1d(ht + 100.0) * hh,
+		_noise.get_noise_1d(ht + 200.0) * hh * 0.6)
+	basis = basis * Basis.from_euler(rot)
+	fov = fv
+
+func _ship_heave() -> float:
+	var h = _ship.get("heave")
+	return float(h) if h != null else 0.0
+
+func _free_fly(delta: float) -> void:
+	basis = Basis.from_euler(Vector3(_free_pitch, _free_yaw, 0.0))
+	var v := Vector3.ZERO
+	if Input.is_physical_key_pressed(KEY_W): v.z -= 1.0
+	if Input.is_physical_key_pressed(KEY_S): v.z += 1.0
+	if Input.is_physical_key_pressed(KEY_A): v.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_D): v.x += 1.0
+	if Input.is_physical_key_pressed(KEY_E): v.y += 1.0
+	if Input.is_physical_key_pressed(KEY_Q): v.y -= 1.0
+	var sp := free_speed * (4.0 if Input.is_physical_key_pressed(KEY_SHIFT) else 1.0)
+	global_position += basis * v * sp * delta

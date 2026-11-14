@@ -1,0 +1,52 @@
+extends Node3D
+## Places the crew once the ship is normalized. Builds temporary trimesh colliders on the ship
+## meshes so slots can snap to the deck with a downward raycast, then discards them.
+
+@export var ship_loader_path := NodePath("../Model")
+@export var enabled_raycast_snap := true
+
+signal crew_ready
+
+func _ready() -> void:
+	var loader := get_node(ship_loader_path)
+	if loader.has_signal("ship_ready"):
+		loader.ship_ready.connect(_on_ship_ready)
+
+func _on_ship_ready(length: float, beam: float, _ref: float) -> void:
+	var bodies: Array[Node] = []
+	if enabled_raycast_snap:
+		var loader := get_node(ship_loader_path)
+		for n in loader.find_children("*", "MeshInstance3D", true, false):
+			var mi := n as MeshInstance3D
+			if mi.mesh == null:
+				continue
+			var low := mi.name.to_lower()
+			if "sail" in low or "flag" in low:
+				continue
+			mi.create_trimesh_collision()
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		bodies = loader.find_children("*", "StaticBody3D", true, false)
+	var space := get_world_3d().direct_space_state
+	var snap := func(x: float, z: float, ref_y: float) -> Variant:
+		var from := to_global(Vector3(x, ref_y + 6.0, z))
+		var to := to_global(Vector3(x, ref_y - 4.0, z))
+		var q := PhysicsRayQueryParameters3D.create(from, to)
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			return null
+		return to_local(hit["position"]).y
+	if OS.get_cmdline_user_args().has("--debug-deck"):
+		for u in [0.05, 0.1, 0.14, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.86, 0.92]:
+			var z := lerpf(length * 0.5, -length * 0.5, u)
+			var row := "[deck] u=%.2f" % u
+			for v in [-0.6, -0.3, 0.0, 0.3, 0.6]:
+				var hy: Variant = snap.call(v * beam * 0.5, z, 3.0)
+				row += "  v%.1f:%s" % [v, ("-" if hy == null else "%.2f" % float(hy))]
+			print(row)
+	for c in get_children():
+		if c.has_method("setup"):
+			c.setup(length, beam, snap)
+	for b in bodies:
+		b.queue_free()
+	crew_ready.emit()
