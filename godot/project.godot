@@ -12,6 +12,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 Waves="*res://scripts/waves.gd"
 WorldState="*res://scripts/world_state.gd"
 ShipLights="*res://scripts/ship_lights.gd"
+WindField="*res://scripts/wind_field.gd"
 Capture="*res://scripts/capture.gd"
 
 [display]

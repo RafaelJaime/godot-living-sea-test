@@ -64,3 +64,18 @@ Autoload `ShipLights` (scripts/ship_lights.gd); lanterns are `ShipLantern` nodes
 - Signals: `lighting_needed(ids)` when `WorldState.daylight` drops below 0.30 (dusk), `extinguish_suggested(ids)` when it rises above 0.50 (dawn), `lantern_changed(id, lit)`.
 - Test aid: `--auto-light[=delay_s]` lights every lantern (staggered) that long after dusk; use `--start-phase=0.0 --no-day` for a night capture.
 Other hooks for NPC code: ship deck query = raycast against the ship meshes (see crew_manager.gd), `Ship.roll/pitch/roll_rate/pitch_rate/yaw/yaw_rate/rudder/forward/current_speed`, `Ship.linear_velocity` (RigidBody3D), `WorldState` (daylight, night, storm, cloud, wind_vector(), wind_speed_ms(), sun_elevation_deg).
+## Wind + cloth (R4 / T9 / T9b)
+One wind model for everything that reacts to air.
+- `WindField` (autoload, `scripts/wind_field.gd`): `sample(pos, t) -> Vector3` true wind (world, m/s) = WorldState mean wind x
+  boundary-layer profile x **travelling gusts** (noise field advected downwind at 0.8 x wind speed; survives world rebase) +
+  turbulence; `apparent(pos, point_velocity)`; `gust_factor(pos)`. Test: `--wind-ms=N` forces the mean speed, `--gust-amp=X`.
+- `ClothSolver` (`scripts/cloth_solver.gd`): XPBD cloth (stretch / shear / bending constraints, hard + soft pins, capsule colliders,
+  real gravity, two-sided per-triangle aerodynamics from the apparent wind, 2 substeps x 8 iterations). All cloths are stepped in
+  parallel on the WorkerThreadPool by `WindField` (priority 100, after the owners wrote their pin targets). `--no-cloth` skips it.
+- Flags (`flag.gd`, 16x10): tied ONLY at the two hoist corners to the posed staff. Sails (`pinnace_rig.gd` + `sail_cloth.gd`,
+  12x10 per sail, `sail_cloth.gdshader` displaces the real sail mesh by the simulated grid): head on the yard, clews = soft pins (sheets).
+- **Integration API for the rigid-body ship** (all in ship/pivot space): `get_tree().get_first_node_in_group("sail_rig")`
+  `.get_sail_forces()` -> per sail `{name, force (N), point (centre of effort, m), area, pressure (Pa), tension (N), gust, state, brace_deg}`;
+  `.total_sail_force()` -> `{force, point}`. `flag.debug_info()` gives tension / pressure / gust for the flags.
+- QA: `-- --cloth-demo=full|calm|moderate|storm|beam|gust|gusthead [--no-day --start-phase=0.6 --weather=clear]` drives calm -> 12 m/s ->
+  26 m/s -> wind from the beam/bow (backed sails) -> travelling gust (following / head wind), saves `_shots/cloth_*.png` and prints `[cloth]`/`[gust]` logs.

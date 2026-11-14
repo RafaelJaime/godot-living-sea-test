@@ -1,37 +1,38 @@
 extends Node3D
-## Verlet cloth flag, simulated in WORLD space and driven by the APPARENT wind (true wind - ship velocity) from the same
-## WorldState wind field the sails use. The hoist edge is pinned ON the real posed pole (derived from CPU-skinned vertices
-## of the mast mesh, principal axis), re-evaluated every frame from the ship pivot transform, so it stays attached while the
-## ship rolls, pitches, heaves and yaws.
-## Two instances: stern staff (mesh "pavillion_mast") and the main-mast truck ("main_mast").
+## XPBD cloth flag (ClothSolver, same solver and same WindField as the sails), simulated in WORLD space.
+## Tied ONLY at the two hoist corners (halyard ties) to the real posed staff (axis derived from the CPU-skinned vertices of
+## the staff mesh, re-evaluated every frame from the ship pivot transform so it follows yaw/roll/pitch/heave); the hoist
+## edge between the ties and the fly edge are free. Two instances: stern staff ("pavillion_mast") and main masthead ("main_mast").
 
 @export var ship_path := NodePath("../..")
 @export var loader_path := NodePath("../Model")
 @export var mesh_suffix := "pavillion_mast"
-@export var cols := 12
-@export var rows := 7
-@export var spacing := 0.34   ## along the flag, hoist -> fly (m)
-@export var spacing_v := 0.38 ## down the hoist (m)
-@export var hoist_drop := 0.25 ## first pinned row below the pole tip (m)
-@export var pole_clearance := 0.07 ## pins sit this far from the pole axis (m)
+@export var cols := 16 ## particles along the flag, hoist -> fly
+@export var rows := 10 ## particles down the hoist
+@export var flag_length := 3.7 ## m, hoist -> fly
+@export var flag_height := 2.3 ## m, down the hoist
+@export var hoist_drop := 0.25 ## top tie sits this far below the pole tip (m)
+@export var pole_clearance := 0.07 ## ties sit this far from the pole axis (m)
+@export var pole_radius := 0.05 ## collision capsule of the staff (m)
+@export var tie_slack := 0.97 ## tie distance / flag height: the hoist edge bows a little between the ties
+@export var density := 0.30 ## kg/m2 (ensign bunting)
 @export var texture_path := "res://assets/ship/flag_pirat.png"
-@export var substeps := 4
-@export var iterations := 8
 
 var _ship: Node
 var _pivot: Node3D
-var _pos: PackedVector3Array
-var _prev: PackedVector3Array
-var _pin_local: PackedVector3Array # hoist pins, ship-pivot space (one per row)
+var _cloth: ClothSolver
+var _tie_local: PackedVector3Array # [top, bottom] hoist ties, ship-pivot space
+var _pole_a := Vector3.ZERO # staff axis, ship-pivot space (tip, foot)
+var _pole_b := Vector3.ZERO
 var _mi: MeshInstance3D
 var _mesh := ArrayMesh.new()
 var _ready_flag := false
-var _t := 0.0
 var _uvs := PackedVector2Array()
 var _idx := PackedInt32Array()
 var _dbg: Array[MeshInstance3D] = []
 var _log_t := 0.0
 var _fly_ema := Vector3.ZERO
+var _anch := PackedInt32Array()
 
 func _ready() -> void:
 	add_to_group("rebase")
@@ -46,7 +47,7 @@ func _ready() -> void:
 	var m := StandardMaterial3D.new()
 	if ResourceLoader.exists(texture_path):
 		m.albedo_texture = load(texture_path)
-		m.uv1_scale = Vector3(0.975, 0.97, 1.0) # crop the thin margin of the supplied image
+		m.uv1_scale = Vector3(0.975, 0.97, 1.0) # crop the thin white margin of the supplied image
 		m.uv1_offset = Vector3(0.0125, 0.015, 0.0)
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
@@ -59,9 +60,12 @@ func _ready() -> void:
 	get_node(loader_path).ship_ready.connect(_on_ship_ready.unbind(3))
 
 func rebase(shift: Vector3) -> void:
-	for i in _pos.size():
-		_pos[i] -= shift
-		_prev[i] -= shift
+	if _cloth:
+		_cloth.rebase(shift)
+
+func _exit_tree() -> void:
+	if _cloth:
+		_cloth.destroy()
 
 func _on_ship_ready() -> void:
 	var model := get_node(loader_path)
@@ -92,18 +96,17 @@ func _on_ship_ready() -> void:
 		var t := (p - c).dot(ax)
 		lo = minf(lo, t); hi = maxf(hi, t)
 	var tip := c + ax * hi
-	# Perpendicular offset direction: ship-right (+x) made orthogonal to the pole.
+	_pole_a = tip
+	_pole_b = c + ax * lo
+	# Ties sit beside the pole on the ship's starboard side (+x made orthogonal to the pole).
 	var off := (Vector3.RIGHT - ax * ax.dot(Vector3.RIGHT)).normalized() * pole_clearance
-	_pin_local.resize(rows)
-	for r in rows:
-		var along := hoist_drop + float(r) * spacing_v
-		_pin_local[r] = tip - ax * along + off
-	_init_particles()
-	_build_topology()
+	var top := tip - ax * hoist_drop + off
+	_tie_local = PackedVector3Array([top, top - ax * (flag_height * tie_slack)])
+	_build_cloth(ax)
 	_ready_flag = true
-	print("[flag] ", mesh_suffix, " axis ", ax.snapped(Vector3.ONE * 0.01), " tip ", tip.snapped(Vector3.ONE * 0.01), " length ", snappedf(hi - lo, 0.01))
+	print("[flag] ", mesh_suffix, " axis ", ax.snapped(Vector3.ONE * 0.01), " tip ", tip.snapped(Vector3.ONE * 0.01), " length ", snappedf(hi - lo, 0.01), " cloth ", cols, "x", rows, " mass ", snappedf(flag_length * flag_height * density, 0.01), " kg")
 	if OS.get_cmdline_user_args().has("--debug-pins"):
-		for r in rows:
+		for r in 2:
 			var sp := MeshInstance3D.new()
 			var sm := SphereMesh.new(); sm.radius = 0.09; sm.height = 0.18
 			sp.mesh = sm
@@ -112,25 +115,40 @@ func _on_ship_ready() -> void:
 			sp.top_level = true
 			add_child(sp)
 			_dbg.append(sp)
-	for _w in 90:
-		_simulate(1.0 / 120.0)
 
-func _pin_world(r: int) -> Vector3:
-	return _pivot.get_global_transform_interpolated() * _pin_local[r]
-
-func _init_particles() -> void:
-	_pos.resize(rows * cols)
-	_prev.resize(rows * cols)
-	var dir := _apparent_wind().normalized()
+## Flat rectangle hanging from the top tie, streaming toward the apparent wind (also the self-heal layout).
+func _rest_layout(ax: Vector3) -> PackedVector3Array:
+	var dir := _apparent_wind(_tie_world(0))
 	dir.y = 0.0
 	dir = dir.normalized() if dir.length() > 0.1 else Vector3(0, 0, 1)
+	var top := _tie_world(0)
+	var down := -(_pivot.get_global_transform_interpolated().basis * ax).normalized()
+	var rest := PackedVector3Array()
 	for r in rows:
 		for c in cols:
-			var p := _pin_world(r) + dir * spacing * float(c) - Vector3(0, 0.03 * c, 0)
-			_pos[r * cols + c] = p
-			_prev[r * cols + c] = p
+			rest.append(top + down * (flag_height * float(r) / float(rows - 1)) + dir * (flag_length * float(c) / float(cols - 1)))
+	return rest
 
-func _build_topology() -> void:
+func _build_cloth(ax: Vector3) -> void:
+	var rest := _rest_layout(ax)
+	_cloth = ClothSolver.new()
+	_cloth.density = density
+	_cloth.tag = "flag_" + mesh_suffix
+	_cloth.cN = 1.25
+	_cloth.cT = 0.07
+	_cloth.substeps = 2
+	_cloth.iterations = 8
+	_cloth.boost_iters = 3
+	_cloth.max_aero_accel = 160.0
+	_cloth.max_extra_substeps = 1
+	_cloth.alpha_bend = 4.0e-3
+	_cloth.flutter = 1.0
+	_cloth.build(cols, rows, rest)
+	# Only the two hoist corners are tied.
+	_anch.append(_cloth.add_anchor(0, 0.0, _tie_world(0)))
+	_anch.append(_cloth.add_anchor((rows - 1) * cols, 0.0, _tie_world(1)))
+	_cloth.post_step = _after_step
+	_cloth.reset_provider = _rest_layout.bind(ax)
 	_uvs.clear(); _idx.clear()
 	for r in rows:
 		for c in cols:
@@ -139,112 +157,76 @@ func _build_topology() -> void:
 		for c in cols - 1:
 			var a := r * cols + c
 			_idx.append_array([a, a + 1, a + cols, a + 1, a + cols + 1, a + cols])
+	# Warm-up so the first frame is not a flat sheet snapping into shape.
+	_update_anchors()
+	_cloth._launch_xf = _cloth.pivot_inv
+	for _w in 70:
+		_cloth._step(1.0 / 60.0)
+		_cloth.anchor_prev = _cloth.anchor_t.duplicate()
+	_update_mesh()
 
-## Apparent wind in world space: true wind (WorldState, the same field the sails use) minus the ship's velocity.
-func _apparent_wind() -> Vector3:
-	var wv := WorldState.wind_vector() * WorldState.wind_speed_ms()
+func _tie_world(i: int) -> Vector3:
+	return _pivot.get_global_transform_interpolated() * _tie_local[i]
+
+## Apparent wind at a world point for a point that moves with the ship's pivot (for orientation / logs only).
+func _apparent_wind(p: Vector3) -> Vector3:
 	var fwd: Vector2 = _ship.get("forward") if _ship.get("forward") != null else Vector2(0, -1)
 	var spd: float = _ship.get("current_speed") if _ship.get("current_speed") != null else 6.0
-	var sv := fwd * spd
-	return Vector3(wv.x - sv.x, 0.0, wv.y - sv.y)
+	return WindField.sample(p) - Vector3(fwd.x * spd, 0.0, fwd.y * spd)
+
+func _update_anchors() -> void:
+	_cloth.pivot_inv = _pivot.get_global_transform_interpolated().affine_inverse()
+	_cloth.set_anchor(_anch[0], _tie_world(0))
+	_cloth.set_anchor(_anch[1], _tie_world(1))
+	var gt := _pivot.get_global_transform_interpolated()
+	_cloth.set_capsules(PackedVector3Array([gt * _pole_a]), PackedVector3Array([gt * _pole_b]), PackedFloat32Array([pole_radius]))
 
 func _process(delta: float) -> void:
 	if not _ready_flag:
 		return
-	_t += delta
-	var dt := minf(delta, 0.05) / float(substeps)
-	for _s in substeps:
-		_simulate(dt)
-	_update_mesh()
-	_fly_ema = _fly_ema.lerp(_pos[(rows / 2) * cols + cols - 1] - _pin_world(rows / 2), 1.0 - exp(-delta / 3.0))
+	_update_anchors() # before WindField (priority 100) steps the cloth
 	for r in _dbg.size():
-		_dbg[r].global_position = _pin_world(r)
+		_dbg[r].global_position = _tie_world(r)
 	if OS.get_cmdline_user_args().has("--log-wind"):
 		_log_t += delta
 		if _log_t > 2.0:
 			_log_t = 0.0
-			var hoist := _pin_world(rows / 2)
-			var fly := _pos[(rows / 2) * cols + cols - 1] - hoist
-			var app := _apparent_wind()
-			var tw := WorldState.wind_vector() * WorldState.wind_speed_ms()
-			print("[wind] ", mesh_suffix, " true=(", snappedf(tw.x, 0.1), ",", snappedf(tw.y, 0.1), ") app=(", snappedf(app.x, 0.1), ",", snappedf(app.z, 0.1),
-				") |app|=", snappedf(app.length(), 0.1), " flag fly dir=(", snappedf(fly.x, 0.1), ",", snappedf(fly.y, 0.1), ",", snappedf(fly.z, 0.1),
-				") angle to app=", snappedf(rad_to_deg(Vector2(fly.x, fly.z).angle_to(Vector2(app.x, app.z))), 1.0), " deg  EMA fly=", _fly_ema.snapped(Vector3.ONE * 0.1), " heightdrop=", snappedf(fly.y, 0.01), " ship fwd=", _ship.get("forward"), " yaw_rate=", snappedf(float(_ship.get("yaw_rate")), 0.001), " tipvel=", ((_pos[(rows / 2) * cols + cols - 1] - _prev[(rows / 2) * cols + cols - 1]) * 60.0 * substeps).snapped(Vector3.ONE * 0.1))
+			var d := debug_info()
+			print("[wind] ", mesh_suffix, " ", d)
 
-func _simulate(dt: float) -> void:
-	# Particles move in the world frame, so relative air velocity = TRUE wind - particle velocity; the ship's own motion
-	# (apparent wind) enters through the pinned hoist dragging the cloth. app is only used for strength/droop decisions.
-	var tw := WorldState.wind_vector() * WorldState.wind_speed_ms()
-	var truew := Vector3(tw.x, 0.0, tw.y)
-	var app := _apparent_wind()
-	var w := WorldState
-	var speed := app.length()
-	var wind_k := clampf(speed / 5.0, 0.0, 1.0)
-	var gust := 1.0 + 0.30 * sin(_t * 1.7) * sin(_t * 0.61 + 0.7) + 0.5 * pow(maxf(sin(_t * 0.43 + 1.1), 0.0), 8.0) * (0.3 + w.wind_strength)
-	var grav := 0.4 + 1.8 * (1.0 - wind_k)
-	var amp := clampf(0.25 + 0.5 * w.wind_strength + 0.5 * w.storm, 0.0, 1.2)
-	for r in rows:
-		_pos[r * cols] = _pin_world(r)
-		_prev[r * cols] = _pos[r * cols]
-	for r in rows:
-		for c in range(1, cols):
-			var i := r * cols + c
-			var left := _pos[r * cols + c - 1]
-			var right := _pos[r * cols + mini(c + 1, cols - 1)]
-			var up := _pos[maxi(r - 1, 0) * cols + c]
-			var dn := _pos[mini(r + 1, rows - 1) * cols + c]
-			var n := (right - left).cross(dn - up)
-			n = n.normalized() if n.length_squared() > 1e-9 else Vector3.UP
-			var vel := (_pos[i] - _prev[i]) / dt
-			var rel := truew * gust - vel
-			# Travelling ripples: a force along the surface normal running from hoist to fly end.
-			var ph := _t * 7.5 - float(c) * 0.95 + float(r) * 0.35
-			var ripple := n * (sin(ph) + 0.4 * sin(ph * 1.9 + 1.3)) * amp * speed * (0.15 + 0.85 * float(c) / float(cols - 1))
-			var acc := rel * 3.2 + n * n.dot(rel) * 0.8 + ripple + Vector3(0.0, -grav, 0.0)
-			var np := _pos[i] + (_pos[i] - _prev[i]) * 0.985 + acc * dt * dt
-			_prev[i] = _pos[i]
-			_pos[i] = np
-	var hyp := Vector2(spacing, spacing_v).length()
-	for _it in iterations:
-		for r in rows:
-			for c in cols:
-				var i := r * cols + c
-				if c < cols - 1:
-					_constrain(i, i + 1, spacing, c == 0)
-				if r < rows - 1:
-					_constrain(i, i + cols, spacing_v, c == 0)
-				if c < cols - 1 and r < rows - 1:
-					_constrain(i, i + cols + 1, hyp, c == 0)
-					_constrain(i + 1, i + cols, hyp, false)
-		for r in rows:
-			_pos[r * cols] = _pin_world(r)
+## Numbers for logs: tension (N, reaction at the ties), aero pressure (Pa), gust factor seen, fly vector, stretch.
+func debug_info() -> Dictionary:
+	var hoist := _tie_world(0)
+	var fly := _cloth.particle(rows / 2, cols - 1) - _cloth.particle(rows / 2, 0)
+	return {"tension": snappedf(_cloth.constraint_force.length(), 0.01), "pressure": snappedf(_cloth.pressure, 0.01),
+		"gust": snappedf(_cloth.gust_seen, 0.01), "fly": fly.snapped(Vector3.ONE * 0.01), "stretch": snappedf(_cloth.max_stretch, 0.001),
+		"droop": snappedf(_cloth.particle(rows / 2, cols - 1).y - hoist.y, 0.01)}
 
-func _constrain(a: int, b: int, rest: float, a_pinned: bool) -> void:
-	var d := _pos[b] - _pos[a]
-	var l := d.length()
-	if l < 1e-6:
-		return
-	var diff := (l - rest) / l
-	if a_pinned:
-		_pos[b] -= d * diff
-	else:
-		_pos[a] += d * diff * 0.5
-		_pos[b] -= d * diff * 0.5
+func _after_step() -> void:
+	_update_mesh()
+	var fly := _cloth.particle(rows / 2, cols - 1) - _cloth.particle(rows / 2, 0)
+	_fly_ema = _fly_ema.lerp(fly, 1.0 - exp(-_cloth._frame_dt / 3.0))
 
 func _update_mesh() -> void:
+	# The step is one frame old: express it in the ship frame it was computed in and re-apply the CURRENT ship transform.
+	var xf := _pivot.get_global_transform_interpolated() * _cloth._launch_xf
+	var pos := PackedVector3Array()
+	pos.resize(_cloth.n)
+	for i in _cloth.n:
+		pos[i] = xf * _cloth.pos[i]
 	var norms := PackedVector3Array()
-	norms.resize(_pos.size())
+	norms.resize(pos.size())
 	for r in rows:
 		for c in cols:
-			var left := _pos[r * cols + maxi(c - 1, 0)]
-			var right := _pos[r * cols + mini(c + 1, cols - 1)]
-			var up := _pos[maxi(r - 1, 0) * cols + c]
-			var dn := _pos[mini(r + 1, rows - 1) * cols + c]
+			var left := pos[r * cols + maxi(c - 1, 0)]
+			var right := pos[r * cols + mini(c + 1, cols - 1)]
+			var up := pos[maxi(r - 1, 0) * cols + c]
+			var dn := pos[mini(r + 1, rows - 1) * cols + c]
 			var n := (right - left).cross(dn - up)
 			norms[r * cols + c] = n.normalized() if n.length_squared() > 1e-9 else Vector3.UP
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
-	arr[Mesh.ARRAY_VERTEX] = _pos
+	arr[Mesh.ARRAY_VERTEX] = pos
 	arr[Mesh.ARRAY_NORMAL] = norms
 	arr[Mesh.ARRAY_TEX_UV] = _uvs
 	arr[Mesh.ARRAY_INDEX] = _idx
@@ -254,10 +236,10 @@ func _update_mesh() -> void:
 
 ## Camera pose that looks at the flag from the side (perpendicular to its streaming direction).
 func view_pose(dist: float) -> Dictionary:
-	var center := _pin_world(rows / 2)
+	var center := _tie_world(0)
 	var fly := _fly_ema
 	fly.y = 0.0
 	fly = fly.normalized() if fly.length() > 0.2 else Vector3(0, 0, 1)
 	var perp := fly.cross(Vector3.UP).normalized()
-	var target := center + fly * spacing * cols * 0.45
+	var target := center + fly * flag_length * 0.45 + Vector3(0, -flag_height * 0.45, 0)
 	return {"pos": target + perp * dist + Vector3(0, 0.6, 0), "look": target}

@@ -60,10 +60,8 @@ script = ExtResource("19_flag")
 [node name="FlagMain" type="Node3D" parent="Ship/Pivot"]
 script = ExtResource("19_flag")
 mesh_suffix = "main_mast"
-spacing = 0.26
-spacing_v = 0.3
-cols = 12
-rows = 6
+flag_length = 2.9
+flag_height = 1.55
 hoist_drop = 0.4
 
 [node name="PinnaceRig" type="Node" parent="Ship/Pivot"]

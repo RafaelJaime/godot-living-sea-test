@@ -1,41 +1,63 @@
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque;
-// Wind-driven cloth for the pinnace sails. The sail is pinned along its top edge (the yard) and at its two lower
-// corners (sheets); in between it bulges along the ship's fore/aft axis (billow) and ripples. All maths happens in SHIP
-// space (x starboard, y up, z aft) through to_ship/from_ship, so it does not depend on the glTF/mesh orientation.
+// Sail mesh skinned to the SIMULATED cloth grid (sail_cloth.gd + cloth_solver.gd).
+// dtex is a COLS x ROWS RGBAF texture, one texel per simulated node: rgb = displacement of the node (ship space) from its
+// rest position minus the mesh's own baked belly, a = rest x of the node (gives the per-row outline of the sail).
+// Every vertex finds its (u, v) in the sail outline, samples the displacement with a Catmull-Rom spline and moves by it;
+// the lighting normal comes from the spline surface. All maths in SHIP space (x starboard, y up, z aft) via to_ship / from_ship.
 
 uniform sampler2D albedo_tex : source_color, repeat_enable, filter_linear_mipmap;
 uniform sampler2D normal_tex : hint_normal, repeat_enable, filter_linear_mipmap;
+uniform sampler2D dtex : filter_nearest, repeat_disable;
 uniform float alpha_cut = 0.5;
 uniform mat4 to_ship;
 uniform mat4 from_ship;
-uniform vec3 bmin;        // sail AABB in ship space
-uniform vec3 bmax;
-uniform float fill = 0.5; // billow: >0 bulges forward (toward the bow, -z), <0 pressed aft, ~0 slack
-uniform float flutter = 0.3; // ripple amplitude 0..1.5
-uniform float furl = 0.0;    // 0 deployed .. 1 furled up to the yard
-uniform float time = 0.0;
-uniform float seed = 0.0;
-uniform float brace = 0.0;     // yard brace angle about the vertical axis through the mast (rad): the bones already rotated the sail
+uniform float ytop = 10.0;
+uniform float hgt = 4.0;
+uniform float z0 = 0.0;
+uniform float furl = 0.0; // 0 deployed .. 1 furled up to the yard
+uniform float brace = 0.0; // yard brace angle about the vertical axis through mast_pos (rad): the bones already rotated the sail mesh
 uniform vec3 mast_pos = vec3(0.0); // ship space
 
-varying float v_shade;
+const int C = 12;
+const int R = 10;
 
-float disp(vec3 p) {
-	float w = max(bmax.x - bmin.x, 0.001);
-	float h = max(bmax.y - bmin.y, 0.001);
-	float u = clamp((p.x - bmin.x) / w, 0.0, 1.0);
-	float v = clamp((p.y - bmin.y) / h, 0.0, 1.0);       // 0 bottom .. 1 top (yard)
-	float belly = pow(1.0 - v, 0.65) * pow(sin(3.14159265 * u), 0.8);
-	float billow = -fill * h * 0.20 * belly;               // -z is forward
-	float t = time;
-	float r1 = sin(p.x * 1.9 + p.y * 2.4 + t * (2.0 + 5.0 * flutter) + seed);
-	float r2 = sin(p.x * 3.4 - p.y * 1.7 + t * (3.1 + 7.0 * flutter) * 1.31 + seed * 2.3);
-	float r3 = sin(p.y * 4.5 + t * (4.0 + 9.0 * flutter) + p.x * 0.7 + seed * 4.1);
-	float ripple = (r1 * 0.5 + r2 * 0.35 + r3 * 0.15) * flutter * 0.28 * (1.0 - v) * (0.25 + 0.75 * belly + 0.35 * (1.0 - v));
-	// luffing edge: free vertical edges (u near 0/1 away from the corners) snap more.
-	float edge = (1.0 - sin(3.14159265 * u)) * (1.0 - v) * flutter * 0.10 * sin(t * (7.0 + 12.0 * flutter) + p.y * 3.0 + seed);
-	return billow + ripple + edge;
+vec4 node(int i, int j) {
+	return texelFetch(dtex, ivec2(clamp(i, 0, C - 1), clamp(j, 0, R - 1)), 0);
+}
+
+vec3 cr(vec3 p0, vec3 p1, vec3 p2, vec3 p3, float t) {
+	return 0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t);
+}
+
+vec3 disp(float u, float v) {
+	float gx = clamp(u, 0.0, 1.0) * float(C - 1);
+	float gy = clamp(v, 0.0, 1.0) * float(R - 1);
+	int i0 = min(int(floor(gx)), C - 2);
+	int j0 = min(int(floor(gy)), R - 2);
+	float tx = gx - float(i0);
+	float ty = gy - float(j0);
+	vec3 rows_[4];
+	for (int k = 0; k < 4; k++) {
+		int j = j0 - 1 + k;
+		rows_[k] = cr(node(i0 - 1, j).rgb, node(i0, j).rgb, node(i0 + 1, j).rgb, node(i0 + 2, j).rgb, tx);
+	}
+	return cr(rows_[0], rows_[1], rows_[2], rows_[3], ty);
+}
+
+// Outline of the sail at height fraction v: x range from the rest-x channel of the first / last column.
+vec2 outline(float v) {
+	float gy = clamp(v, 0.0, 1.0) * float(R - 1);
+	int j0 = min(int(floor(gy)), R - 2);
+	float f = gy - float(j0);
+	float xl = mix(node(0, j0).a, node(0, j0 + 1).a, f);
+	float xr = mix(node(C - 1, j0).a, node(C - 1, j0 + 1).a, f);
+	return vec2(xl, xr);
+}
+
+vec3 surface(float u, float v) {
+	vec2 o = outline(v);
+	return vec3(mix(o.x, o.y, clamp(u, 0.0, 1.0)), ytop - clamp(v, 0.0, 1.0) * hgt, z0) + disp(u, v);
 }
 
 vec3 rot_y(vec3 v, float a) {
@@ -46,22 +68,29 @@ vec3 rot_y(vec3 v, float a) {
 
 void vertex() {
 	vec3 ps = (to_ship * vec4(VERTEX, 1.0)).xyz;
-	// Work in the sail's own (unbraced) frame, then rotate the displacement back.
+	// Work in the sail's own (unbraced) frame, where the simulated grid lives, then rotate the result back.
 	vec3 p = rot_y(ps - mast_pos, -brace) + mast_pos;
-	float top = bmax.y;
-	p.y = top - (top - p.y) * (1.0 - 0.92 * furl);
-	float d = disp(p) * (1.0 - 0.85 * furl);
-	float e = 0.12;
-	float dx = (disp(p + vec3(e, 0.0, 0.0)) - disp(p - vec3(e, 0.0, 0.0))) / (2.0 * e);
-	float dy = (disp(p + vec3(0.0, e, 0.0)) - disp(p - vec3(0.0, e, 0.0))) / (2.0 * e);
-	vec3 n0 = normalize((to_ship * vec4(NORMAL, 0.0)).xyz);
-	vec3 n = rot_y(n0, -brace);
-	float sg = n.z >= 0.0 ? 1.0 : -1.0;
-	n = normalize(vec3(n.x - dx * sg, n.y - dy * sg, n.z));
-	vec3 pq = ps + rot_y(vec3(0.0, p.y - (rot_y(ps - mast_pos, -brace) + mast_pos).y, d), brace); // vertical furl shift + billow
-	VERTEX = (from_ship * vec4(pq, 1.0)).xyz;
-	NORMAL = normalize((from_ship * vec4(rot_y(n, brace), 0.0)).xyz);
-	v_shade = d;
+	float v = clamp((ytop - p.y) / hgt, 0.0, 1.0);
+	vec2 o = outline(v);
+	float u = clamp((p.x - o.x) / max(o.y - o.x, 0.1), 0.0, 1.0);
+	p += disp(u, v);
+	// normal of the simulated surface, on the same side as the mesh normal
+	float eu = 0.5 / float(C - 1);
+	float ev = 0.5 / float(R - 1);
+	vec3 su = surface(min(u + eu, 1.0), v) - surface(max(u - eu, 0.0), v);
+	vec3 sv = surface(u, min(v + ev, 1.0)) - surface(u, max(v - ev, 0.0));
+	vec3 n = cross(su, sv);
+	vec3 n0 = rot_y((to_ship * vec4(NORMAL, 0.0)).xyz, -brace);
+	n = length(n) > 1e-6 ? normalize(n) : normalize(n0);
+	if (dot(n, n0) < 0.0) {
+		n = -n;
+	}
+	// Furling: pull the sail up toward the yard.
+	p.y = ytop - (ytop - p.y) * (1.0 - 0.92 * furl);
+	p = rot_y(p - mast_pos, brace) + mast_pos;
+	n = rot_y(n, brace);
+	VERTEX = (from_ship * vec4(p, 1.0)).xyz;
+	NORMAL = normalize((from_ship * vec4(n, 0.0)).xyz);
 }
 
 void fragment() {
