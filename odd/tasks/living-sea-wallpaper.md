@@ -65,13 +65,16 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
       AnimationLibrary across same-rig characters if retarget works, else per character). Helmsman and
       violinist react (turn head toward visitor). Depends on final ship choice (door/stairs). — delegated
 - [x] T3 note: flag cloth physics confirmed in scope (user asked 2026-11-14). — done in the `feat(ship)` commit
-- [ ] T8 Realistic ship motion: physical roll/pitch (damped oscillators, roll ~10 s, pitch ~6 s, amplitude by
-      sea_state), heave averaged over the hull footprint, deeper draft, keel never visible (min keel clearance
-      logged over 120 s, storm + moderate). — delegated (in progress)
+- [ ] T8 Physics-driven ship (user 2026-11-14: realism instead of scripted roll): RigidBody3D with per-sample
+      hydrostatic buoyancy on the FFT surface, keel-effect drag, sail aerodynamic forces (thrust + heel from apparent
+      wind at each sail's centre of effort), rudder hydrodynamic lift, yards braced to the wind, sails luff/back;
+      stable for hours, never capsizes, keel hidden except extreme storm moments. — delegated
+- [ ] T8b Realistic ship's boat: lashed to the deck with ropes, slight physical play (spring/rope constraints),
+      never falls off. — delegated
 - [ ] T9 Flags: stern flag pinned to the real (bone-posed) staff, flying with apparent wind like the sails;
       second Pirat flag at the main masthead. — delegated (in progress)
-- [ ] T10 Hybrid character physics (PROPOSED, awaiting user OK): SpringBoneSimulator3D hair/coat/mane, foot IK
-      on the tilting deck, PhysicalBoneSimulator3D stumbles in storms, over keyframed base clips. — delegated
+- [ ] T10 Hybrid character physics (APPROVED 2026-11-14): foot IK on the tilting deck + stumbles/balance recovery
+      in storms over keyframed base clips. Hair/clothing physics explicitly OUT of scope. — delegated
 
 ## Acceptance criteria
 - Water reads as realistic ocean (foam, wake behind ship, spray at bow) in captures; no seams.
