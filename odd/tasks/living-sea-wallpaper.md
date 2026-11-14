@@ -78,6 +78,35 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
 - [ ] T10 Hybrid character physics (APPROVED 2026-11-14): foot IK on the tilting deck + stumbles/balance recovery
       in storms over keyframed base clips. Hair/clothing physics explicitly OUT of scope. — delegated
 
+## Phase 2 — Realism pass (user 2026-11-14: "lo más realista posible")
+Reference frames: refs/reference_krautdev/ref_*.jpg (from the KrautDev video). Every task closes with a
+side-by-side capture at fixed camera presets vs. the matching reference frame + an objective check.
+Order is priority; runnable main at all times (agent works on a branch/worktree, user runs the stable worktree).
+
+- [ ] R0 Ocean defects (BLOCKER): no black cracks/slits (clipmap seams: stitching/skirts + displacement
+      geomorph across rings; hull mask strictly inside the hull) and no sparkly white crest streaks (FFT texture
+      mipmaps/anisotropic filtering, distance/variance-based roughness, specular clamp). Check: 0 holes in a
+      360° horizon sweep at 3 sea states.
+- [ ] R1 Infinite horizon: ocean reaches the horizon seamlessly (far ring/skirt to the horizon line, distance
+      fog/aerial perspective matching the sky colour, no visible tiling — non-integer cascade ratios + detail
+      noise). Check: horizon sweep captures, no repeat pattern visible at 3 heights.
+- [ ] R2 Physically based water shading: sky/environment reflection with Fresnel (SSR + sky fallback),
+      subsurface scattering through wave crests (sun behind waves glows teal), depth/absorption colour,
+      calibrated sun glitter, realistic foam (patchy whitecaps from accumulated Jacobian with decay, lacy
+      textured foam, no artificial white lines), turquoise shallows like ref_3s. Check vs ref_3s/ref_12s.
+- [ ] R3 Wake & spray realism: wake from the same foam accumulation (Kelvin wake ~19.5° arms, turbulent
+      centre), bow wave and spray tied to hull/water relative speed; no ribbon artifacts. Check vs ref_12s.
+- [ ] R4 Cloth realism (sails + flags, one WindField): flags tied at the 2 hoist corners only, correct mass
+      and gravity (hang fully in calm, droop in light wind, stream in strong wind), drag/lift aero, enough
+      substeps; sails as the same cloth pinned to yards with sheets; forces feed T8 propulsion. Check: calm /
+      moderate / storm captures + gust timeline log.
+- [ ] R5 Sky, light & atmosphere: volumetric or high-quality layered clouds, sun/sky/fog consistent per
+      time of day and weather, auto-exposure, SSAO/SSIL where affordable, crisp ship shadows, storm darkness
+      and rain like ref_15s/ref_18s.
+- [ ] R6 Physics ship (T8/T8b) and crew physics (T10) as already specified.
+- [ ] R7 Final QA: 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
+      no visual defects checklist (cracks, popping, floating crew, clipping, keel visible).
+
 ## Acceptance criteria
 - Water reads as realistic ocean (foam, wake behind ship, spray at bow) in captures; no seams.
 - Water NEVER visible inside the hull or over the deck (except spray/rain), in calm and storm.
