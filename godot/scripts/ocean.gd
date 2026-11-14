@@ -52,13 +52,18 @@ func _ready() -> void:
 	_setup_generator()
 	_mat = ShaderMaterial.new()
 	_mat.shader = load("res://shaders/ocean_fft.gdshader")
-	_mat.set_shader_parameter("roughness", 0.55)
+	_mat.set_shader_parameter("roughness", 0.3)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--hull-foam="):
+			_mat.set_shader_parameter("hull_foam_gain", float(a.get_slice("=", 1)))
+		elif a.begins_with("--water-debug="):
+			_mat.set_shader_parameter("debug_mode", float(a.get_slice("=", 1)))
 	_islands.resize(MAX_ISLANDS)
 	_update_scales()
 	for l in levels:
 		var cell := base_cell * pow(2.0, l)
 		var mi := MeshInstance3D.new()
-		mi.mesh = _build_level(cell, l > 0)
+		mi.mesh = _build_level(cell, false) # full squares: levels overlap, nothing is cut out (seam cracks cannot open)
 		mi.material_override = _mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.extra_cull_margin = 200.0
@@ -276,15 +281,8 @@ func _build_level(cell: float, with_hole: bool) -> ArrayMesh:
 func _snap(cam_pos: Vector3) -> void:
 	for l in levels:
 		var c := _level_cell[l]
-		var p := Vector3(snappedf(cam_pos.x, c), 0.0, snappedf(cam_pos.z, c))
-		_level_nodes[l].global_position = p
-		if l == 0:
-			_level_nodes[l].set_instance_shader_parameter("inner_rect", Vector4(1.0, 1.0, -1.0, -1.0))
-		else:
-			var prev_half := cells_per_level * _level_cell[l - 1] * 0.5
-			var pp := _level_nodes[l - 1].global_position
-			_level_nodes[l].set_instance_shader_parameter("inner_rect",
-				Vector4(pp.x - prev_half, pp.z - prev_half, pp.x + prev_half, pp.z + prev_half))
+		_level_nodes[l].global_position = Vector3(snappedf(cam_pos.x, c), 0.0, snappedf(cam_pos.z, c))
+		_level_nodes[l].set_instance_shader_parameter("lod_bias", 0.035 * float(l))
 
 func _exit_tree() -> void:
 	# Detach the compute textures before the generator frees them (avoids RID errors on shutdown).

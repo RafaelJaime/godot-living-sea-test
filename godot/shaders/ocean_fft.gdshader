@@ -26,6 +26,8 @@ uniform vec2 ship_half = vec2(11.0, 3.2);       // half length, half beam (m)
 uniform float hull_w[HULL_BINS];                // waterline half-width per bin, bow (index 0) .. stern (last)
 uniform vec2 hull_z = vec2(-11.0, 11.0);        // local z of bin 0 (bow) and the last bin (stern)
 uniform float ship_speed = 6.0;
+uniform float hull_foam_gain = 1.0;
+uniform float debug_mode = 0.0;
 uniform bool hull_volume_on = false;
 uniform mat4 hull_inv;                          // world -> ship pivot space (full pose: yaw, pitch, roll, heave)
 uniform sampler2D hull_tex : filter_linear, repeat_disable; // W(z, y) = max |x| of the hull cross-section
@@ -37,7 +39,7 @@ global uniform uint num_cascades;
 global uniform sampler2DArray displacements;
 global uniform sampler2DArray normals : hint_normal;
 
-instance uniform vec4 inner_rect = vec4(1.0, 1.0, -1.0, -1.0);
+instance uniform float lod_bias = 0.0; // coarser rings sit slightly below finer ones (rings overlap, no holes -> no seam cracks)
 
 varying vec2 rest_xz;
 varying float wave_height;
@@ -68,6 +70,7 @@ void vertex() {
 		displacement += texture(displacements, vec3(UV * scales.xy, float(i))).xyz * scales.z;
 	}
 	VERTEX += displacement * distance_factor;
+	VERTEX.y -= lod_bias;
 	wave_height = displacement.y;
 }
 
@@ -97,9 +100,6 @@ vec4 texture_bicubic(in sampler2DArray sampler, in vec3 uvw) {
 }
 
 void fragment() {
-	if (rest_xz.x > inner_rect.x && rest_xz.x < inner_rect.z && rest_xz.y > inner_rect.y && rest_xz.y < inner_rect.w) {
-		discard;
-	}
 	vec3 world_pos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float dist = length(world_pos - CAMERA_POSITION_WORLD);
 	if (hull_volume_on) {
@@ -120,8 +120,14 @@ void fragment() {
 		vec4 scales = map_scales[i];
 		vec3 coords = vec3(UV * scales.xy, float(i));
 		float ppm = map_size * min(scales.x, scales.y);
-		gradient += mix(texture_bicubic(normals, coords), texture(normals, coords), min(1.0, ppm * 0.1)).xyw * vec3(scales.ww, 1.0);
+		// The 20 m detail cascade has no mips: fade it with distance so it cannot alias into sparkle.
+		float fade = (i == 2U) ? (1.0 - smoothstep(25.0, 110.0, dist)) : 1.0;
+		gradient += mix(texture_bicubic(normals, coords), texture(normals, coords), min(1.0, ppm * 0.1)).xyw * vec3(scales.ww * fade, 1.0);
 	}
+	// Toksvig-style filtering: slope variance across the pixel footprint widens the specular lobe instead of aliasing.
+	vec2 dgx = dFdx(gradient.xy);
+	vec2 dgy = dFdy(gradient.xy);
+	float slope_var = clamp(0.5 * (dot(dgx, dgx) + dot(dgy, dgy)), 0.0, 1.0);
 
 	// Island shallows: turquoise water + surf line near the shore.
 	float d_isl = island_distance(rest_xz);
@@ -139,15 +145,15 @@ void fragment() {
 	float hw = mix(hull_w[i0], hull_w[i1], fract(u));
 	// Distance to the outline (outside > 0); past the bow/stern tips measure to the end point.
 	float over = max(max(hull_z.x - lz, lz - hull_z.y), 0.0);
-	float d = length(vec2(max(abs(lx) - hw, 0.0), over)) + min(abs(lx) - hw, 0.0) * 0.0;
+	float sd = abs(lx) - hw; // signed: < 0 inside the hull outline
+	float d = over > 0.0 ? length(vec2(max(sd, 0.0), over)) : sd;
 	float speed_k = clamp(ship_speed / 7.0, 0.0, 1.3);
 	float bow_k = 1.0 - smoothstep(0.0, 0.45, u / float(HULL_BINS - 1)); // 1 at the bow, 0 amidships/stern
 	float band_out = 0.28 + 0.9 * bow_k * speed_k;                      // wider only at the bow when fast
-	float inside = 1.0 - smoothstep(-0.25, 0.05, d - 0.0) * 0.0;
-	float band = smoothstep(-0.35, 0.0, d) * (1.0 - smoothstep(0.05, band_out, d));
+	float band = smoothstep(-0.02, 0.06, d) * (1.0 - smoothstep(0.1, band_out, d)); // strictly OUTSIDE the outline
 	float lace = sin(lz * 3.3 + TIME * 2.6 + gradient.y * 11.0) * sin(lx * 4.1 - TIME * 2.0 + gradient.x * 10.0);
 	float broken = smoothstep(-0.15, 0.55, lace + 0.25 + 0.5 * bow_k * speed_k);
-	hull_foam = band * broken * (0.30 + 0.55 * speed_k * (0.4 + 0.6 * bow_k));
+	hull_foam = hull_foam_gain * band * broken * (0.30 + 0.55 * speed_k * (0.4 + 0.6 * bow_k));
 
 	float whitecap = smoothstep(0.0, 1.0, gradient.z * 0.75) * exp(-dist * 0.0035);
 	foam_factor = clamp(whitecap * (1.0 - 0.7 * shallow) + shore_foam * 0.9 + hull_foam, 0.0, 1.0);
@@ -155,12 +161,13 @@ void fragment() {
 	vec3 deep = water_color.rgb;
 	vec3 base = mix(deep, shallow_color * 0.55, shallow * 0.9);
 	ALBEDO = mix(base, foam_color.rgb, foam_factor);
+	if (debug_mode > 0.5 && debug_mode < 1.5) { ALBEDO = vec3(whitecap, hull_foam, shallow); }
 
 	gradient *= mix(0.015, normal_strength, exp(-dist * 0.0175));
 	NORMAL = (VIEW_MATRIX * vec4(normalize(vec3(-gradient.x, 1.0, -gradient.y)), 0.0)).xyz;
 
 	fresnel = mix(pow(1.0 - dot(VIEW, NORMAL), 5.0 * exp(-2.69 * roughness)) / (1.0 + 22.7 * pow(roughness, 1.5)), 1.0, REFLECTANCE);
-	ROUGHNESS = (1.0 - fresnel) * foam_factor + 0.4;
+	ROUGHNESS = clamp(sqrt(roughness * roughness + 1.0 * min(slope_var, 0.2)) + foam_factor * 0.25, 0.08, 0.9);
 }
 
 float smith_masking_shadowing(in float cos_theta, in float alpha) {
@@ -180,11 +187,11 @@ void light() {
 	float dot_nl = max(dot(NORMAL, LIGHT), 2e-5);
 	float dot_nv = max(dot(NORMAL, VIEW), 2e-5);
 
-	float light_mask = smith_masking_shadowing(roughness, dot_nv);
-	float view_mask = smith_masking_shadowing(roughness, dot_nl);
-	float microfacet_distribution = ggx_distribution(dot(NORMAL, halfway), roughness);
+	float light_mask = smith_masking_shadowing(ROUGHNESS, dot_nv);
+	float view_mask = smith_masking_shadowing(ROUGHNESS, dot_nl);
+	float microfacet_distribution = ggx_distribution(dot(NORMAL, halfway), ROUGHNESS);
 	float geometric_attenuation = 1.0 / (1.0 + light_mask + view_mask);
-	SPECULAR_LIGHT += fresnel * microfacet_distribution * geometric_attenuation / (4.0 * dot_nv + 0.1) * ATTENUATION;
+	SPECULAR_LIGHT += min(fresnel * microfacet_distribution * geometric_attenuation / (4.0 * dot_nv + 0.1), 6.0) * ATTENUATION; // clamped: no blown-out glints
 
 	const vec3 sss_modifier = vec3(0.9, 1.15, 0.85);
 	float sss_height = 1.0 * max(0.0, wave_height + 2.5) * pow(max(dot(LIGHT, -VIEW), 0.0), 4.0) * pow(0.5 - 0.5 * dot(LIGHT, NORMAL), 3.0);
