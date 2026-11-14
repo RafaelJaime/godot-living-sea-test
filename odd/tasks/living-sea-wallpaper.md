@@ -71,8 +71,10 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
       stable for hours, never capsizes, keel hidden except extreme storm moments. — delegated
 - [ ] T8b Realistic ship's boat: lashed to the deck with ropes, slight physical play (spring/rope constraints),
       never falls off. — delegated
-- [ ] T9 Flags: stern flag pinned to the real (bone-posed) staff, flying with apparent wind like the sails;
-      second Pirat flag at the main masthead. — delegated (in progress)
+- [ ] T9 Flags: stern flag pinned to the real (bone-posed) staff; second Pirat flag at the main masthead. — delegated
+- [ ] T9b Unified wind: one WindField (travelling gusts) + identical cloth aerodynamics for sails AND flags
+      (apparent wind per point incl. ship/mast motion); sail forces on the ship come from the same cloth pressure,
+      so visible filling/luffing = propulsion. — delegated
 - [ ] T10 Hybrid character physics (APPROVED 2026-11-14): foot IK on the tilting deck + stumbles/balance recovery
       in storms over keyframed base clips. Hair/clothing physics explicitly OUT of scope. — delegated
 
