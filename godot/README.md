@@ -110,3 +110,10 @@ off a field here: off in dev, on in final.
 flotsam and seaweed on the swell (height + slope from `Waves.height_at`). `scripts/gulls.gd`: gull + albatross boids around the masts (diurnal).
 `scripts/ambient/lighthouse_beam.gd`: rotating beam on island lighthouses (night/storm). All world-space and rebase-safe (group `rebase`).
 Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-birds`. Bioluminescence hook for the ocean: `WorldState.biolum` and the global shader parameter `sky_biolum` (0..1, night only).
+
+### Ship hooks added by the roadmap (OS track)
+- `Ship.settled: bool` and signal `Ship.settled_changed(is_settled)`: false during the ~6 s start-up ramp, then true (log `[ship] settled`).
+- signal `Ship.wobble(intensity: float, kind: String)`, kind `roll` | `pitch` | `slam`, at most every 0.5 s, only when settled and the hull moves noticeably (calm sea: none; sea_state 0.9: several per minute). `--log-wobble` prints each emission.
+- `--analytic-sails` uses the analytic flat-plate model fed by `WindField.sample` at each sail's centre; the log prints `[ship] sail path: analytic (WindField per sail)` or `cloth forces` once.
+- `--settle-log` prints roll, pitch, heave and keel lift each second for the first 12 s.
+(`PinnaceRig.sail_state()` from M1.7 is not implemented yet.)

@@ -481,6 +481,7 @@ func _physics_process(delta: float) -> void:
 	if legacy_motion or not _phys_ready or freeze or Waves.ocean == null:
 		return
 	_phys_age += delta
+	_emit_wobble(delta)
 	if not settled and _phys_age >= 6.0:
 		settled = true
 		settled_changed.emit(true)
@@ -597,11 +598,18 @@ func _physics_process(delta: float) -> void:
 var _sail_rig: Node
 var _analytic_sails := OS.get_cmdline_user_args().has("--analytic-sails")
 var cloth_force_used := false
+var _analytic_logged := false
+var _cloth_logged := false
 var settled := false ## false while the start-up ramp runs (~6 s), then true: NPC code may start moving around
 var _phys_age := 0.0
 var _settle_log := OS.get_cmdline_user_args().has('--settle-log')
 var min_mid := -99.0
 signal settled_changed(is_settled: bool)
+## Emitted at most every 0.5 s when the hull moves noticeably: kind 'roll' / 'pitch' / 'slam' (stem or stern re-entering the water). intensity 0..1.
+signal wobble(intensity: float, kind: String)
+var _wobble_cd := 0.0
+var _wobble_log := OS.get_cmdline_user_args().has('--log-wobble')
+var _prev_vy := 0.0
 ## Calibration of the cloth sail forces against the hull drag (the cloth pressure integration is conservative).
 @export var cloth_sail_gain := 4.0 ## calibrated (with drag_wave): beam reach ~4-4.5 m/s at 11 m/s wind
 func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
@@ -623,11 +631,14 @@ func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
 		last_thrust = tot
 		last_heel_scale = heel_d
 		cloth_force_used = true
+		if not _cloth_logged:
+			_cloth_logged = true
+			print('[ship] sail path: cloth forces')
 		return
 	cloth_force_used = false
-	var w := WorldState
-	var tw := w.wind_vector() * w.wind_speed_ms()
-	var wind := Vector3(tw.x, 0.0, tw.y)
+	if not _analytic_logged:
+		_analytic_logged = true
+		print('[ship] sail path: analytic (WindField per sail)')
 	var heel := rad_to_deg(roll)
 	var depower := 1.0 - smoothstep(heel_depower_start_deg, heel_depower_end_deg, absf(heel))
 	last_heel_scale = depower
@@ -641,7 +652,8 @@ func _apply_sails(gt: Transform3D, b: Basis, com_w: Vector3) -> void:
 		var area: float = sd["area"] * sail_power * depower
 		var pw := gt * pos
 		var r := pw - com_w
-		var vrel := bi * (wind - _point_velocity(r)) # air relative to the sail, ship frame
+		var wsm := WindField.sample(pw) # same gusty, sheared field the cloth sees, at this sail's centre
+		var vrel := bi * (Vector3(wsm.x, 0.0, wsm.z) - _point_velocity(r)) # air relative to the sail, ship frame
 		vrel.y = 0.0
 		var wn := vrel.dot(n_local)
 		sail_fill[i] = wn
@@ -693,3 +705,23 @@ func _canvas_factor() -> float:
 	var reef := 1.0 - 0.94 * smoothstep(0.35, 0.9, WorldState.storm)
 	var furl_k: float = clampf(sail_power, 0.1, 1.0) if "sail_power" in self else 1.0
 	return reef * lerpf(1.0, furl_k, 0.8) * smoothstep(0.0, 6.0, _phys_age)
+
+
+func _emit_wobble(delta: float) -> void:
+	_wobble_cd -= delta
+	var vy := linear_velocity.y
+	var acc_y := (vy - _prev_vy) / maxf(delta, 0.001)
+	_prev_vy = vy
+	if _wobble_cd > 0.0 or not settled:
+		return
+	var roll_i := clampf((absf(roll_rate) - 0.18) / 0.35, 0.0, 1.0)
+	var pitch_i := clampf((absf(pitch_rate) - 0.10) / 0.2, 0.0, 1.0)
+	var slam_i := clampf((absf(acc_y) - 6.0) / 8.0, 0.0, 1.0)
+	var best := maxf(roll_i, maxf(pitch_i, slam_i))
+	if best <= 0.0:
+		return
+	var kind := "slam" if best == slam_i else ("roll" if best == roll_i else "pitch")
+	_wobble_cd = 0.5
+	wobble.emit(best, kind)
+	if _wobble_log:
+		print("[wobble] ", kind, " ", snappedf(best, 0.01))
