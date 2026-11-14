@@ -5,3 +5,5 @@ __pycache__/
 *.blend1
 _vendor_eval/
 godot/assets/ship/pinnace/*.png
+godot/assets/anim_src/*_Image_*.jpg
+godot/assets/anim_src/*_normal.png
