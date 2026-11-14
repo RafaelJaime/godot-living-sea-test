@@ -110,7 +110,7 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       and gravity (hang fully in calm, droop in light wind, stream in strong wind), drag/lift aero, enough
       substeps; sails as the same cloth pinned to yards with sheets; forces feed T8 propulsion. Check: calm /
       moderate / storm captures + gust timeline log.
-- [ ] R5 Sky, light & atmosphere: volumetric or high-quality layered clouds, sun/sky/fog consistent per
+- [x] R5 Sky, light & atmosphere (done on feat/sky-ambient: Sunshine Clouds 2 at quarter res, ~+1-2 ms at 1080p on M5, needs TAA instead of MSAA because Metal rejects image2DMS; rainbow math not visually verified; shader globals sky_* published, see godot/README.md): volumetric or high-quality layered clouds, sun/sky/fog consistent per
       time of day and weather, auto-exposure, SSAO/SSIL where affordable, crisp ship shadows, storm darkness
       and rain like ref_15s/ref_18s.
 - [ ] R6 Physics ship (T8/T8b) and crew physics (T10) as already specified.

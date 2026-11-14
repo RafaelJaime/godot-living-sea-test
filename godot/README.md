@@ -96,3 +96,10 @@ Other systems read `Quality.<field>` (ocean_levels, fft_size, ocean_cascades, wa
 render_scale, msaa, max_fps, readback_hz); it loads before everything else, so `_ready()` code can use it directly. The environment and lights
 are patched two frames after start (glow, SSR/SSAO off, shadows off in dev). New heavy features (SSR, volumetric clouds, higher FFT...) should hang
 off a field here: off in dev, on in final.
+## Sky / atmosphere (R5)
+- Clouds: Sunshine Clouds 2 (`scripts/ambient/sc2_clouds.gd`, MIT addon in `addons/SunshineClouds2`). Quarter-res march, 100 steps, TAA replaces MSAA
+  (Metal cannot write image2DMS). `--no-sc2` falls back to the sky shader fbm layer. Tests: `--sc2-res=N --sc2-steps=N --perf` (avg frame time).
+- Global shader parameters (registered by WorldState, set every frame by sky.gd; ocean shaders may declare them as `global uniform`):
+  `sky_horizon_color`, `sky_zenith_color`, `sky_fog_color` (vec3), `sky_sun_color` (vec3, colour x energy), `sky_sun_dir`, `sky_fog_density`,
+  `sky_storminess`, `sky_night`, `sky_rain`, `sky_biolum` (float; night bioluminescence amount for the wake/ocean).
+- WorldState additions: `rainbow`, `fog_bank`, `biolum`, `wetness`, signals `thunder(delay_s, intensity)` and `storm_cleared`. Test aids: `--rainbow-test`, `--no-autoexp`.
