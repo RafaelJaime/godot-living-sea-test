@@ -97,6 +97,10 @@ func _process(delta: float) -> void:
 	var speed: float = _ship.get("current_speed") if _ship.get("current_speed") != null else 6.0
 	var wl := Basis(Vector3.UP, yaw).inverse() * Vector3(w.wind_vector().x, 0.0, w.wind_vector().y)
 	var app := wl * w.wind_speed_ms() + Vector3(0.0, 0.0, speed)
+	var rr: float = _ship.get("roll_rate") if _ship.get("roll_rate") != null else 0.0
+	var pr: float = _ship.get("pitch_rate") if _ship.get("pitch_rate") != null else 0.0
+	app.x += 13.0 * rr # the staff tip swings with the hull
+	app.z -= 13.0 * pr
 	while _acc_t >= step:
 		_acc_t -= step
 		_simulate(step, app, w)

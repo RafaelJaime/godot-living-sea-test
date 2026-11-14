@@ -53,19 +53,20 @@ func _process_modification() -> void:
 		sk.set_bone_pose(i, sk.get_bone_rest(i))
 	var roll: float = pivot.rotation.z
 	var pitch: float = pivot.rotation.x
+	var roll_rate: float = ship.get("roll_rate") if ship.get("roll_rate") != null else 0.0
 	var yaw_rate: float = ship.get("yaw_rate") if ship.get("yaw_rate") != null else 0.0
 	var rudder: float = ship.get("rudder") if ship.get("rudder") != null else 0.0
 	var now := Time.get_ticks_msec() / 1000.0
 	var dt := clampf(now - _last_t, 0.001, 0.1)
 	_last_t = now
 	# Brace on hard ship motion (smoothed so it eases in and out).
-	var hard := clampf((absf(roll) + absf(pitch) * 1.5 - 0.09) / 0.16, 0.0, 1.0)
+	var hard := clampf((absf(roll) + absf(pitch) * 1.5 + absf(roll_rate) * 0.25 - 0.09) / 0.16, 0.0, 1.0)
 	_brace = lerpf(_brace, hard * brace_gain, 1.0 - exp(-4.0 * dt))
 	# World axes: forward-roll axis is the ship's +Z (aft), pitch axis is +X.
 	var basis_p := pivot.global_transform.basis
 	var z_axis := basis_p.z.normalized()
 	var x_axis := basis_p.x.normalized()
-	var lean := -roll * counter_roll + yaw_rate * turn_lean
+	var lean := -roll * counter_roll + yaw_rate * turn_lean - roll_rate * 0.10 # inertia: the body lags the deck
 	_rot_world(sk, _hips, z_axis, lean * 0.6)
 	_rot_world(sk, _spine, z_axis, lean * 0.4)
 	var fwd_lean := -pitch * counter_pitch + _brace * 0.12 # bracing leans slightly forward (-Z tilt = negative about +X)

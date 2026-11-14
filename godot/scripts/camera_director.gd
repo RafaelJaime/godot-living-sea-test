@@ -16,8 +16,8 @@ var shots: Array[Dictionary] = [
 	{"name": "3/4 bow", "pos": Vector3(-13.0, 4.6, -19.0), "look": Vector3(0.0, 4.2, -1.5), "fov": 58.0},
 	{"name": "side low", "pos": Vector3(-25.0, 1.8, 3.0), "look": Vector3(0.0, 4.5, -1.0), "fov": 52.0},
 	{"name": "high wide", "pos": Vector3(15.0, 21.0, 30.0), "look": Vector3(0.0, 2.0, -50.0), "fov": 64.0},
-	{"name": "captain", "pos": Vector3(-1.3, 7.3, 13.4), "look": Vector3(0.0, 4.0, -14.0), "fov": 60.0},
-	{"name": "deck crew", "pos": Vector3(-9.0, 7.0, 4.0), "look": Vector3(0.0, 3.0, 0.0), "fov": 55.0},
+	{"name": "captain", "attached": true, "pos": Vector3(-1.3, 7.3, 13.4), "look": Vector3(0.0, 4.0, -14.0), "fov": 60.0},
+	{"name": "deck crew", "attached": true, "pos": Vector3(-9.0, 7.0, 4.0), "look": Vector3(0.0, 3.0, 0.0), "fov": 55.0},
 	# Sun-relative shots (computed from the DirectionalLight3D direction at runtime).
 	{"name": "Canto", "mode": "sun_look", "pos": Vector3(-2.5, 4.9, 2.0), "fov": 62.0},
 	{"name": "silhouette", "mode": "sun_behind", "dist": 34.0, "height": 2.6, "fov": 56.0},
@@ -28,8 +28,8 @@ var shots: Array[Dictionary] = [
 	{"name": "close Don_Omar", "mode": "crew", "slot": "Don_Omar", "off": Vector3(2.4, 0.15, 2.4), "fov": 40.0},
 	# Ocean inspection shots (not part of the auto cycle).
 	{"name": "water close", "pos": Vector3(-8.0, 1.5, -5.0), "look": Vector3(0.0, 0.8, -3.0), "fov": 55.0},
-	{"name": "helm", "mode": "crew", "slot": "Papi_Fuego", "off": Vector3(-1.9, 0.7, 1.9), "fov": 48.0},
-	{"name": "violin", "mode": "crew", "slot": "Don_Omar", "off": Vector3(1.9, 0.5, -0.4), "fov": 42.0},
+	{"name": "helm", "attached": true, "mode": "crew", "slot": "Papi_Fuego", "off": Vector3(-1.9, 0.7, 1.9), "fov": 48.0},
+	{"name": "violin", "attached": true, "mode": "crew", "slot": "Don_Omar", "off": Vector3(1.9, 0.5, -0.4), "fov": 42.0},
 	{"name": "top down", "pos": Vector3(0.5, 30.0, 1.0), "look": Vector3(0.0, 0.0, 0.0), "fov": 45.0},
 	{"name": "wake", "pos": Vector3(3.0, 13.0, 27.0), "look": Vector3(0.0, 0.0, 14.0), "fov": 60.0},
 ]
@@ -146,7 +146,7 @@ func _shot_pose(i: int, t: float) -> Dictionary:
 	if mode == "crew":
 		var slot := get_node_or_null("../Ship/Pivot/CrewMarkers/" + str(s["slot"])) as Node3D
 		var c := (slot.position if slot else Vector3.ZERO) + Vector3(0, 1.0, 0)
-		return {"pos": c + (s["off"] as Vector3), "look": c, "fov": s["fov"]}
+		return {"pos": c + (s["off"] as Vector3), "look": c, "fov": s["fov"], "att": true}
 	if mode == "sun_look":
 		# Stand on deck and look up toward the sun, keeping it in the upper third of the frame.
 		var wp: Vector3 = f * (s["pos"] as Vector3)
@@ -168,19 +168,31 @@ func _shot_pose(i: int, t: float) -> Dictionary:
 	var off: Vector3 = (s["pos"] as Vector3) - look
 	off = Basis(Vector3.UP, drift) * off
 	off.y += sin(t * 0.07 / ss + float(i)) * 0.5 * ss
-	return {"pos": look + off, "look": look, "fov": s["fov"]}
+	return {"pos": look + off, "look": look, "fov": s["fov"], "att": s.get("attached", false)}
+
+func _pivot() -> Node3D:
+	return _ship.get_node("Pivot") as Node3D
+
+## World-space pose of one shot. Attached shots live in the ship's full frame (yaw, pitch, roll, heave), so the horizon
+## tilts with the roll; the others use the yaw-only frame and watch the ship rock.
+func _world_pose(i: int, t: float) -> Dictionary:
+	var p := _shot_pose(i, t)
+	var att: bool = p.get("att", false)
+	var f: Transform3D = _pivot().global_transform if att else _frame()
+	var wl: Vector3 = f * (p["look"] as Vector3)
+	if not att:
+		wl.y += _ship_heave() * 0.5
+	return {"pos": f * (p["pos"] as Vector3), "look": wl, "fov": p["fov"], "att": att, "up": (f.basis.y if att else Vector3.UP)}
 
 func _apply_pose(t: float, _first: bool) -> void:
-	var a := _shot_pose(_from, t)
-	var b := _shot_pose(_to, t)
+	var a := _world_pose(_from, t)
+	var b := _world_pose(_to, t)
 	var w := smoothstep(0.0, 1.0, _blend)
-	var pos: Vector3 = (a["pos"] as Vector3).lerp(b["pos"], w)
-	var look: Vector3 = (a["look"] as Vector3).lerp(b["look"], w)
+	var wpos: Vector3 = (a["pos"] as Vector3).lerp(b["pos"], w)
+	var wlook: Vector3 = (a["look"] as Vector3).lerp(b["look"], w)
+	var up: Vector3 = (a["up"] as Vector3).lerp(b["up"], w).normalized()
 	var fv: float = lerpf(a["fov"], b["fov"], w)
-	var f := _frame()
-	var wpos := f * pos
-	var wlook := f * look
-	wlook.y += _ship_heave() * 0.5
+	var att_w: float = lerpf(1.0 if a["att"] else 0.0, 1.0 if b["att"] else 0.0, w)
 	# Soft water clearance against the wave ENVELOPE: highest surface among the camera column, a ring around it and
 	# points ahead along the view direction (so it never ends up inside a crest), raised with sea_state.
 	var fwd_xz := Vector2(wlook.x - wpos.x, wlook.z - wpos.z).normalized()
@@ -196,9 +208,9 @@ func _apply_pose(t: float, _first: bool) -> void:
 	var lift := 0.5 * (deficit + sqrt(deficit * deficit + 0.35))
 	# Asymmetric low-pass: rises quickly (the envelope look-ahead + margin anticipate crests), falls slowly.
 	_lift = lerpf(_lift, lift, 1.0 - exp(-(1.3 if lift > _lift else 0.6) * _dt))
-	wpos.y += _lift
+	wpos.y += _lift * (1.0 - att_w) # cameras mounted on the ship ride with it, no water clearance needed
 	global_position = wpos
-	look_at(wlook, Vector3.UP)
+	look_at(wlook, up)
 	# Handheld sway must be slow (<1 Hz); sampling the noise fast reads as vibration.
 	var hh := deg_to_rad(handheld_deg)
 	var ht := t * handheld_rate

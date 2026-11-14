@@ -13,6 +13,10 @@ var _jumped := false
 
 var _jitter := false
 var _log_secs := 0.0
+var _log_period := 2.0
+var _roll_thr := 0.0
+var _roll_sign := 1.0
+var _roll_samples: Array = []
 var _log_t := 0.0
 var _prev_rel: Vector3
 var _prev_d: Vector3
@@ -40,6 +44,10 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with('--autopilot-log='):
 			_log_secs = float(a.get_slice('=', 1))
+		elif a.begins_with('--roll-extreme='):
+			_roll_thr = float(a.get_slice('=', 1))
+		elif a.begins_with('--log-period='):
+			_log_period = float(a.get_slice('=', 1))
 	if _jitter:
 		_active = true
 		return
@@ -69,11 +77,14 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _log_secs > 0.0:
 		_log_t += delta
-		if fmod(_log_t, 2.0) < delta:
+		if fmod(_log_t, _log_period) < delta:
 			var sh := get_tree().root.get_node('Main/Ship')
 			var ap := get_tree().root.get_node('Main/Ship/Autopilot')
-			print('[log] t=', snappedf(_log_t, 0.1), ' pos=(', snappedf(sh.global_position.x, 1.0), ',', snappedf(sh.global_position.z, 1.0), ') yaw=', snappedf(rad_to_deg(sh.yaw), 1.0), ' rudder=', snappedf(sh.rudder, 0.01), ' speed=', snappedf(sh.current_speed, 0.1), ' tacking=', ap.tacking, ' target_dist=', snappedf(Vector2(sh.global_position.x, sh.global_position.z).distance_to(ap.target), 1.0), ' wind_ang=', snappedf(rad_to_deg(WorldState.wind_angle), 1.0), ' day=', snappedf(WorldState.day_phase, 0.01), ' cloud=', snappedf(WorldState.cloud, 0.01), ' storm=', snappedf(WorldState.storm, 0.01), ' sea=', snappedf(WorldState.sea_state, 0.01))
+			print('[log] t=', snappedf(_log_t, 0.1), ' pos=(', snappedf(sh.global_position.x, 1.0), ',', snappedf(sh.global_position.z, 1.0), ') yaw=', snappedf(rad_to_deg(sh.yaw), 1.0), ' roll=', snappedf(rad_to_deg(sh.roll), 0.1), ' pitch=', snappedf(rad_to_deg(sh.pitch), 0.1), ' rudder=', snappedf(sh.rudder, 0.01), ' speed=', snappedf(sh.current_speed, 0.1), ' tacking=', ap.tacking, ' target_dist=', snappedf(Vector2(sh.global_position.x, sh.global_position.z).distance_to(ap.target), 1.0), ' wind_ang=', snappedf(rad_to_deg(WorldState.wind_angle), 1.0), ' day=', snappedf(WorldState.day_phase, 0.01), ' cloud=', snappedf(WorldState.cloud, 0.01), ' storm=', snappedf(WorldState.storm, 0.01), ' sea=', snappedf(WorldState.sea_state, 0.01))
+		var sh2 := get_tree().root.get_node('Main/Ship')
+		_roll_samples.append([_log_t, rad_to_deg(sh2.roll), rad_to_deg(sh2.pitch)])
 		if _log_t >= _log_secs:
+			_report_motion()
 			get_tree().quit()
 		return
 	if _jitter:
@@ -96,6 +107,12 @@ func _process(delta: float) -> void:
 		if WorldState.flash < 0.5:
 			get_tree().root.get_node('Main/Weather')._spawn_bolt()
 		WorldState.flash = 1.0
+	if _roll_thr > 0.0 and _t >= when and _t < when + 45.0:
+		# Wait for the ship to reach a roll extreme (alternating sides) before the shot.
+		var rd := rad_to_deg(get_tree().root.get_node('Main/Ship').roll)
+		if rd * _roll_sign < _roll_thr:
+			return
+		_roll_sign = -_roll_sign
 	if _t >= when:
 		var img := get_viewport().get_texture().get_image()
 		var path := "%s/shot_%02d.png" % [SHOT_DIR, _step + 1]
@@ -147,3 +164,29 @@ func _jitter_step(delta: float) -> void:
 		print("[jitter] frametime avg=", snappedf(_sum_delta / maxf(_frames, 1) * 1000.0, 0.01), "ms max=", snappedf(_max_delta * 1000.0, 0.1), "ms  frames=", _frames, " max cam speed(rel ship)=", snappedf(_max_d, 0.01), " m/s  max accel=", snappedf(_max_dd, 0.1),
 			" m/s2  max view ang speed=", snappedf(_max_ang, 0.01), " deg/s  max ang accel=", snappedf(_max_dang, 0.1), " deg/s2")
 		get_tree().quit()
+
+## Period and amplitude of roll / pitch from the recorded samples (zero crossings of the de-meaned signal).
+func _report_motion() -> void:
+	for ch in [1, 2]:
+		var name := "roll" if ch == 1 else "pitch"
+		var vals: Array = []
+		var times: Array = []
+		for r in _roll_samples:
+			if r[0] > 8.0:
+				vals.append(r[ch]); times.append(r[0])
+		if vals.size() < 10:
+			continue
+		var mean := 0.0
+		for v in vals: mean += v
+		mean /= vals.size()
+		var mx := -1e9; var mn := 1e9
+		var ups: Array = []
+		for i in vals.size():
+			var v: float = vals[i] - mean
+			mx = maxf(mx, vals[i]); mn = minf(mn, vals[i])
+			if i > 0 and (vals[i - 1] - mean) < 0.0 and v >= 0.0:
+				ups.append(times[i])
+		var period := 0.0
+		if ups.size() >= 2:
+			period = (ups[ups.size() - 1] - ups[0]) / float(ups.size() - 1)
+		print("[motion] ", name, " mean=", snappedf(mean, 0.1), " deg  min=", snappedf(mn, 0.1), " max=", snappedf(mx, 0.1), " deg  peak amplitude=", snappedf((mx - mn) * 0.5, 0.1), " deg  mean period=", snappedf(period, 0.1), " s  (", ups.size(), " cycles)")

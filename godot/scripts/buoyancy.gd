@@ -21,8 +21,17 @@ extends Node3D
 @export var heave_smooth_time := 0.45
 @export var rotate_smooth_time := 0.55
 @export var heave_gain := 0.9
-@export var pitch_gain := 0.8
-@export var roll_gain := 0.7
+@export var pitch_gain := 0.12
+@export var roll_gain := 0.12
+@export_group("Roll / pitch dynamics")
+@export_range(8.0, 14.0) var roll_period := 10.0 ## natural roll period (s)
+@export_range(4.0, 9.0) var pitch_period := 6.0
+@export_range(0.03, 0.4) var roll_damping := 0.1 ## damping ratio (light: it keeps swinging)
+@export_range(0.03, 0.4) var pitch_damping := 0.12
+@export var swell_gain := 0.24 ## scales the sea_state-driven swell forcing
+@export var pitch_ratio := 0.32 ## pitch forcing relative to roll forcing
+@export var max_roll_deg := 25.0
+@export var max_pitch_deg := 12.0
 @export_group("Wind & wander")
 @export var wind_heel_deg := 3.5
 @export var yaw_wander_deg := 3.0
@@ -34,6 +43,10 @@ var heave := 0.0
 var pitch := 0.0
 var roll := 0.0
 var yaw := 0.0
+var roll_rate := 0.0  ## rad/s, starboard-up positive
+var pitch_rate := 0.0 ## rad/s, bow-up positive
+var roll_acc := 0.0
+var pitch_acc := 0.0
 var yaw_rate := 0.0 ## rad/s (positive = turning to port)
 var rudder := 0.0 ## smoothed, -1 port .. +1 starboard
 var rudder_cmd := 0.0 ## written by the autopilot
@@ -102,19 +115,47 @@ func _process(delta: float) -> void:
 		+ hs.call(-half_b, half_l) + hs.call(half_b, half_l)) * 0.25
 	var target_heave := ((h_bow + h_stern) * 0.5 * 0.25 + (h_port + h_stbd) * 0.5 * 0.25
 		+ h_c * 0.25 + h_corners * 0.25) * heave_gain
-	var target_pitch := atan2(h_bow - h_stern, half_l * 2.0) * pitch_gain
-	# Heel: leeward lean from the wind (wind pushing toward starboard -> starboard down) plus outward lean in turns.
+	var slope_pitch := atan2(h_bow - h_stern, half_l * 2.0)
+	var slope_roll := atan2(h_stbd - h_port, half_b * 2.0)
+	# Steady lean: leeward heel from the wind (wind toward starboard -> starboard down), gusts, outward heel in turns.
 	var right := Vector2(cos(yaw), -sin(yaw))
 	var side_wind := WorldState.wind_vector().dot(right) * WorldState.wind_strength
-	var heel := deg_to_rad(wind_heel_deg * 2.0) * side_wind
-	var target_roll := atan2(h_stbd - h_port, half_b * 2.0) * roll_gain - heel * 0.5 - yaw_rate * current_speed * 0.02 * turn_heel_gain # starboard-up positive
-
+	var gust := 1.0 + 0.35 * sin(_t * 0.7) * sin(_t * 0.23 + 1.0)
+	var heel := deg_to_rad(wind_heel_deg * 2.0) * side_wind * gust
+	var lean_roll := -heel * 0.5 - yaw_rate * current_speed * 0.02 * turn_heel_gain
+	# Physical roll / pitch: damped harmonic oscillators with the ship's natural periods, driven by the wave slope under
+	# the hull, a swell forcing near (but not at) resonance whose size grows with sea_state, wind/turn lean and a little
+	# low-frequency noise so the motion never dies out.
+	var sea := clampf(Waves.sea_state, 0.0, 1.0)
+	var amp := deg_to_rad(1.0 + 20.0 * pow(sea, 1.6)) * swell_gain # roll forcing amplitude (rad)
+	var swell_r := amp * (0.8 * sin(_t * TAU / (roll_period * 1.12) + 0.6) + 0.35 * sin(_t * TAU / (roll_period * 0.86) + 2.1))
+	var swell_p := amp * pitch_ratio * (0.8 * sin(_t * TAU / (pitch_period * 1.15) + 1.3) + 0.35 * sin(_t * TAU / (pitch_period * 0.85) + 0.2))
+	var lf := deg_to_rad(0.5 + 1.5 * sea)
+	var noise_r := lf * (sin(_t * 0.37) + 0.6 * sin(_t * 0.91 + 1.7))
+	var noise_p := lf * 0.6 * (sin(_t * 0.43 + 0.5) + 0.6 * sin(_t * 1.07))
+	var roll_eq := slope_roll * roll_gain + swell_r + noise_r + lean_roll
+	var pitch_eq := slope_pitch * pitch_gain + swell_p + noise_p
+	var wr := TAU / roll_period
+	var wp := TAU / pitch_period
+	var h := minf(delta, 1.0 / 30.0)
+	var steps := 2
+	for _i in steps:
+		var dt := h / steps
+		# Stiffening beyond ~15 deg keeps the swing under the clamp without a hard stop.
+		var ar := wr * wr * (roll_eq - roll) - 2.0 * roll_damping * wr * _roll_v - wr * wr * 5.0 * roll * roll * roll
+		_roll_v += ar * dt
+		roll += _roll_v * dt
+		var ap := wp * wp * (pitch_eq - pitch) - 2.0 * pitch_damping * wp * _pitch_v - wp * wp * 8.0 * pitch * pitch * pitch
+		_pitch_v += ap * dt
+		pitch += _pitch_v * dt
+		roll_acc = ar
+		pitch_acc = ap
+	roll = clampf(roll, -deg_to_rad(max_roll_deg), deg_to_rad(max_roll_deg))
+	pitch = clampf(pitch, -deg_to_rad(max_pitch_deg), deg_to_rad(max_pitch_deg))
+	roll_rate = _roll_v
+	pitch_rate = _pitch_v
 	var r := _smooth(heave, target_heave, _heave_v, heave_smooth_time, delta)
 	heave = r.x; _heave_v = r.y
-	r = _smooth(pitch, target_pitch, _pitch_v, rotate_smooth_time, delta)
-	pitch = r.x; _pitch_v = r.y
-	r = _smooth(roll, target_roll, _roll_v, rotate_smooth_time, delta)
-	roll = r.x; _roll_v = r.y
 
 	_pivot.position = Vector3(0, heave, 0)
 	_pivot.rotation = Vector3(pitch, 0, roll)

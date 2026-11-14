@@ -99,11 +99,16 @@ func _process(delta: float) -> void:
 	# Apparent wind in ship space (x starboard, z aft): true wind minus the ship's own velocity (-z forward).
 	var wl := Basis(Vector3.UP, yaw).inverse() * Vector3(w.wind_vector().x, 0.0, w.wind_vector().y)
 	var app := wl * w.wind_speed_ms() + Vector3(0.0, 0.0, speed)
+	# The masts swing with the hull: velocity of the sails' centre (~14 m up) enters the apparent wind.
+	var rr: float = _ship.get("roll_rate") if _ship.get("roll_rate") != null else 0.0
+	var pr: float = _ship.get("pitch_rate") if _ship.get("pitch_rate") != null else 0.0
+	app.x += 14.0 * rr
+	app.z -= 14.0 * pr
 	# Forward push (-z) fills the sails; air coming from ahead presses them aft / makes them luff.
 	var drive := -app.z
 	var fill_t := clampf(drive / 9.0, -0.25, 1.0)
 	var luffing := 1.0 - smoothstep(0.0, 0.35, fill_t)
-	var flut_t := clampf(0.12 + 0.55 * w.wind_strength + 0.9 * w.storm + 0.8 * luffing * (0.3 + w.wind_strength), 0.0, 1.5)
+	var flut_t := clampf(0.12 + 0.55 * w.wind_strength + 0.9 * w.storm + 0.8 * luffing * (0.3 + w.wind_strength) + 0.6 * (absf(rr) + absf(pr)), 0.0, 1.5)
 	var k := 1.0 - exp(-1.6 * delta)
 	_fill = lerpf(_fill, fill_t, k)
 	_flutter = lerpf(_flutter, flut_t, k)
