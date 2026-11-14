@@ -28,6 +28,15 @@ var override_sea := -1.0
 var override_wind_deg := 9999.0 ## test aid (--wind=deg): fixed wind direction
 var flash := 0.0 ## lightning flash 0..1 (written by weather_fx.gd)
 var cloud_scroll := Vector2.ZERO
+var rainbow := 0.0 ## 0..1, after a storm while the sun is low-ish and the rain has stopped
+var fog_bank := 0.0 ## 0..1, morning fog bank around sunrise on calm mornings
+var biolum := 0.0 ## 0..1, night bioluminescence amount (ocean agent hook; also the global shader parameter `sky_biolum`)
+var wetness := 0.0 ## 0..1, decays ~2 min after the rain stops (wet decks, glossy sea)
+
+## Emitted with every lightning strike: `delay_s` = seconds until the thunder should be heard (distance / 343), `intensity` 0..1.
+signal thunder(delay_s: float, intensity: float)
+## Emitted once when a storm clears and a rainbow can form.
+signal storm_cleared
 
 # derived
 var sun_elevation_deg := 20.0
@@ -42,8 +51,22 @@ var _hold := false
 var _noise := FastNoiseLite.new()
 var _clock := 0.0
 
+## Names of the global shader parameters the sky publishes every frame (see sky.gd). Registered here, at autoload time,
+## so any shader (ocean, wake, ...) can declare `global uniform ...;` without touching project.godot.
+const GLOBALS := {
+	"sky_horizon_color": Vector3(0.8, 0.8, 0.8), "sky_zenith_color": Vector3(0.22, 0.42, 0.75),
+	"sky_fog_color": Vector3(0.8, 0.8, 0.8), "sky_sun_color": Vector3(1, 1, 1), "sky_sun_dir": Vector3(0, 1, 0),
+	"sky_fog_density": 0.0003, "sky_storminess": 0.0, "sky_night": 0.0, "sky_rain": 0.0, "sky_biolum": 0.0,
+}
+var _was_stormy := false
+
 func _ready() -> void:
 	process_priority = -90
+	for g in GLOBALS:
+		var v: Variant = GLOBALS[g]
+		var t := RenderingServer.GLOBAL_VAR_TYPE_VEC3 if v is Vector3 else RenderingServer.GLOBAL_VAR_TYPE_FLOAT
+		if not ProjectSettings.has_setting("shader_globals/" + g):
+			RenderingServer.global_shader_parameter_add(g, t, v)
 	_noise.seed = 77
 	_noise.frequency = 1.0
 	_noise.fractal_octaves = 2
@@ -107,6 +130,7 @@ func _process(delta: float) -> void:
 	Waves.sea_state = sea_state
 	flash = maxf(flash - delta * 5.0, 0.0)
 	_derive()
+	_derive_atmosphere(dt)
 
 func _derive() -> void:
 	sun_elevation_deg = 65.0 * -cos(day_phase * TAU)
@@ -123,3 +147,20 @@ func wind_vector() -> Vector2:
 
 func wind_speed_ms() -> float:
 	return 6.0 + 22.0 * wind_strength
+
+## Rainbow / fog bank / wetness / bioluminescence: slow envelopes derived from the clocks above.
+func _derive_atmosphere(dt: float) -> void:
+	var rain := smoothstep(0.35, 0.8, storm)
+	wetness = maxf(wetness - dt / 120.0, rain)
+	var stormy := storm > 0.6
+	if _was_stormy and storm < 0.45:
+		storm_cleared.emit()
+	_was_stormy = stormy or (_was_stormy and storm >= 0.45)
+	var sun_ok := smoothstep(4.0, 12.0, sun_elevation_deg) * (1.0 - smoothstep(38.0, 46.0, sun_elevation_deg))
+	var after := clampf((wetness - rain) * 1.6, 0.0, 1.0) * (1.0 - smoothstep(0.55, 0.9, cloud))
+	rainbow = lerpf(rainbow, after * sun_ok * smoothstep(0.55, 0.3, storm), 1.0 - exp(-dt / 8.0))
+	if "--rainbow-test" in OS.get_cmdline_user_args():
+		rainbow = sun_ok
+	var dawn := exp(-pow((day_phase - 0.27) / 0.045, 2.0))
+	fog_bank = dawn * (1.0 - 0.7 * cloud) * (1.0 - storm)
+	biolum = night * (1.0 - 0.8 * cloud) * (1.0 - storm) * (0.35 + 0.65 * (1.0 - sea_state))

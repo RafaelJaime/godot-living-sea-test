@@ -21,7 +21,11 @@
 [ext_resource type="Script" path="res://scripts/flag.gd" id="19_flag"]
 [ext_resource type="Script" path="res://scripts/ship_lights_builder.gd" id="99_lights"]
 [ext_resource type="Script" path="res://scripts/lashed_boat.gd" id="98_boat"]
+<<<<<<< HEAD
 [ext_resource type="Script" path="res://scripts/wake_field.gd" id="99_wakefield"]
+=======
+[ext_resource type="Script" path="res://scripts/ambient/sc2_clouds.gd" id="97_sc2"]
+>>>>>>> 19dcd9a (feat(sky): volumetric clouds (Sunshine Clouds 2), rainbow, fog bank, auto exposure, thunder signal, sky shader globals)
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -35,6 +39,9 @@ script = ExtResource("14_weather")
 
 [node name="Sky" type="WorldEnvironment" parent="."]
 script = ExtResource("2_sky")
+
+[node name="Sc2Clouds" type="Node" parent="."]
+script = ExtResource("97_sc2")
 
 [node name="Ship" type="RigidBody3D" parent="."]
 script = ExtResource("3_ship")

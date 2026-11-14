@@ -83,7 +83,8 @@ func _process(delta: float) -> void:
 			_pattern = [Vector2(0.0, 1.0), Vector2(0.11, 0.65), Vector2(0.23, 0.9)] if randf() < 0.6 else [Vector2(0.0, 0.95)]
 			_pat_t = 0.0
 			_flash_light.rotation_degrees = Vector3(randf_range(-80, -55), randf_range(0, 360), 0)
-			_spawn_bolt()
+			var dist := _spawn_bolt()
+			w.thunder.emit(dist / 343.0, clampf(1.2 - dist / 1500.0, 0.2, 1.0))
 	if not _pattern.is_empty():
 		_pat_t += delta
 		while not _pattern.is_empty() and _pat_t >= _pattern[0].x:
@@ -123,10 +124,10 @@ func _ribbon(st: SurfaceTool, pts: PackedVector3Array, side: Vector3, w0: float,
 		for v in [a0, a1, b0, a1, b1, b0]:
 			st.add_vertex(v)
 
-func _spawn_bolt() -> void:
+func _spawn_bolt() -> float:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
-		return
+		return 900.0
 	var fwd := -cam.global_transform.basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized().rotated(Vector3.UP, deg_to_rad(randf_range(-32.0, 32.0)))
@@ -147,3 +148,4 @@ func _spawn_bolt() -> void:
 		_ribbon(st, _jag(start, end, side, 35.0, 5), side, w * 0.4, w * 0.12)
 	_bolt.mesh = st.commit()
 	_bolt.global_transform = Transform3D.IDENTITY
+	return dist

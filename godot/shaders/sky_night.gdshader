@@ -13,6 +13,8 @@ uniform float storminess = 0.0;
 uniform float daylight = 1.0;
 uniform vec2 cloud_scroll = vec2(0.0);
 uniform float flash = 0.0;
+uniform float layer_clouds = 1.0; // 0 when the volumetric cloud layer is active
+uniform float rainbow = 0.0;
 
 float hash21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -71,8 +73,18 @@ void sky() {
 		col += (vec3(0.85, 0.9, 1.0) * disc * 2.2 + vec3(0.5, 0.6, 0.9) * halo) * star_visibility * (1.0 - cloud_cover * 0.85);
 	}
 
+	// Rainbow after a storm: primary bow around the anti-solar point (red outside at 42 deg, violet inside at 40 deg).
+	if (rainbow > 0.001 && h > -0.01) {
+		float ang = degrees(acos(clamp(dot(d, -normalize(sun_dir)), -1.0, 1.0)));
+		float t = (ang - 39.6) / 3.0;
+		if (t > 0.0 && t < 1.0) {
+			vec3 spec = clamp(vec3(1.5 - abs(t * 4.0 - 3.0), 1.5 - abs(t * 4.0 - 2.0), 1.5 - abs(t * 4.0 - 1.0)), 0.0, 1.0);
+			col += spec * sin(t * 3.14159) * rainbow * 0.28 * smoothstep(-0.01, 0.06, h) * (0.35 + 0.65 * daylight);
+		}
+	}
+
 	// Clouds on a flat layer.
-	if (h > 0.0) {
+	if (h > 0.0 && layer_clouds > 0.5) {
 		vec2 uv = d.xz / (h + 0.12) * 0.55 + cloud_scroll;
 		float n = fbm(uv * 1.3);
 		float cover = clamp(cloud_cover, 0.0, 1.0);
