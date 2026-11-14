@@ -54,6 +54,7 @@ func _ready() -> void:
 		beam = b
 		if Waves.ocean:
 			Waves.ocean.set_ship_footprint(l * 0.46, b * 0.5)
+			_bake_hull_profile.call_deferred()
 		active = true)
 
 func rebase(shift: Vector3) -> void:
@@ -117,3 +118,45 @@ func _process(delta: float) -> void:
 
 	_pivot.position = Vector3(0, heave, 0)
 	_pivot.rotation = Vector3(pitch, 0, roll)
+
+const HULL_BINS := 48
+## Bakes the hull's waterline outline: vertices within a band around the waterline (pivot space y in [-0.7, 0.9])
+## give the max half-width per slice along z. The ocean shader hugs foam to this outline.
+func _bake_hull_profile() -> void:
+	if Waves.ocean == null:
+		return
+	var verts := ModelUtil.sample_vertices(_pivot, 150000)
+	var zs := PackedFloat32Array()
+	var xs := PackedFloat32Array()
+	for v in verts:
+		if v.y > -0.7 and v.y < 0.9 and absf(v.x) < beam * 0.75:
+			zs.append(v.z)
+			xs.append(absf(v.x))
+	if zs.size() < 50:
+		return
+	var zmin := 1.0e9
+	var zmax := -1.0e9
+	for z in zs:
+		zmin = minf(zmin, z)
+		zmax = maxf(zmax, z)
+	var w := PackedFloat32Array()
+	w.resize(HULL_BINS)
+	w.fill(-1.0)
+	for i in zs.size():
+		var k := clampi(int((zs[i] - zmin) / (zmax - zmin) * (HULL_BINS - 1) + 0.5), 0, HULL_BINS - 1)
+		w[k] = maxf(w[k], xs[i])
+	# Fill empty bins from neighbours, then smooth lightly.
+	for i in HULL_BINS:
+		if w[i] < 0.0:
+			var j := i
+			while j > 0 and w[j] < 0.0: j -= 1
+			var l := w[j] if w[j] >= 0.0 else 0.0
+			j = i
+			while j < HULL_BINS - 1 and w[j] < 0.0: j += 1
+			var r := w[j] if w[j] >= 0.0 else 0.0
+			w[i] = (l + r) * 0.5
+	var sm := w.duplicate()
+	for i in range(1, HULL_BINS - 1):
+		sm[i] = (w[i - 1] + 2.0 * w[i] + w[i + 1]) * 0.25
+	Waves.ocean.set_hull_profile(sm, zmin, zmax)
+	print("[hull] baked waterline profile z=", snappedf(zmin, 0.1), "..", snappedf(zmax, 0.1), " max half-width=", snappedf(Array(sm).max(), 0.01))

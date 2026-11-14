@@ -30,6 +30,7 @@ var shots: Array[Dictionary] = [
 	{"name": "water close", "pos": Vector3(-8.0, 1.5, -5.0), "look": Vector3(0.0, 0.8, -3.0), "fov": 55.0},
 	{"name": "helm", "mode": "crew", "slot": "Papi_Fuego", "off": Vector3(-1.9, 0.7, 1.9), "fov": 48.0},
 	{"name": "violin", "mode": "crew", "slot": "Don_Omar", "off": Vector3(1.9, 0.5, -0.4), "fov": 42.0},
+	{"name": "top down", "pos": Vector3(0.5, 30.0, 1.0), "look": Vector3(0.0, 0.0, 0.0), "fov": 45.0},
 	{"name": "wake", "pos": Vector3(3.0, 13.0, 27.0), "look": Vector3(0.0, 0.0, 14.0), "fov": 60.0},
 ]
 ## Ocean inspection shots (not part of the auto cycle).

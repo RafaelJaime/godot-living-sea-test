@@ -57,8 +57,8 @@ func _ready() -> void:
 			_beam = b)
 	# 0 = stern wake, 1/2 = bow lines (port / starboard)
 	var stern := Track.new(); stern.life = stern_life; stern.w0 = 3.0; stern.w1 = 15.0; stern.strength = 1.0
-	var bp := Track.new(); bp.life = bow_life; bp.w0 = 0.9; bp.w1 = 3.5; bp.strength = 0.9
-	var bs := Track.new(); bs.life = bow_life; bs.w0 = 0.9; bs.w1 = 3.5; bs.strength = 0.9
+	var bp := Track.new(); bp.life = bow_life * 0.7; bp.w0 = 0.35; bp.w1 = 2.0; bp.strength = 0.55
+	var bs := Track.new(); bs.life = bow_life * 0.7; bs.w0 = 0.35; bs.w1 = 2.0; bs.strength = 0.55
 	_tracks = [stern, bp, bs]
 	mesh = ArrayMesh.new()
 
@@ -89,10 +89,10 @@ func _process(delta: float) -> void:
 		_travel += step
 		_last = pos
 		var stern_pos := pos - fwd * (_length * 0.40)
-		var bow_pos := pos + fwd * (_length * 0.36)
+		var bow_pos := pos + fwd * (_length * 0.22)
 		_push(_tracks[0], stern_pos, fwd)
-		_push(_tracks[1], bow_pos - right * (_beam * 0.30), fwd)
-		_push(_tracks[2], bow_pos + right * (_beam * 0.30), fwd)
+		_push(_tracks[1], bow_pos - right * (_beam * 0.40), fwd)
+		_push(_tracks[2], bow_pos + right * (_beam * 0.40), fwd)
 	var intensity := clampf(0.55 + 0.6 * Waves.sea_state, 0.0, 1.0)
 	_tracks[0].strength = intensity
 	for t in _tracks:
@@ -123,7 +123,7 @@ func _rebuild(ship_pos: Vector2, fwd: Vector2) -> void:
 		var base := verts.size()
 		for i in n:
 			var age_k := t.ages[i] / t.life
-			var fade := (1.0 - age_k) * smoothstep(0.0, 0.06, age_k + 0.02) # fast fade-in at the source
+			var fade := (1.0 - age_k) * smoothstep(0.0, 0.12, age_k) # fast fade-in at the source
 			fade = fade * fade * (3.0 - 2.0 * fade) if fade < 1.0 else 1.0
 			fade *= t.strength
 			var w := lerpf(t.w0, t.w1, sqrt(age_k)) * 0.5

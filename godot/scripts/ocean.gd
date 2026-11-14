@@ -152,6 +152,7 @@ func _push_dynamic() -> void:
 	if _ship:
 		var y := _ship.rotation.y
 		# Ship forward is -Z; "right" in the shader is +X local, "back" is +Z local.
+		_mat.set_shader_parameter("ship_speed", float(_ship.get("current_speed")) if _ship.get("current_speed") != null else 6.0)
 		_mat.set_shader_parameter("ship_a", Vector4(_ship.global_position.x, _ship.global_position.z, cos(y), sin(y)))
 
 ## islands: array of Vector4(x, z, radius_x, radius_z) in world space (waterline ellipses).
@@ -162,6 +163,11 @@ func set_islands(list: PackedVector4Array) -> void:
 
 func set_ship_footprint(half_length: float, half_beam: float) -> void:
 	_mat.set_shader_parameter("ship_half", Vector2(half_length, half_beam))
+
+## Waterline outline of the hull: half-width per bin from bow (first) to stern (last), and the z range it spans.
+func set_hull_profile(widths: PackedFloat32Array, z_bow: float, z_stern: float) -> void:
+	_mat.set_shader_parameter("hull_w", widths)
+	_mat.set_shader_parameter("hull_z", Vector2(z_bow, z_stern))
 
 # --- CPU surface (async GPU readback) ----------------------------------------------------------
 

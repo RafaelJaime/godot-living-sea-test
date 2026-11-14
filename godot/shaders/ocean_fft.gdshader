@@ -22,6 +22,10 @@ uniform vec4 islands[MAX_ISLANDS]; // x, z, radius x, radius z (waterline ellips
 uniform int island_count = 0;
 uniform vec4 ship_a = vec4(0.0, 0.0, 1.0, 0.0); // x, z, cos(yaw), sin(yaw)
 uniform vec2 ship_half = vec2(11.0, 3.2);       // half length, half beam (m)
+#define HULL_BINS 48
+uniform float hull_w[HULL_BINS];                // waterline half-width per bin, bow (index 0) .. stern (last)
+uniform vec2 hull_z = vec2(-11.0, 11.0);        // local z of bin 0 (bow) and the last bin (stern)
+uniform float ship_speed = 6.0;
 
 group_uniforms cascade_data;
 uniform vec4 map_scales[MAX_CASCADES]; // uv scale xy, displacement scale, normal scale
@@ -110,14 +114,25 @@ void fragment() {
 	float surf = exp(-max(d_isl, 0.0) * 0.18) * (0.55 + 0.45 * sin(d_isl * 0.7 - TIME * 1.1 + gradient.x * 6.0));
 	shore_foam = clamp(surf * (1.0 - smoothstep(-2.0, 0.0, -d_isl)), 0.0, 1.0);
 
-	// Hull contact foam: soft ring around the ship's waterline footprint.
+	// Hull contact foam: thin, broken band hugging the baked waterline outline (width profile along the hull).
 	vec2 rel = rest_xz - ship_a.xy;
 	float lx = dot(rel, vec2(ship_a.z, -ship_a.w)); // ship right (+x local)
 	float lz = dot(rel, vec2(ship_a.w, ship_a.z));  // ship back (+z local)
-	float e = length(vec2(lx / ship_half.y, lz / ship_half.x));
-	float ring = smoothstep(0.78, 0.98, e) * (1.0 - smoothstep(1.0, 1.3, e)); // thin band hugging the hull
-	float broken = 0.55 + 0.45 * sin(lz * 2.3 + TIME * 2.4 + gradient.y * 10.0) * sin(lx * 3.1 - TIME * 1.7 + gradient.x * 9.0);
-	hull_foam = ring * 0.4 * clamp(broken, 0.0, 1.0);
+	float u = clamp((lz - hull_z.x) / (hull_z.y - hull_z.x), 0.0, 1.0) * float(HULL_BINS - 1);
+	int i0 = int(floor(u));
+	int i1 = min(i0 + 1, HULL_BINS - 1);
+	float hw = mix(hull_w[i0], hull_w[i1], fract(u));
+	// Distance to the outline (outside > 0); past the bow/stern tips measure to the end point.
+	float over = max(max(hull_z.x - lz, lz - hull_z.y), 0.0);
+	float d = length(vec2(max(abs(lx) - hw, 0.0), over)) + min(abs(lx) - hw, 0.0) * 0.0;
+	float speed_k = clamp(ship_speed / 7.0, 0.0, 1.3);
+	float bow_k = 1.0 - smoothstep(0.0, 0.45, u / float(HULL_BINS - 1)); // 1 at the bow, 0 amidships/stern
+	float band_out = 0.28 + 0.9 * bow_k * speed_k;                      // wider only at the bow when fast
+	float inside = 1.0 - smoothstep(-0.25, 0.05, d - 0.0) * 0.0;
+	float band = smoothstep(-0.35, 0.0, d) * (1.0 - smoothstep(0.05, band_out, d));
+	float lace = sin(lz * 3.3 + TIME * 2.6 + gradient.y * 11.0) * sin(lx * 4.1 - TIME * 2.0 + gradient.x * 10.0);
+	float broken = smoothstep(-0.15, 0.55, lace + 0.25 + 0.5 * bow_k * speed_k);
+	hull_foam = band * broken * (0.30 + 0.55 * speed_k * (0.4 + 0.6 * bow_k));
 
 	float whitecap = smoothstep(0.0, 1.0, gradient.z * 0.75) * exp(-dist * 0.0035);
 	foam_factor = clamp(whitecap * (1.0 - 0.7 * shallow) + shore_foam * 0.9 + hull_foam, 0.0, 1.0);
