@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
+
+[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_84ae8"]
+[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_eujed"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="3_jfcl7"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="4_jccnl"]
+
+[sub_resource type="Resource" id="Resource_b0x70"]
+script = ExtResource("4_jccnl")
+action_id = &"helm_steer"
+job_kinds = PackedStringArray("helm")
+anim_tag = &"helm_steer"
+duration_range = Vector2(20, 45)
+ik = Dictionary[StringName, StringName]({
+&"hand_l": &"hand_l",
+&"hand_r": &"hand_r"
+})
+look_at = &"ahead"
+station_kind = &"helm"
+
+[sub_resource type="Resource" id="Resource_agit6"]
+script = ExtResource("4_jccnl")
+action_id = &"spyglass_scan"
+job_kinds = PackedStringArray("spyglass_post")
+anim_tag = &"spyglass_scan"
+duration_range = Vector2(10, 20)
+look_at = &"horizon"
+station_kind = &"spyglass_post"
+
+[sub_resource type="Resource" id="Resource_rlumu"]
+script = ExtResource("4_jccnl")
+action_id = &"point_ahead"
+job_kinds = PackedStringArray("spyglass_post", "social_spot")
+anim_tag = &"point_ahead"
+duration_range = Vector2(4, 8)
+look_at = &"horizon"
+cooldown_s = 90.0
+
+[resource]
+script = ExtResource("3_jfcl7")
+agent_id = &"papi_fuego"
+display_name = "Papi Fuego"
+roles = PackedStringArray("helmsman", "lookout")
+tags = PackedStringArray("captain")
+preferences = Dictionary[StringName, float]({
+&"fishing_rail": -0.2,
+&"helm": 0.8,
+&"social_spot": 0.2,
+&"spyglass_post": 0.5
+})
+skills = Dictionary[StringName, float]({
+&"helm": 0.95,
+&"repair_spot": 0.4,
+&"spyglass_post": 0.8
+})
+needs = Dictionary[StringName, float]({
+&"boredom": 0.3
+})
+signature_actions = Array[ExtResource("4_jccnl")]([SubResource("Resource_b0x70"), SubResource("Resource_agit6"), SubResource("Resource_rlumu")])
+anim_set = ExtResource("1_84ae8")
+rig_profile = ExtResource("2_eujed")
+temperature_scale = 0.8
+walk_speed = 1.25

@@ -1,0 +1,57 @@
+[gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
+
+[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_mhlyg"]
+[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_hy70w"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="3_ju3xi"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="4_ccgjf"]
+
+[sub_resource type="Resource" id="Resource_l7a5j"]
+script = ExtResource("4_ccgjf")
+action_id = &"violin_play"
+job_kinds = PackedStringArray("violin_seat")
+anim_tag = &"violin_play"
+duration_range = Vector2(25, 60)
+station_kind = &"violin_seat"
+
+[sub_resource type="Resource" id="Resource_vimju"]
+script = ExtResource("4_ccgjf")
+action_id = &"chart_study"
+job_kinds = PackedStringArray("chart_table")
+anim_tag = &"chart_study"
+duration_range = Vector2(12, 25)
+station_kind = &"chart_table"
+
+[sub_resource type="Resource" id="Resource_x1rrd"]
+script = ExtResource("4_ccgjf")
+action_id = &"star_gaze"
+job_kinds = PackedStringArray("listen_spot", "social_spot")
+anim_tag = &"star_gaze"
+duration_range = Vector2(10, 20)
+look_at = &"sky"
+cooldown_s = 120.0
+
+[resource]
+script = ExtResource("3_ju3xi")
+agent_id = &"don_omar"
+display_name = "Don Omar"
+roles = PackedStringArray("musician", "navigator")
+tags = PackedStringArray("elder")
+preferences = Dictionary[StringName, float]({
+&"chart_table": 0.6,
+&"listen_spot": 0.3,
+&"mop_zone": -0.5,
+&"violin_seat": 0.9
+})
+skills = Dictionary[StringName, float]({
+&"chart_table": 0.8,
+&"helm": 0.6,
+&"violin_seat": 0.9
+})
+needs = Dictionary[StringName, float]({
+&"boredom": 0.2
+})
+signature_actions = Array[ExtResource("4_ccgjf")]([SubResource("Resource_l7a5j"), SubResource("Resource_vimju"), SubResource("Resource_x1rrd")])
+anim_set = ExtResource("1_mhlyg")
+rig_profile = ExtResource("2_hy70w")
+temperature_scale = 0.6
+walk_speed = 0.95

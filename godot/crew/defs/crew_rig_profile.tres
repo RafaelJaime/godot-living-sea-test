@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="NpcRigProfile" format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/anim/npc_rig_profile.gd" id="1_up5dr"]
+
+[resource]
+script = ExtResource("1_up5dr")
+chains = Dictionary[StringName, PackedStringArray]({
+&"hand_l": PackedStringArray("LeftArm", "LeftForeArm", "LeftHand"),
+&"hand_r": PackedStringArray("RightArm", "RightForeArm", "RightHand")
+})

@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
+
+[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_miwhj"]
+[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_qv0dp"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="3_6er2d"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="4_ax42y"]
+
+[sub_resource type="Resource" id="Resource_knjl0"]
+script = ExtResource("4_ax42y")
+action_id = &"crows_nest_watch"
+job_kinds = PackedStringArray("crows_nest")
+anim_tag = &"crows_nest_watch"
+duration_range = Vector2(14, 30)
+look_at = &"horizon"
+station_kind = &"crows_nest"
+
+[sub_resource type="Resource" id="Resource_uyq5l"]
+script = ExtResource("4_ax42y")
+action_id = &"rope_work"
+job_kinds = PackedStringArray("reef_pin")
+anim_tag = &"rope_work"
+duration_range = Vector2(8, 16)
+station_kind = &"reef_pin"
+
+[sub_resource type="Resource" id="Resource_7howi"]
+script = ExtResource("4_ax42y")
+action_id = &"fishing_cast"
+job_kinds = PackedStringArray("fishing_rail")
+anim_tag = &"fishing_cast"
+duration_range = Vector2(16, 40)
+station_kind = &"fishing_rail"
+
+[sub_resource type="Resource" id="Resource_l04ko"]
+script = ExtResource("4_ax42y")
+action_id = &"comic_fall"
+job_kinds = PackedStringArray("chat", "social_spot")
+anim_tag = &"comic_fall"
+duration_range = Vector2(3, 5)
+cooldown_s = 240.0
+
+[resource]
+script = ExtResource("3_6er2d")
+agent_id = &"el_salchipapa"
+display_name = "El Salchipapa"
+roles = PackedStringArray("lookout", "climber", "fisher")
+tags = PackedStringArray("joker")
+preferences = Dictionary[StringName, float]({
+&"crows_nest": 0.8,
+&"fishing_rail": 0.7,
+&"mop_zone": -0.6,
+&"reef_pin": 0.2
+})
+skills = Dictionary[StringName, float]({
+&"crows_nest": 0.85,
+&"fishing_rail": 0.8,
+&"helm": 0.3
+})
+needs = Dictionary[StringName, float]({
+&"boredom": 0.6
+})
+signature_actions = Array[ExtResource("4_ax42y")]([SubResource("Resource_knjl0"), SubResource("Resource_uyq5l"), SubResource("Resource_7howi"), SubResource("Resource_l04ko")])
+anim_set = ExtResource("1_miwhj")
+rig_profile = ExtResource("2_qv0dp")
+temperature_scale = 1.4
+walk_speed = 1.1

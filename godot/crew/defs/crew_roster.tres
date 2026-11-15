@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="NpcRoster" format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/schedule/npc_roster.gd" id="1_bsa8f"]
+[ext_resource type="Script" path="res://addons/npc_life/schedule/npc_watch_def.gd" id="2_30ldb"]
+
+[sub_resource type="Resource" id="Resource_p346p"]
+script = ExtResource("2_30ldb")
+watch_id = &"helm_watch"
+station_id = &"helm"
+job_kind = &"helm"
+eligible = PackedStringArray("papi_fuego", "don_omar", "papi_diagnostica")
+shift_s = 240.0
+shift_jitter_s = 40.0
+keep_during_emergency = true
+
+[sub_resource type="Resource" id="Resource_u078x"]
+script = ExtResource("2_30ldb")
+watch_id = &"spyglass_watch"
+station_id = &"spyglass_post"
+job_kind = &"spyglass_post"
+eligible = PackedStringArray("papi_fuego", "el_salchipapa")
+shift_s = 150.0
+shift_jitter_s = 30.0
+
+[sub_resource type="Resource" id="Resource_ibue0"]
+script = ExtResource("2_30ldb")
+watch_id = &"nest_watch"
+station_id = &"crows_nest"
+job_kind = &"crows_nest"
+eligible = PackedStringArray("el_salchipapa", "papi_fuego")
+shift_s = 200.0
+shift_jitter_s = 30.0
+
+[resource]
+script = ExtResource("1_bsa8f")
+watches = Array[ExtResource("2_30ldb")]([SubResource("Resource_p346p"), SubResource("Resource_u078x"), SubResource("Resource_ibue0")])
