@@ -128,8 +128,8 @@ func _weed_patch_mesh(seed_i: int) -> ArrayMesh:
 	rng.seed = seed_i
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var core := Color(0.022, 0.05, 0.016, 0.88)
-	var rim := Color(0.06, 0.09, 0.028, 0.05)
+	var core := Color(0.075, 0.052, 0.018, 0.88)
+	var rim := Color(0.115, 0.082, 0.032, 0.05)
 	for lobe in rng.randi_range(3, 5):
 		var c := Vector3(rng.randf_range(-0.9, 0.9), 0.0, rng.randf_range(-0.9, 0.9))
 		var r := rng.randf_range(0.4, 0.95)
