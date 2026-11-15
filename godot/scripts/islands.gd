@@ -36,6 +36,8 @@ var _ring_mat: ShaderMaterial
 var _shallow := SHALLOW_DEFAULT
 var _lamp_mats: Array[StandardMaterial3D] = []
 var _beam_tick := -1
+var _prefetch := {} ## {counter, params, slot, task}: island data being generated on a worker
+var _spawn_queue: Array[float] = []
 
 func _lit_mat(tint: Color, use_vertex_color := false, rough := 0.95) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
@@ -58,8 +60,16 @@ func _ready() -> void:
 	_rock_mesh = _build_blob_mesh(5, 3, 0.55)
 	_bush_mesh = _build_blob_mesh(6, 3, 0.8)
 	_build_horizon()
+	_lh_holder = Node3D.new()
+	_lh_holder.visible = false
+	add_child(_lh_holder)
+	for _i in LH_POOL:
+		var lh := _make_lighthouse(0.0)
+		_lh_holder.add_child(lh)
+		_park_lighthouse(lh)
 	for i in island_count:
 		_spawn_ahead(-150.0 + (float(i) / island_count) * 2000.0 + _rng.randf() * 120.0)
+	_prefetch_next()
 
 func rebase(shift: Vector3) -> void:
 	for isl in _islands:
@@ -95,8 +105,12 @@ func _process(_delta: float) -> void:
 		var behind := rel.dot(fwd) < -(behind_recycle + float(isl.get_meta("radius")))
 		if rel.length() > 2300.0 or (behind and rel.length() > 700.0):
 			_islands.erase(isl)
+			for ch in isl.get_children():
+				if ch.has_meta("beam"):
+					_park_lighthouse(ch) # the lighthouse survives its island
 			isl.queue_free()
-			_spawn_ahead(_rng.randf_range(ahead_min + 300.0, ahead_max))
+			_spawn_queue.append(_rng.randf_range(ahead_min + 300.0, ahead_max))
+	_tick_spawns()
 
 ## Islands as autopilot targets: [{pos: Vector2 (world xz), radius: float (clearance radius)}].
 func targets() -> Array:
@@ -107,28 +121,70 @@ func targets() -> Array:
 	return out
 
 ## Spawns an island `ahead` metres in front of the ship (along its heading), offset sideways.
-func _spawn_ahead(ahead: float) -> void:
-	var fwd: Vector2 = _ship.forward if "forward" in _ship else Vector2(0, -1)
-	var right := Vector2(-fwd.y, fwd.x) # perpendicular (starboard is (cos yaw, -sin yaw) = (-fwd.y, fwd.x))
-	_counter += 1
-	var seed_i := seed_base + _counter * 7919
+## Island parameters for spawn number `counter` (same seeds and random sequence as before the off-thread split).
+func _island_params(counter: int) -> Dictionary:
+	var seed_i := seed_base + counter * 7919
 	var r := RandomNumberGenerator.new()
 	r.seed = seed_i
 	var radius := r.randf_range(70.0, 190.0)
 	var peak := r.randf_range(22.0, 62.0)
-	_side = -_side
 	var lateral := maxf(r.randf_range(min_lateral, max_lateral), radius + 170.0)
-	var isl := _make_island(seed_i, radius, peak)
-	isl.set_meta("radius", radius)
+	return {"seed": seed_i, "radius": radius, "peak": peak, "lateral": lateral}
+
+## Starts generating the data of the NEXT island on a worker (the next spawn is far from happening: islands recycle every 15-20 s).
+func _prefetch_next() -> void:
+	if _prefetch.has("task"):
+		return
+	_refresh_shallow()
+	var c := _counter + 1
+	var prm := _island_params(c)
+	var slot := {"data": null}
+	_prefetch = {"counter": c, "params": prm, "slot": slot,
+		"task": WorkerThreadPool.add_task(func() -> void: slot["data"] = _island_data(prm["seed"], prm["radius"], prm["peak"]))}
+
+## Places an island `ahead` metres in front of the ship (along its heading), offset sideways, from prepared data.
+func _place_island(ahead: float, prm: Dictionary, data: Dictionary) -> void:
+	var fwd: Vector2 = _ship.forward if "forward" in _ship else Vector2(0, -1)
+	var right := Vector2(-fwd.y, fwd.x) # perpendicular (starboard is (cos yaw, -sin yaw) = (-fwd.y, fwd.x))
+	_side = -_side
+	var isl := _build_island(data)
+	isl.set_meta("radius", prm["radius"])
 	isl.set_meta("shore", isl.get_meta("shore_xz"))
 	add_child(isl)
 	var sp := Vector2(_ship.global_position.x, _ship.global_position.z)
-	var p := sp + fwd * ahead + right * _side * lateral
+	var p := sp + fwd * ahead + right * _side * float(prm["lateral"])
 	isl.global_position = Vector3(p.x, 0.0, p.y)
 	_islands.append(isl)
 
-func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
+## Synchronous spawn (the initial islands, before the first frame is shown).
+func _spawn_ahead(ahead: float) -> void:
 	_refresh_shallow()
+	_counter += 1
+	var prm := _island_params(_counter)
+	_place_island(ahead, prm, _island_data(prm["seed"], prm["radius"], prm["peak"]))
+
+## Replacement islands queue here (value = `ahead` metres) until their prefetched data is ready; at most one is placed per frame.
+func _tick_spawns() -> void:
+	_lh_refill_step()
+	if _prefetch.is_empty():
+		_prefetch_next()
+	if _spawn_queue.is_empty() or not _prefetch.has("task") or not WorkerThreadPool.is_task_completed(_prefetch["task"]):
+		return
+	WorkerThreadPool.wait_for_task_completion(_prefetch["task"]) # already finished: just releases it
+	var pf := _prefetch
+	_prefetch = {}
+	_counter = int(pf["counter"])
+	if "--island-verify" in OS.get_cmdline_user_args():
+		var prm: Dictionary = pf["params"]
+		var ref := _island_data(prm["seed"], prm["radius"], prm["peak"]) # same function on the main thread: must match the worker result bit for bit
+		var a: Array = ref["arrays"]
+		var b: Array = (pf["slot"] as Dictionary)["data"]["arrays"]
+		print("[islands] verify counter=", _counter, " vertices equal=", a[Mesh.ARRAY_VERTEX] == b[Mesh.ARRAY_VERTEX], " colors equal=", a[Mesh.ARRAY_COLOR] == b[Mesh.ARRAY_COLOR], " palms equal=", ref["palms"] == (pf["slot"] as Dictionary)["data"]["palms"])
+	_place_island(float(_spawn_queue.pop_front()), pf["params"], (pf["slot"] as Dictionary)["data"])
+	_prefetch_next()
+
+## Pure data (no scene tree, no RenderingServer): safe to run on a WorkerThreadPool thread. `_shallow` must be refreshed beforehand.
+func _island_data(seed_i: int, radius: float, peak: float) -> Dictionary:
 	var noise := FastNoiseLite.new()
 	noise.seed = seed_i
 	noise.frequency = 0.012
@@ -155,7 +211,6 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 		# A broad shoulder (second hill) breaks the single cone silhouette; the crest keeps its ridged character.
 		var shoulder := maxf(hill_noise.get_noise_2d(x + 400.0, z - 300.0), 0.0) * peak * 0.34 * shape * shape
 		return -7.0 + (peak + 7.0) * pow(shape, 1.25) * (0.7 + 0.45 * ridge) + shoulder + 3.0 * shape_noise.get_noise_2d(x * 0.05, z * 0.05) * shape
-	var node := Node3D.new()
 	var ext := radius * 1.45
 	var cells := 56
 	var step := ext * 2.0 / cells
@@ -179,11 +234,7 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 			_tri(st, p00, p01, p10, peak, detail, step)
 			_tri(st, p10, p01, p11, peak, detail, step)
 	st.generate_normals()
-	var mi := MeshInstance3D.new()
-	mi.mesh = st.commit()
-	mi.material_override = _island_mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	node.add_child(mi)
+	var arrays := st.commit_to_arrays()
 	# Vegetation, rocks and bushes as one MultiMesh each (cheap, one draw call per kind per island).
 	var palms: Array[Transform3D] = []
 	var rocks: Array[Transform3D] = []
@@ -202,11 +253,9 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 		elif h > -0.6 and h < 3.0:
 			var sr := rng.randf_range(0.9, 3.2)
 			rocks.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sr, sr * rng.randf_range(0.6, 1.0), sr * rng.randf_range(0.8, 1.2))), Vector3(x, h - 0.15, z)))
-	_add_multimesh(node, _palm_mesh, palms, [])
-	_add_multimesh(node, _bush_mesh, bushes, [], _bush_mat)
-	_add_multimesh(node, _rock_mesh, rocks, [], _rock_mat)
+	var lh_y := NAN
 	if seed_i % 3 == 0:
-		node.add_child(_make_lighthouse(height_fn.call(0.0, 0.0)))
+		lh_y = height_fn.call(0.0, 0.0)
 	# Waterline ellipse radii (where the height crosses 0 along +-X and +-Z), used for the turquoise shallows.
 	var shore := Vector2.ZERO
 	for axis in 2:
@@ -222,7 +271,25 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 				r += 2.0
 			acc += found
 		shore[axis] = acc * 0.5
-	node.set_meta("shore_xz", shore)
+	return {"arrays": arrays, "palms": palms, "bushes": bushes, "rocks": rocks, "lh_y": lh_y, "shore": shore}
+
+## Main-thread half of an island: meshes, MultiMeshes and the lighthouse from the prepared data (about 1-2 ms).
+func _build_island(d: Dictionary) -> Node3D:
+	var node := Node3D.new()
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, d["arrays"])
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	mi.material_override = _island_mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(mi)
+	_add_multimesh(node, _palm_mesh, d["palms"], [])
+	_add_multimesh(node, _bush_mesh, d["bushes"], [], _bush_mat)
+	_add_multimesh(node, _rock_mesh, d["rocks"], [], _rock_mat)
+	if not is_nan(float(d["lh_y"])):
+		var lh := _take_lighthouse(float(d["lh_y"]))
+		node.add_child(lh)
+	node.set_meta("shore_xz", d["shore"])
 	return node
 
 ## Instances `mesh` at `xfs` as one MultiMeshInstance3D under `parent` (per-instance colour when `cols` is given).
@@ -291,6 +358,38 @@ func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, peak: float, deta
 		st.set_color(_vcol(v, slope, peak, n))
 		st.add_vertex(v)
 
+## Lighthouses are never built during play: building one (the beam's _ready makes its cone mesh and compiles its shader) costs 2-11 ms.
+## A fixed pool is built at start-up, parked (hidden, beam out of the `lighthouse_beam` group) under `_lh_holder`; a spawn reparents one at
+## the island's summit height and a recycled island hands its lighthouse back to the pool. Only if the pool ran dry one is built on demand.
+const LH_POOL := 5
+var _lh_pool: Array[Node3D] = []
+var _lh_holder: Node3D
+
+func _lh_refill_step() -> void: # (kept as a hook: nothing to do while the pool is not empty)
+	pass
+
+func _park_lighthouse(lh: Node3D) -> void:
+	var beam: Node = lh.get_meta("beam")
+	if beam.is_in_group("lighthouse_beam"):
+		beam.remove_from_group("lighthouse_beam")
+	lh.get_parent().remove_child(lh)
+	_lh_holder.add_child(lh)
+	_lh_pool.append(lh)
+
+func _take_lighthouse(y: float) -> Node3D:
+	var lh: Node3D
+	if _lh_pool.is_empty():
+		lh = _make_lighthouse(0.0) # pool exhausted: build on demand (rare)
+		_lh_holder.add_child(lh) # runs _ready
+	else:
+		lh = _lh_pool.pop_back()
+	lh.get_parent().remove_child(lh)
+	var beam: Node = lh.get_meta("beam")
+	if not beam.is_in_group("lighthouse_beam"):
+		beam.add_to_group("lighthouse_beam")
+	lh.position = Vector3(0, y, 0)
+	return lh
+
 func _make_lighthouse(base_y: float) -> Node3D:
 	var n := Node3D.new()
 	var body := MeshInstance3D.new()
@@ -318,12 +417,14 @@ func _make_lighthouse(base_y: float) -> Node3D:
 	lm.emission = Color(1.0, 0.8, 0.35); lm.emission_energy_multiplier = 3.0
 	lamp.material_override = lm
 	_lamp_mats.append(lm)
+	n.set_meta("lamp_mat", lm)
 	lamp.position = Vector3(0, base_y + 17.1, 0)
 	n.add_child(lamp)
 	var beam := Node3D.new()
 	beam.set_script(load("res://scripts/ambient/lighthouse_beam.gd"))
 	beam.position = lamp.position
 	n.add_child(beam)
+	n.set_meta("beam", beam)
 	var roof := MeshInstance3D.new()
 	var rc := CylinderMesh.new()
 	rc.bottom_radius = 2.0; rc.top_radius = 0.1; rc.height = 1.8; rc.radial_segments = 8
