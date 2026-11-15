@@ -112,9 +112,11 @@ func _build_flotsam() -> void:
 		var kind := i % 4
 		if kind == 0:
 			var m := MeshInstance3D.new(); m.mesh = plank; m.material_override = wood; n.add_child(m)
+			n.add_child(_contact_foam(Vector2(3.2, 0.9), 0.03))
 		elif kind == 1:
 			var m := MeshInstance3D.new(); m.mesh = barrel; m.rotation.z = deg_to_rad(80.0)
 			m.set_surface_override_material(0, wood_two_sided); m.set_surface_override_material(1, iron); n.add_child(m)
+			n.add_child(_contact_foam(Vector2(1.4, 1.1), 0.13))
 		else:
 			var m := MeshInstance3D.new(); m.mesh = weed_meshes[i % weed_meshes.size()]; m.material_override = weed
 			m.scale = Vector3.ONE * randf_range(0.8, 1.6)
@@ -162,6 +164,31 @@ func _weed_patch_mesh(seed_i: int) -> ArrayMesh:
 			st.set_normal(Vector3.UP)
 			st.add_vertex(v[0])
 	return st.commit()
+
+## Height of the node origin above the local surface: the plank rides almost awash, the barrel (r 0.27 m) sits about two thirds
+## under, the seaweed just under the film.
+func _waterline(kind: int) -> float:
+	match kind:
+		0: return -0.025
+		1: return -0.10
+	return 0.0
+
+## Soft foam ring at the waterline of a floating prop: a flat dot sprite of the given size, a hair above the surface.
+func _contact_foam(size: Vector2, y: float) -> MeshInstance3D:
+	var q := QuadMesh.new()
+	q.size = size
+	q.orientation = PlaneMesh.FACE_Y
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = _soft_dot()
+	m.albedo_color = Color(0.92, 0.97, 1.0, 0.28)
+	q.material = m
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	mi.position = Vector3(0, y, 0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
 
 ## Aged, wet, dark wood (Poly Haven "Dark Wooden Planks", CC0, 1k) tinted darker; used by planks and barrel staves.
 func _wood_mat(tint: Color) -> StandardMaterial3D:
@@ -369,7 +396,7 @@ func _tick_flotsam(dt: float) -> void:
 		var h := Waves.height_at(p.x, p.z)
 		var hx := Waves.height_at(p.x + 0.8, p.z) - h
 		var hz := Waves.height_at(p.x, p.z + 0.8) - h
-		node.global_position = Vector3(p.x, h + 0.03 - (0.03 if int(f["kind"]) >= 2 else 0.0) - 0.22 * float(f["dip"]), p.z)
+		node.global_position = Vector3(p.x, h + _waterline(int(f["kind"])) - 0.22 * float(f["dip"]), p.z)
 		node.rotation = Vector3(-hz * 0.8, float(f["yaw"]), hx * 0.8)
 
 # ---------------------------------------------------------------- dolphins
@@ -761,7 +788,7 @@ func _pod_max() -> int:
 	return maxi(2, int(round(POD_MAX * Quality.ambient_scale)))
 
 func ambient_pools() -> Dictionary:
-	return {"flotsam": _flot.size(), "dolphins": _dolphins.size(), "splashes": _splashes.size(), "whale_spout": 1, "passing_ships": 1}
+	return {"flotsam": _flot.size(), "dolphins": _dolphins.size(), "splashes": _splashes.size(), "whale_spout": 1, "horizon_ship": 1}
 
 func ambient_stats() -> Dictionary:
 	var dol := 0
@@ -772,4 +799,4 @@ func ambient_stats() -> Dictionary:
 	for sp in _splashes:
 		if float(sp["t"]) < 1.0:
 			splash += 1
-	return {"flotsam": _flot.size(), "dolphins": dol, "splashes": splash, "whale_spout": 1 if _whale_left > 0 else 0, "passing_ships": 1 if _far != null else 0}
+	return {"flotsam": _flot.size(), "dolphins": dol, "splashes": splash, "whale_spout": 1 if _whale_left > 0 else 0, "horizon_ship": 1 if _far != null else 0}
