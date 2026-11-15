@@ -97,9 +97,14 @@ func _mat(c: Color, rough := 0.8) -> StandardMaterial3D:
 func _build_flotsam() -> void:
 	var plank := BoxMesh.new(); plank.size = Vector3(2.4, 0.08, 0.28)
 	var barrel := CylinderMesh.new(); barrel.top_radius = 0.28; barrel.bottom_radius = 0.28; barrel.height = 0.62; barrel.radial_segments = 8
-	var weed_mesh := SphereMesh.new(); weed_mesh.radius = 0.5; weed_mesh.height = 0.2; weed_mesh.radial_segments = 8; weed_mesh.rings = 3
+	var weed_meshes: Array[ArrayMesh] = [_weed_patch_mesh(11), _weed_patch_mesh(23), _weed_patch_mesh(37)]
 	var wood := _mat(Color(0.32, 0.22, 0.13))
-	var weed := _mat(Color(0.12, 0.2, 0.08))
+	# Seaweed: translucent, irregular, vertex-coloured patches (darker olive core fading to a pale transparent rim), half drowned in the swell.
+	var weed := StandardMaterial3D.new()
+	weed.vertex_color_use_as_albedo = true
+	weed.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	weed.cull_mode = BaseMaterial3D.CULL_DISABLED
+	weed.roughness = 0.9
 	for i in _flot_count():
 		var n := Node3D.new()
 		var kind := i % 4
@@ -108,15 +113,52 @@ func _build_flotsam() -> void:
 		elif kind == 1:
 			var m := MeshInstance3D.new(); m.mesh = barrel; m.material_override = wood; m.rotation.z = deg_to_rad(80.0); n.add_child(m)
 		else:
-			for k in 6:
-				var m := MeshInstance3D.new(); m.mesh = weed_mesh; m.material_override = weed
-				m.position = Vector3(randf_range(-1.1, 1.1), 0.0, randf_range(-1.1, 1.1))
-				m.scale = Vector3.ONE * randf_range(0.7, 1.5)
-				n.add_child(m)
+			var m := MeshInstance3D.new(); m.mesh = weed_meshes[i % weed_meshes.size()]; m.material_override = weed
+			m.scale = Vector3.ONE * randf_range(0.8, 1.6)
+			m.rotation.y = randf() * TAU
+			n.add_child(m)
 		add_child(n)
 		_flot.append({"node": n, "pos": Vector3.ZERO, "spin": randf_range(-0.15, 0.15), "yaw": randf() * TAU, "kind": kind,
 			"vel": Vector3.ZERO, "spinv": 0.0, "dip": 0.0, "radius": 1.2 if kind == 0 else (0.5 if kind == 1 else 1.6)})
 		_respawn_flot(_flot[i], true)
+
+## One irregular seaweed patch: 3-5 lobes of 14-point noisy polygons with a slight dome, plus a few thin trailing strands.
+func _weed_patch_mesh(seed_i: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_i
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var core := Color(0.022, 0.05, 0.016, 0.88)
+	var rim := Color(0.06, 0.09, 0.028, 0.05)
+	for lobe in rng.randi_range(3, 5):
+		var c := Vector3(rng.randf_range(-0.9, 0.9), 0.0, rng.randf_range(-0.9, 0.9))
+		var r := rng.randf_range(0.4, 0.95)
+		var pts := PackedVector3Array()
+		var n := 14
+		var phase := rng.randf() * TAU
+		for k in n:
+			var a := float(k) / n * TAU
+			var rr := r * (0.55 + 0.6 * rng.randf()) * (1.0 + 0.25 * sin(a * 3.0 + phase))
+			pts.append(c + Vector3(cos(a) * rr, rng.randf_range(-0.02, 0.02), sin(a) * rr * 0.8))
+		var top := c + Vector3(0, 0.07, 0)
+		for k in n:
+			var p0 := pts[k]
+			var p1 := pts[(k + 1) % n]
+			for v in [[top, core], [p0, rim], [p1, rim]]:
+				st.set_color(v[1])
+				st.set_normal(Vector3.UP)
+				st.add_vertex(v[0])
+	for sI in rng.randi_range(3, 6):
+		var a0 := rng.randf() * TAU
+		var o := Vector3(cos(a0), 0.0, sin(a0)) * rng.randf_range(0.2, 0.9)
+		var dir := Vector3(cos(a0 + rng.randf_range(-0.6, 0.6)), 0.0, sin(a0 + rng.randf_range(-0.6, 0.6)))
+		var side := Vector3(-dir.z, 0.0, dir.x) * 0.04
+		var len := rng.randf_range(0.5, 1.2)
+		for v in [[o - side, core], [o + side, core], [o + dir * len, rim]]:
+			st.set_color(v[1])
+			st.set_normal(Vector3.UP)
+			st.add_vertex(v[0])
+	return st.commit()
 
 func _respawn_flot(f: Dictionary, anywhere: bool) -> void:
 	var fwd := _ship_fwd()
@@ -195,7 +237,7 @@ func _tick_flotsam(dt: float) -> void:
 		var h := Waves.height_at(p.x, p.z)
 		var hx := Waves.height_at(p.x + 0.8, p.z) - h
 		var hz := Waves.height_at(p.x, p.z + 0.8) - h
-		node.global_position = Vector3(p.x, h + 0.03 - 0.22 * float(f["dip"]), p.z)
+		node.global_position = Vector3(p.x, h + 0.03 - (0.03 if int(f["kind"]) >= 2 else 0.0) - 0.22 * float(f["dip"]), p.z)
 		node.rotation = Vector3(-hz * 0.8, float(f["yaw"]), hx * 0.8)
 
 # ---------------------------------------------------------------- dolphins

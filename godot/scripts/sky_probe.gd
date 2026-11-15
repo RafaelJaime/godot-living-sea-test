@@ -82,6 +82,10 @@ func _shots_step(delta: float) -> void:
 		var d := get_tree().get_first_node_in_group("camera_director")
 		if d and int(it["shot"]) == -1:
 			it["shot"] = _island_shot(d)
+		elif d and int(it["shot"]) == -4: # camera 5 m from the nearest seaweed patch
+			d.shots.append({"name": "weed", "pos": Vector3(0, 6, 0), "look": Vector3(0, 6, -50), "fov": 50.0})
+			it["shot"] = d.shots.size() - 1
+			it["follow"] = 3
 		elif d and int(it["shot"]) == -3: # camera on deck looking at the whale spout (follow handled per frame)
 			d.shots.append({"name": "whale", "pos": Vector3(0, 6, 0), "look": Vector3(0, 6, -50), "fov": 30.0})
 			it["shot"] = d.shots.size() - 1
@@ -100,6 +104,8 @@ func _shots_step(delta: float) -> void:
 	_follow_dolphin()
 	if int(_shots[_shot_i].get("follow", 0)) == 2:
 		_follow_whale()
+	elif int(_shots[_shot_i].get("follow", 0)) == 3:
+		_follow_weed()
 	if String(it["weather"]) == "storm_end" and not _shot_flipped and _shot_t >= 2.0:
 		_shot_flipped = true
 		WorldState.set_weather("clear")
@@ -114,6 +120,28 @@ func _shots_step(delta: float) -> void:
 			" storm=", snappedf(WorldState.storm, 0.01), " rainbow=", snappedf(WorldState.rainbow, 0.01), " exposure=", snappedf(sky.exposure, 0.001))
 		_shot_i += 1
 		_shot_t = -1.0
+
+## Shot -4: the camera sits 5 m from the seaweed patch nearest to the ship, 2 m up, looking at it.
+func _follow_weed() -> void:
+	var life := get_node_or_null("../../AmbientLife")
+	var cam := get_viewport().get_camera_3d()
+	var ship := get_node_or_null("../../Ship") as Node3D
+	if life == null or cam == null or ship == null:
+		return
+	var best: Dictionary = {}
+	var bd := INF
+	for f in life.get("_flot"):
+		if int(f["kind"]) >= 2:
+			var d: float = (f["pos"] as Vector3).distance_to(ship.global_position)
+			if d < bd and d > 8.0:
+				bd = d
+				best = f
+	if best.is_empty():
+		return
+	var p: Vector3 = (best["node"] as Node3D).global_position
+	cam.global_position = p + Vector3(3.5, 2.0, 3.5)
+	cam.look_at(p, Vector3.UP)
+	cam.fov = 50.0
 
 ## Shot -3: the camera stays at the ship and looks at the whale (or its last position), narrow fov.
 func _follow_whale() -> void:
