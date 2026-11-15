@@ -129,7 +129,8 @@ Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-bir
 - signal `Ship.wobble(intensity: float, kind: String)`, kind `roll` | `pitch` | `slam`, at most every 0.5 s, only when settled and the hull moves noticeably (calm sea: none; sea_state 0.9: several per minute). `--log-wobble` prints each emission.
 - `--analytic-sails` uses the analytic flat-plate model fed by `WindField.sample` at each sail's centre; the log prints `[ship] sail path: analytic (WindField per sail)` or `cloth forces` once.
 - `--settle-log` prints roll, pitch, heave and keel lift each second for the first 12 s.
-(`PinnaceRig.sail_state()` from M1.7 is not implemented yet.)
+- `PinnaceRig.sail_state()` -> `{furl, brace_deg, mean_pressure_pa, luffing, backed, gust}` per sail group (read-only, M1.7); `--poll-sail-state` logs it each `--autopilot-log` period.
+- Changelog (M1): `settled`/`settled_changed`, `wobble`, `sail_state()` and the heel-aware hull foam were added on top of the physics ship without changing any existing Ship property or signal.
 
 ### Ocean shader layout (godot/shaders/ocean/)
 `ocean_fft.gdshader` is a shell: header, four includes and `fragment()`. Owners: `common.gdshaderinc` = all (defines, uniforms, varyings, island_distance);
