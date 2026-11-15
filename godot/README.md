@@ -146,3 +146,21 @@ Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-bir
 `surface.gdshaderinc` = M2a/M2b (vertex displacement, bicubic normal sampling); `foam.gdshaderinc` = M2b/M1.9 (`hull_foam_term` heel-aware via `hull_inv`
 and the hull cross-section table, `whitecap_term`, `wake_term`); `shading.gdshaderinc` = M2a (GGX, SSS, `light()`).
 Other hooks: `PinnaceRig.sail_state()` -> furl, brace_deg, mean_pressure_pa, luffing, backed, gust (read-only; `--poll-sail-state` logs it each `--autopilot-log` period).
+
+## Camera shots and island polish (M3.10 / M3.11)
+Shot indices (hotkeys 1-7 and the 20 s cycle are unchanged; new shots are appended): 5 Canto, 7-10 crew close-ups, 12 helm, 13 violin, 17 wake,
+**18 storm** (low on the bow quarter), **19 island**, **20 island close** (from the island side of the ship toward the nearest island, via `Islands.targets()`, read-only).
+- `scripts/camera_clearview.gd` (`CameraClearView`): line-of-sight queries against the ship's own meshes (skeleton pose baked once, triangle BVHs) plus the helm
+  wheel and the lanterns. `camera_director.gd` uses it for every shot with `"solve": true`: Canto, crew close-ups, helm, violin, island.
+  Crew shots search a ring around the character (front quarter taken from the live `Visual` node, `front_deg`) with a dense ray grid over head and torso (thin
+  shrouds slip through a few rays), and reject lenses jammed against a lantern or rail (`near_blocked`). Optional per shot: `front_deg`, `min_clear`.
+  Canto: candidates around the ship, the sun face (+-5 deg cone) must be clear of sails, rigging and hull, and the view leans between the sun and the ship
+  (continuous in the sun angle; with a near-zenith sun Canto stays fully framed and the ship crops at the bottom). Re-solved every 1.5 s or when the sun
+  moves 3 deg relative to the ship, and the camera glides with a critically damped spring (no velocity kick, `--jitter-test` accel stays < 3 m/s2).
+  Solutions are logged as `[cam] <shot>: clear spot ...`; the occluder set is built once at 2-6 s after start (one short hitch during the start-up ramp).
+- Islands (`islands.gd`): `shaders/island.gdshader` replaces the StandardMaterials (terrain, palms, rocks, bushes, lighthouse bodies) with the same PBR plus a fill
+  from the published sky globals (`sky_horizon_color`, `sky_zenith_color`, `sky_night`, `sky_storminess`): hemispheric sky fill by day and dusk, moonlit blue fill at night,
+  so no face ever goes black. `shaders/island_horizon.gdshader` colours the far mountain ring from `sky_fog_color` / `sky_zenith_color`, so it matches the horizon at every
+  hour. Terrain colour is a smooth vertex blend (shelf, wet sand, beach, dune grass, jungle, treeline rock, steep-face cliffs), a second shoulder hill breaks the cone, palms /
+  bushes / rocks are one MultiMesh each. The underwater shelf fades into the ocean's `shallow_color` (read from the ocean material, default `vec3(0.05, 0.62, 0.58)`; ocean files untouched).
+  Lighthouse beams (`ambient/lighthouse_beam.gd`) are unchanged.

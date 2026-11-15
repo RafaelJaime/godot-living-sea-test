@@ -54,8 +54,8 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
         hard (procedural layer over idle). — delegated
       - Don Omar violin: arm pose layered over sit + violin prop + bow motion. — delegated
       - Crew balance: all crew sway/brace with ship roll (procedural hip/spine counter-lean). — delegated
-- [ ] T6 Camera fixes (Canto shot unoccluded, close-ups unobstructed, shots that show helmsman steering
-      and storm) + nicer islands (beach, vegetation, shallows). — delegated
+- [x] T6 Camera fixes (Canto shot unoccluded, close-ups unobstructed, shots that show helmsman steering
+      and storm) + nicer islands (beach, vegetation, shallows). — delegated (M3.10-M3.12, feat/camera-islands, evidence odd/evidence/M3/camera-islands/)
 - [x] T6b Polish from user review: hull-hugging foam (cdab617), animation crossfades/ramps (700ee14), arm IK
       stabilised (acdbe66), Omar seated on barrels via deck raycast (1242bc9), Pirat flag + camera smoothing (55da2dc).
 - [ ] T7 Sandbox crew: Papi Diagnostica and El Salchipapa roam the ship autonomously (deck waypoint graph,

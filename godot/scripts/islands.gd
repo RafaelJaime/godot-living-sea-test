@@ -17,28 +17,44 @@ var _counter := 0
 var _side := 1.0
 var _islands: Array[Node3D] = []
 var _rng := RandomNumberGenerator.new()
-var _island_mat: StandardMaterial3D
-var _trunk_mat: StandardMaterial3D
-var _leaf_mat: StandardMaterial3D
+const ISLAND_SHADER := preload("res://shaders/island.gdshader")
+const HORIZON_SHADER := preload("res://shaders/island_horizon.gdshader")
+## Ocean `shallow_color` default (shaders/ocean/common.gdshaderinc); read live from the ocean material when available so the
+## underwater sand shelf fades into the same turquoise the water shader paints around the island.
+const SHALLOW_DEFAULT := Color(0.05, 0.62, 0.58)
+
+var _island_mat: ShaderMaterial
+var _trunk_mat: ShaderMaterial
+var _leaf_mat: ShaderMaterial
+var _rock_mat: ShaderMaterial
+var _bush_mat: ShaderMaterial
 var _palm_mesh: ArrayMesh
+var _rock_mesh: ArrayMesh
+var _bush_mesh: ArrayMesh
 var _ring: MeshInstance3D
-var _ring_mat: StandardMaterial3D
+var _ring_mat: ShaderMaterial
+var _shallow := SHALLOW_DEFAULT
+
+func _lit_mat(tint: Color, use_vertex_color := false, rough := 0.95) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = ISLAND_SHADER
+	m.set_shader_parameter("tint", tint)
+	m.set_shader_parameter("use_vertex_color", use_vertex_color)
+	m.set_shader_parameter("roughness", rough)
+	return m
 
 func _ready() -> void:
 	add_to_group("rebase")
 	_ship = get_node(ship_path)
 	_rng.seed = seed_base
-	_island_mat = StandardMaterial3D.new()
-	_island_mat.vertex_color_use_as_albedo = true
-	_island_mat.roughness = 0.95
-	_trunk_mat = StandardMaterial3D.new()
-	_trunk_mat.albedo_color = Color(0.36, 0.25, 0.15)
-	_trunk_mat.roughness = 1.0
-	_leaf_mat = StandardMaterial3D.new()
-	_leaf_mat.albedo_color = Color(0.12, 0.42, 0.14)
-	_leaf_mat.roughness = 0.9
-	_leaf_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_island_mat = _lit_mat(Color.WHITE, true)
+	_trunk_mat = _lit_mat(Color(0.36, 0.25, 0.15), false, 1.0)
+	_leaf_mat = _lit_mat(Color(0.13, 0.46, 0.15))
+	_rock_mat = _lit_mat(Color(0.58, 0.55, 0.51), false, 0.9)
+	_bush_mat = _lit_mat(Color(0.17, 0.44, 0.17))
 	_palm_mesh = _build_palm_mesh()
+	_rock_mesh = _build_blob_mesh(5, 3, 0.55)
+	_bush_mesh = _build_blob_mesh(6, 3, 0.8)
 	_build_horizon()
 	for i in island_count:
 		_spawn_ahead(-150.0 + (float(i) / island_count) * 2000.0 + _rng.randf() * 120.0)
@@ -58,9 +74,7 @@ func _push_to_ocean() -> void:
 
 func _process(_delta: float) -> void:
 	_push_to_ocean()
-	# Distant mountains dim with daylight and weather (their colours are baked and unaffected by fog).
-	var dim := (0.05 + 0.95 * WorldState.daylight) * (1.0 - 0.45 * WorldState.storm - 0.15 * WorldState.cloud)
-	_ring_mat.albedo_color = Color(dim, dim, dim * 1.05)
+	# The far mountains take their colour from the sky globals in island_horizon.gdshader (no manual dimming).
 	_ring.global_position = Vector3(_ship.global_position.x, 0.0, _ship.global_position.z)
 	var sp := Vector2(_ship.global_position.x, _ship.global_position.z)
 	var fwd: Vector2 = _ship.forward if "forward" in _ship else Vector2(0, -1)
@@ -102,6 +116,7 @@ func _spawn_ahead(ahead: float) -> void:
 	_islands.append(isl)
 
 func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
+	_refresh_shallow()
 	var noise := FastNoiseLite.new()
 	noise.seed = seed_i
 	noise.frequency = 0.012
@@ -109,6 +124,12 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 	var shape_noise := FastNoiseLite.new()
 	shape_noise.seed = seed_i + 1
 	shape_noise.frequency = 0.9
+	var hill_noise := FastNoiseLite.new()
+	hill_noise.seed = seed_i + 2
+	hill_noise.frequency = 0.018
+	var detail := FastNoiseLite.new() # colour breakup, not shape
+	detail.seed = seed_i + 3
+	detail.frequency = 0.07
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_i
 	var stretch := Vector2(rng.randf_range(0.8, 1.35), rng.randf_range(0.8, 1.35))
@@ -119,10 +140,12 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 		var shape := clampf(1.0 - q, 0.0, 1.0)
 		var n := noise.get_noise_2d(x, z)
 		var ridge := 1.0 - absf(n) * 1.6
-		return -7.0 + (peak + 7.0) * pow(shape, 1.25) * (0.75 + 0.45 * ridge) + 3.0 * shape_noise.get_noise_2d(x * 0.05, z * 0.05) * shape
+		# A broad shoulder (second hill) breaks the single cone silhouette; the crest keeps its ridged character.
+		var shoulder := maxf(hill_noise.get_noise_2d(x + 400.0, z - 300.0), 0.0) * peak * 0.34 * shape * shape
+		return -7.0 + (peak + 7.0) * pow(shape, 1.25) * (0.7 + 0.45 * ridge) + shoulder + 3.0 * shape_noise.get_noise_2d(x * 0.05, z * 0.05) * shape
 	var node := Node3D.new()
 	var ext := radius * 1.45
-	var cells := 46
+	var cells := 56
 	var step := ext * 2.0 / cells
 	var grid: Array[PackedFloat32Array] = []
 	for zi in cells + 1:
@@ -141,29 +164,35 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 			var x0 := -ext + xi * step; var z0 := -ext + zi * step
 			var p00 := Vector3(x0, h00, z0); var p10 := Vector3(x0 + step, h10, z0)
 			var p01 := Vector3(x0, h01, z0 + step); var p11 := Vector3(x0 + step, h11, z0 + step)
-			_tri(st, p00, p01, p10, peak, noise)
-			_tri(st, p10, p01, p11, peak, noise)
+			_tri(st, p00, p01, p10, peak, detail, step)
+			_tri(st, p10, p01, p11, peak, detail, step)
 	st.generate_normals()
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
 	mi.material_override = _island_mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.add_child(mi)
-	# Palms on the green band.
-	var palms := int(radius / 10.0)
-	for i in palms:
-		var x := rng.randf_range(-radius, radius)
-		var z := rng.randf_range(-radius, radius)
+	# Vegetation, rocks and bushes as one MultiMesh each (cheap, one draw call per kind per island).
+	var palms: Array[Transform3D] = []
+	var rocks: Array[Transform3D] = []
+	var bushes: Array[Transform3D] = []
+	for i in int(radius / 6.0):
+		var x := rng.randf_range(-radius * 1.15, radius * 1.15)
+		var z := rng.randf_range(-radius * 1.15, radius * 1.15)
 		var h: float = height_fn.call(x, z)
-		if h > 1.1 and h < peak * 0.4:
-			var palm := MeshInstance3D.new()
-			palm.mesh = _palm_mesh
-			palm.position = Vector3(x, h - 0.2, z)
-			palm.rotation.y = rng.randf() * TAU
+		var kind := rng.randf()
+		if h > 1.1 and h < peak * 0.42 and kind < 0.55:
 			var s := rng.randf_range(0.8, 1.5)
-			palm.scale = Vector3(s, s, s)
-			palm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			node.add_child(palm)
+			palms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s)), Vector3(x, h - 0.2, z)))
+		elif h > 1.6 and h < peak * 0.55 and kind < 0.8:
+			var sb := rng.randf_range(1.6, 3.4)
+			bushes.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sb, sb * rng.randf_range(0.55, 0.85), sb)), Vector3(x, h + 0.1, z)))
+		elif h > -0.6 and h < 3.0:
+			var sr := rng.randf_range(0.9, 3.2)
+			rocks.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sr, sr * rng.randf_range(0.6, 1.0), sr * rng.randf_range(0.8, 1.2))), Vector3(x, h - 0.15, z)))
+	_add_multimesh(node, _palm_mesh, palms, [])
+	_add_multimesh(node, _bush_mesh, bushes, [], _bush_mat)
+	_add_multimesh(node, _rock_mesh, rocks, [], _rock_mat)
 	if seed_i % 3 == 0:
 		node.add_child(_make_lighthouse(height_fn.call(0.0, 0.0)))
 	# Waterline ellipse radii (where the height crosses 0 along +-X and +-Z), used for the turquoise shallows.
@@ -184,21 +213,70 @@ func _make_island(seed_i: int, radius: float, peak: float) -> Node3D:
 	node.set_meta("shore_xz", shore)
 	return node
 
-func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, peak: float, noise: FastNoiseLite) -> void:
-	var h := (a.y + b.y + c.y) / 3.0
-	var cen := (a + b + c) / 3.0
-	var n := noise.get_noise_2d(cen.x * 3.0, cen.z * 3.0) * 0.5 + 0.5
-	var col: Color
-	if h < 0.3:
-		col = Color(0.62, 0.55, 0.38) # wet sand / shallows
-	elif h < 2.4:
-		col = Color(0.88, 0.80, 0.58) # beach
-	elif h < peak * 0.62:
-		col = Color(0.16, 0.46, 0.17).lerp(Color(0.30, 0.55, 0.20), n) # jungle
-	else:
-		col = Color(0.46, 0.43, 0.40).lerp(Color(0.60, 0.57, 0.53), n) # rock
+## Instances `mesh` at `xfs` as one MultiMeshInstance3D under `parent` (per-instance colour when `cols` is given).
+func _add_multimesh(parent: Node3D, mesh: Mesh, xfs: Array[Transform3D], cols: Array[Color], mat: Material = null) -> void:
+	if xfs.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = not cols.is_empty()
+	mm.mesh = mesh
+	mm.instance_count = xfs.size()
+	for i in xfs.size():
+		mm.set_instance_transform(i, xfs[i])
+		if not cols.is_empty():
+			mm.set_instance_color(i, cols[i])
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	if mat != null:
+		inst.material_override = mat
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(inst)
+
+## Reads the ocean's `shallow_color` uniform (read-only) so the underwater shelf matches the water around the island.
+func _refresh_shallow() -> void:
+	if Waves.ocean == null:
+		return
+	var m: Variant = (Waves.ocean as GeometryInstance3D).material_override
+	if m is ShaderMaterial:
+		var c: Variant = (m as ShaderMaterial).get_shader_parameter("shallow_color")
+		if c is Color:
+			_shallow = c
+		elif c is Vector3:
+			_shallow = Color(c.x, c.y, c.z)
+
+## Smooth vertex colour by height, slope and noise: shelf -> wet sand -> beach -> dune grass -> jungle -> rock.
+func _vcol(pos: Vector3, slope: float, peak: float, n: float) -> Color:
+	var h := pos.y
+	var sand_wet := Color(0.58, 0.52, 0.38)
+	var sand := Color(0.90, 0.83, 0.62)
+	var grass_dry := Color(0.50, 0.58, 0.26)
+	var jungle_lo := Color(0.12, 0.40, 0.14)
+	var jungle_hi := Color(0.30, 0.52, 0.19)
+	var rock_lo := Color(0.40, 0.37, 0.35)
+	var rock_hi := Color(0.62, 0.59, 0.55)
+	# Underwater: sand shelf fading into the ocean's shallow colour (the water shader tints the same way near islands).
+	var shelf := sand_wet.lerp(_shallow * Color(1.15, 1.0, 0.9), smoothstep(0.0, -3.5, h))
+	var col := shelf
+	if h > 0.0:
+		var beach_top := 2.2 + 1.6 * n
+		col = sand_wet.lerp(sand, smoothstep(0.0, 0.9, h))
+		col = col.lerp(grass_dry, smoothstep(beach_top - 0.8, beach_top + 0.6, h))
+		var jungle := jungle_lo.lerp(jungle_hi, clampf(n * 0.5 + 0.5 + h / peak * 0.5, 0.0, 1.0))
+		col = col.lerp(jungle, smoothstep(beach_top, beach_top + 2.4, h))
+		var tree_line := peak * (0.68 + 0.10 * n)
+		var rock := rock_lo.lerp(rock_hi, clampf(h / peak + n * 0.2, 0.0, 1.0))
+		col = col.lerp(rock, smoothstep(tree_line - peak * 0.06, tree_line + peak * 0.05, h))
+		# Steep faces show bare stone at any height above the beach (cliffs, gullies).
+		col = col.lerp(rock, smoothstep(1.5, 2.4, slope) * smoothstep(2.0, 6.0, h))
+	return col
+
+func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, peak: float, detail: FastNoiseLite, step: float) -> void:
+	var nrm := (b - a).cross(c - a).normalized()
+	var slope := sqrt(maxf(1.0 - nrm.y * nrm.y, 0.0)) / maxf(absf(nrm.y), 0.05) # |gradient| of the face
 	for v in [a, b, c]:
-		st.set_color(col)
+		var n := detail.get_noise_2d(v.x, v.z)
+		st.set_color(_vcol(v, slope, peak, n))
 		st.add_vertex(v)
 
 func _make_lighthouse(base_y: float) -> Node3D:
@@ -207,7 +285,7 @@ func _make_lighthouse(base_y: float) -> Node3D:
 	var cyl := CylinderMesh.new()
 	cyl.bottom_radius = 3.0; cyl.top_radius = 2.0; cyl.height = 16.0; cyl.radial_segments = 8
 	body.mesh = cyl
-	var m := StandardMaterial3D.new(); m.albedo_color = Color(0.93, 0.92, 0.88)
+	var m := _lit_mat(Color(0.93, 0.92, 0.88), false, 0.8)
 	body.material_override = m
 	body.position = Vector3(0, base_y + 8.0, 0)
 	n.add_child(body)
@@ -215,7 +293,7 @@ func _make_lighthouse(base_y: float) -> Node3D:
 	var bc := CylinderMesh.new()
 	bc.bottom_radius = 2.62; bc.top_radius = 2.38; bc.height = 3.0; bc.radial_segments = 8
 	band.mesh = bc
-	var rm := StandardMaterial3D.new(); rm.albedo_color = Color(0.75, 0.12, 0.1)
+	var rm := _lit_mat(Color(0.75, 0.12, 0.1), false, 0.7)
 	band.material_override = rm
 	band.position = Vector3(0, base_y + 9.0, 0)
 	n.add_child(band)
@@ -241,6 +319,38 @@ func _make_lighthouse(base_y: float) -> Node3D:
 	roof.position = Vector3(0, base_y + 19.0, 0)
 	n.add_child(roof)
 	return n
+
+## Faceted rock / bush blob: a low-poly sphere with deterministic per-vertex jitter, unit-ish radius, flat shaded.
+func _build_blob_mesh(radial: int, rings: int, jitter: float) -> ArrayMesh:
+	var sm := SphereMesh.new()
+	sm.radial_segments = radial
+	sm.rings = rings
+	sm.radius = 1.0
+	sm.height = 1.6
+	var arr := sm.get_mesh_arrays()
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var r := RandomNumberGenerator.new()
+	r.seed = 4242 + radial
+	var jit := {}
+	for i in verts.size():
+		var key := Vector3(snappedf(verts[i].x, 0.01), snappedf(verts[i].y, 0.01), snappedf(verts[i].z, 0.01))
+		if not jit.has(key):
+			jit[key] = 1.0 + r.randf_range(-jitter, jitter) * 0.5
+		verts[i] *= float(jit[key])
+	arr[Mesh.ARRAY_VERTEX] = verts
+	var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	for t in range(0, idx.size(), 3): # flip the winding so the regenerated flat normals point outward
+		var tmp_i := idx[t + 1]
+		idx[t + 1] = idx[t + 2]
+		idx[t + 2] = tmp_i
+	arr[Mesh.ARRAY_INDEX] = idx
+	var flat := SurfaceTool.new()
+	var tmp := ArrayMesh.new()
+	tmp.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	flat.create_from(tmp, 0)
+	flat.deindex()
+	flat.generate_normals()
+	return flat.commit()
 
 func _build_palm_mesh() -> ArrayMesh:
 	var trunk := SurfaceTool.new()
@@ -290,8 +400,8 @@ func _build_horizon() -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var segs := 360
 	var layers := [
-		{"r": horizon_radius * 1.0, "h": 520.0, "off": 0.0, "top": Color(0.55, 0.64, 0.74), "bot": Color(0.78, 0.82, 0.86)},
-		{"r": horizon_radius * 0.82, "h": 330.0, "off": 40.0, "top": Color(0.42, 0.52, 0.62), "bot": Color(0.72, 0.77, 0.82)},
+		{"r": horizon_radius * 1.0, "h": 520.0, "off": 0.0, "top": Color(1.0, 0.0, 0.0), "bot": Color(0.0, 0.0, 0.0)},
+		{"r": horizon_radius * 0.82, "h": 330.0, "off": 40.0, "top": Color(1.0, 1.0, 0.0), "bot": Color(0.0, 1.0, 0.0)},
 	]
 	for L in layers:
 		var r: float = L["r"]
@@ -309,11 +419,8 @@ func _build_horizon() -> void:
 			for v in [[b0, bc], [t0, tc], [b1, bc], [b1, bc], [t0, tc], [t1, tc]]:
 				st.set_color(v[1])
 				st.add_vertex(v[0])
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.vertex_color_use_as_albedo = true
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.disable_fog = true
+	var mat := ShaderMaterial.new()
+	mat.shader = HORIZON_SHADER
 	_ring = MeshInstance3D.new()
 	_ring.mesh = st.commit()
 	_ring.material_override = mat

@@ -250,9 +250,9 @@ Evidence folder: `odd/evidence/M3/`. Depends on: M0 (sky WIP committed) and, pre
 
 ### Slice M3-3 (PR-M3c, about 200 lines): camera and islands (T6)
 
-- [ ] M3.10 [SA] Camera shots: Canto unoccluded, close-ups, helm and storm shots (shot definitions only). Files: `godot/scripts/camera_director.gd`. Verify: every shot-preset capture shows the Canto not occluded by sails, rigging or geometry. Dependency: M3.9.
-- [ ] M3.11 [SA] Island polish at each time of day. Files: `godot/scripts/islands.gd`. Verify: dusk and night island captures show lighting matching the sky with no unlit or black patches. Dependency: M3.9.
-- [ ] M3.12 [SA] Evidence and docs: `odd/evidence/M3/*` shot captures; ODD R5 and T6 boxes. Files: `odd/tasks/living-sea-wallpaper.md`. Dependency: M3.10, M3.11.
+- [x] M3.10 [SA] Camera shots: Canto unoccluded, close-ups, helm and storm shots (shot definitions only). Files: `godot/scripts/camera_director.gd`. Verify: every shot-preset capture shows the Canto not occluded by sails, rigging or geometry. Dependency: M3.9.
+- [x] M3.11 [SA] Island polish at each time of day. Files: `godot/scripts/islands.gd`. Verify: dusk and night island captures show lighting matching the sky with no unlit or black patches. Dependency: M3.9.
+- [x] M3.12 [SA] Evidence and docs: `odd/evidence/M3/*` shot captures; ODD R5 and T6 boxes. Files: `odd/tasks/living-sea-wallpaper.md`. Dependency: M3.10, M3.11.
 
 ---
 
