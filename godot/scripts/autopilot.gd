@@ -29,6 +29,7 @@ var _leg_start := Vector2.ZERO
 var _tack_side := 1.0
 var _pass_side := 1.0
 var _ship: Node3D
+var _becalmed := false
 var _islands: Node
 var _hold_yaw := 9999.0
 var _tack_test := false
@@ -184,10 +185,18 @@ func _process(_delta: float) -> void:
 		err = wrapf(_hold_yaw - _ship.yaw, -PI, PI)
 	# PD on heading error; rudder > 0 turns to starboard (yaw decreases).
 	var cmd := -clampf(err * 1.7 - _ship.yaw_rate * 5.0, -1.0, 1.0)
+	# Becalmed: a rudder with no flow only saturates and winds the heading up; centre it and let the ship drift.
+	var spd: float = _ship.current_speed
+	if not _becalmed and spd < 0.8 and WindField.mean_speed() < 2.5:
+		_becalmed = true
+	elif _becalmed and (spd > 1.3 or WindField.mean_speed() > 3.0):
+		_becalmed = false
+	if _becalmed:
+		cmd = 0.0
 	_ship.rudder_cmd = cmd
 	# Point of sail -> speed (slow into the wind, fast on a reach/run), more wind = faster.
 	var heading_vs_wind := acos(clampf(fwd.dot(upwind), -1.0, 1.0))
 	var eff := smoothstep(0.55, 2.2, heading_vs_wind)
 	if _ship.has_method("best_brace") and not _ship.legacy_motion:
-		_ship.brace_cmd = _ship.best_brace()
+		_ship.brace_cmd = 0.0 if _becalmed else _ship.best_brace()
 	_ship.speed_scale = clampf(lerpf(0.7, 1.1, eff) * (0.7 + 0.5 * WorldState.wind_strength), 0.4, 1.3)

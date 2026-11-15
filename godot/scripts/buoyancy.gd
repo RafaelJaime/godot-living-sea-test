@@ -29,6 +29,7 @@ extends RigidBody3D
 @export var roll_damping_ratio := 0.22
 @export var pitch_damping_ratio := 0.3
 @export var drag_longitudinal := 500.0 ## 0.5 rho Cd A  (N s^2/m^2)
+@export var calm_drag_time := 30.0 ## s: time constant of the extra linear hull drag when the wind is too weak to drive the ship (calm), so it stops in ~1-1.5 min
 @export var drag_wave := 14.0 ## N s^4/m^4: wave-making drag ~ v^4
 @export var drag_lateral := 1.1 ## quadratic coefficient per section: 0.5 rho Cd (times section area)
 @export var rudder_area := 5.0
@@ -557,6 +558,10 @@ func _physics_process(delta: float) -> void:
 	# --- hull drag: longitudinal quadratic at the centre, lateral per section (keel effect, also damps yaw) ----
 	var vl := b.inverse() * linear_velocity
 	apply_central_force(b * Vector3(0.0, 0.0, 1.0) * (-drag_longitudinal * absf(vl.z) * vl.z) * wet)
+	# Becalmed (true wind < ~5 m/s): rigging windage and wave radiation bleed the speed off; fades out to nothing by 5 m/s so the
+	# 11 m/s sail calibration is untouched.
+	var calm_k := 1.0 - smoothstep(2.0, 5.0, WindField.mean_speed())
+	apply_central_force(b * Vector3(0.0, 0.0, 1.0) * (-vl.z * m / maxf(calm_drag_time, 1.0) * calm_k) * wet)
 	# Wave-making resistance rises steeply near hull speed (~sqrt(g L) ~ 19 m/s theoretical, practically ~8 m/s here).
 	apply_central_force(b * Vector3(0.0, 0.0, 1.0) * (-drag_wave * pow(absf(vl.z), 4.0) * signf(vl.z)) * wet)
 	var nsec := 9
