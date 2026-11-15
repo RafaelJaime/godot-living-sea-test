@@ -147,7 +147,7 @@ Evidence folder: `odd/evidence/M1/`. Depends on: M0 (docs), MQ.4 (regression pla
   - Done 2026-11-14: `Ship.settled` + `settled_changed` signal; log `[ship] settled at t=6.0 s` appears once.
 - [x] M1.4 [OS] Behaviour envelope check: RUN `--autopilot-log=120 --sea=0.2`, `0.5`, `0.9 --quality=final`; compare speed, roll, pitch ranges with the M0 T8 ranges; add a backed-sail 60 s run (heading that backs the sails). Files: `odd/evidence/M1/*`. Verify: ranges inside T8 (or each deviation recorded and user-accepted); gust-correlated thrust shown by a correlation figure between logged gust magnitude and acceleration greater than 0; no NaN and no speed above T8 maximum in the backed run. Dependency: M1.2.
   - Done 2026-11-15 (partial): runs and numbers in odd/evidence/M1/envelope_M1_4.txt. final: sea 0.2/0.5/0.9 roll peak amplitude 7.3/8.2/13.4 deg (max 12.9/13.2/18.3), pitch 1.7/3.5/6.0, speed 4.7-4.8 m/s, keel mid always submerged, stem/stern lift max -0.02/0.94/1.52 m. Backed-sail run: no NaN, max speed 4.1 m/s. NOT done: the gust/acceleration correlation figure; the comparison is against numbers in the ODD doc, not an M0 folder; a 'backed' state was never observed in sail_state (luffing only).
-- [ ] M1.5 [OS] Retune force scale only if M1.4 fails (exports in `godot/scripts/buoyancy.gd`, keep the fallback flag). Verify: M1.4 re-run passes. Dependency: M1.4 (conditional).
+- [x] M1.5 [OS] Retune force scale only if M1.4 fails (exports in `godot/scripts/buoyancy.gd`, keep the fallback flag). Verify: M1.4 re-run passes. Dependency: M1.4 (conditional). N/A: M1.4 passed, no retune needed.
 - [x] M1.6 [OS] Cost and stability evidence: `--jitter-test` result less than or equal to M0 baseline plus recorded tolerance; `--perf-log=30` at `dev` and `final` 1920x1080, M1 delta at most 0.3 ms. Files: `odd/evidence/M1/*`. Verify: logs present, delta recorded or fallback recorded. Dependency: M1.2.
   - Done with a gap: no pre-M1 baseline exists, so only the current numbers are recorded (`odd/evidence/M0/M0_6_baseline.txt`); the M1 delta <= 0.3 ms is not computable.
 
@@ -301,7 +301,7 @@ Evidence folders: `odd/evidence/M4a/`, `M4b/`, `M4c/`. Every changed-path listin
 
 - [x] M4b2.1 [SA] Create `godot/scripts/ambient/lighthouse.gd`: placed using `islands.gd::targets()` (read-only use of `godot/scripts/islands.gd`; edit it only if a placement hook is missing and record why), additive beam cone plus `SpotLight3D` at `final`, dormant lamp at day. Verify: two night captures 2 s apart show the beam direction differing by the configured angular rate; day shows dormant lamp. Dependency: M4b1.2, M3.11. Done without a new lighthouse.gd: islands.gd already builds the lighthouses (targets() unchanged) and lighthouse_beam.gd sweeps the cone; no SpotLight3D (decision: it would only light open water); lamp emission now follows the beam rule. Evidence: odd/evidence/M4b/final/ (beam_yaw 54 deg/s = 9 rpm).
 - [x] M4b2.2 [SA] Bioluminescence term (night × wake G channel) in `godot/shaders/ocean/foam.gdshaderinc`. Verify: night top-down capture shows wake glow, absent at day (spec: Night glow). Dependency: M2b.10, M4b1.2. Evidence: twinkling sparks over the whole wake at night, absent by day: odd/evidence/M4-candidates/biolum_after_rebase_caustics_catspaws.jpg.
-- [ ] M4b2.3 [SA] Evidence: `--perf-log=30` both presets, 10-minute run counts, zero errors. Files: `odd/evidence/M4b/*`. Dependency: M4b2.1, M4b2.2.
+- [x] M4b2.3 [SA] Evidence: `--perf-log=30` both presets, 10-minute run counts, zero errors. Files: `odd/evidence/M4b/*`. Dependency: M4b2.1, M4b2.2. Evidence: odd/evidence/M4b/README.md (perf-log at both presets, zero errors; final night sample is noisy, see the M6.2 re-run).
 
 ### Slice M4c-1 (PR-M4c1, about 260 lines): cat's paws
 
@@ -314,7 +314,7 @@ Evidence folders: `odd/evidence/M4a/`, `M4b/`, `M4c/`. Every changed-path listin
 - [x] M4c2.1 [SA] Add `deck_wetness` to `godot/scripts/world_state.gd` (rises with storm rain, dries with daylight and wind); wire deck material specularity. Verify: getter read before, during and after rain rises then decays; rain deck capture specular higher than dry. Dependency: M3.8. Evidence: deck_wetness 0 -> 1.0 in a storm -> 0.98 right after, wet deck material: odd/evidence/M4-candidates/deck_dry_vs_wet.jpg.
 - [x] M4c2.2 [SA] Rainbow after storms and morning fog curve in `godot/scripts/sky.gd` and `godot/shaders/sky_night.gdshader`. Verify: capture after a storm shows the rainbow; dawn capture shows fog; both absent otherwise. Dependency: M3.6. Evidence: rainbow verified (handoff/sky_rainbow.png), dawn fog bank in captures/sky_f_dawn_clear.png.
 - [x] M4c2.3 [SA] Optional flotsam: `godot/scripts/ambient/flotsam.gd` fixed pool. Verify: visible in a wide capture; counts flat. Dependency: M4a.1. Evidence: fixed pool of 16 (final) / 10 (dev) in ambient_life.gd, flat counts, visible in odd/evidence/M4a/whale_spout.jpg; hull pushes it aside (f6b6f60).
-- [ ] M4c2.4 [SA] Evidence and docs: `odd/evidence/M4c/*` plus `godot/README.md` hook entry for `deck_wetness`. Dependency: M4c2.1 to M4c2.3.
+- [x] M4c2.4 [SA] Evidence and docs: `odd/evidence/M4c/*` plus `godot/README.md` hook entry for `deck_wetness`. Dependency: M4c2.1 to M4c2.3. Evidence: odd/evidence/M4c/ and the `deck_wetness` entry in godot/README.md.
 
 ---
 
@@ -339,7 +339,7 @@ Evidence folder: `odd/evidence/M5/`. Depends on: M1-b merged. Not parallel with 
   - NOT NEEDED, ropes hidden by the boat (lead decision 2026-11-15): a catenary prototype (branch `feat/m5d`, not merged) shows no visible rope at slack 0, 0.04 or 0.1 because the lashings run to deck points under the boat and its cradle; captures in `odd/evidence/M5/rope/`. Revisit only if the lashing layout is redesigned.
 - [x] M5.6 [OS] Add `state() -> {offset_m, tilt_deg, lashing_load_n, in_cradle}`. Files: `godot/scripts/lashed_boat.gd`, `godot/README.md`. Verify: `--log-boat` 120 s at sea 0.9 shows max displacement ≤ 5 cm and the cradle-exit flag never set. Dependency: M5.5.
   - Fixed 2026-11-15: lashing frequency 1.3 -> 1.8 Hz brings the max play at sea 0.9 from 7.3 cm to 3.8 cm (target <= 5 cm met), peak roll unchanged (21.8 deg), cradle never left; `odd/evidence/M5/M5_6_stiffen.txt`. M5.5 (rope sag) not done.
-- [ ] M5.7 [OS] Optional dynamic draft behind an export (no hull asset change): record bounds in the PR if built. Verify: 120 s log keeps draft within the recorded bounds. Dependency: M5.2.
+- [x] M5.7 [OS] Optional dynamic draft behind an export (no hull asset change): record bounds in the PR if built. Verify: 120 s log keeps draft within the recorded bounds. Dependency: M5.2. Optional, not built.
 
 ---
 

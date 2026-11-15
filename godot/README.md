@@ -111,6 +111,7 @@ off a field here: off in dev, on in final.
   `sky_horizon_color`, `sky_zenith_color`, `sky_fog_color` (vec3), `sky_sun_color` (vec3, colour x energy), `sky_sun_dir`, `sky_fog_density`,
   `sky_storminess`, `sky_night`, `sky_rain`, `sky_biolum` (float; night bioluminescence amount for the wake/ocean).
 - WorldState additions: `rainbow`, `fog_bank`, `biolum`, `wetness`, signals `thunder(delay_s, intensity)` and `storm_cleared`. Test aids: `--rainbow-test`.
+- Wet deck hook: `WorldState.deck_wetness` (0..1) soaks to the rain amount within ~25 s of heavy rain and dries over ~150 s (faster with daylight, clear sky and wind). `scripts/ambient/deck_wet.gd` (created by the ambient director) darkens the `ship_pinnace_deck` material and adds a wet clear coat from it. Other systems (crew footsteps, spray, audio) can read the same value. Test aid: `--deck-wet=<0..1>` forces it. Evidence: `odd/evidence/M4c/`.
 - Clouds are gated by the quality preset: SC2 runs with `--quality=final` (or `--sc2` in dev); dev uses the sky shader fbm layer.
 - Exposure is deterministic (no auto-exposure): `Sky.exposure` = `Sky._exposure_for(sun_elevation, cloud, storm)` written to `CameraAttributesPractical.exposure_multiplier`
   (0.82 at a clear noon, 1.0 at dusk/night, x0.86 in storms; lightning never feeds it), so captures reproduce and a `--timescale` run cannot pump.
