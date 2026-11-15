@@ -153,6 +153,7 @@ func setup(p_mi: MeshInstance3D, shader: Shader, p_pivot: Node3D, mast_zs: Packe
 	cloth.iterations = 10
 	cloth.use_bending = false
 	cloth.max_extra_substeps = 0
+	cloth.min_quality = 1.0 # dev's half-rate solve limit-cycles the sails at 30 fps
 	cloth.flutter = 0.35
 	cloth.build(COLS, ROWS, rest_w)
 	area = cloth.area

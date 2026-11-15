@@ -13,6 +13,11 @@ var total_shifted := 0.0
 func _ready() -> void:
 	_ship = get_node(ship_path)
 	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cloth-probe="): # test aid: per-frame sail/flag vertex log, see cloth_probe.gd
+			var pr := Node.new()
+			pr.set_script(load("res://scripts/cloth_probe.gd"))
+			add_child(pr)
+	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--rebase-test="): # test aid: rebase every N meters
 			rebase_distance = float(a.get_slice("=", 1))
 			rebase_step = rebase_distance

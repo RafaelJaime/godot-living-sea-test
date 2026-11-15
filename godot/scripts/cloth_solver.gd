@@ -39,6 +39,7 @@ var damping := 0.012 ## velocity loss per substep
 var substeps := 3
 static var _qlogged := false
 var iterations := 9
+var min_quality := 0.0 ## floor for Quality.cloth_scale: sails need the full solve or they limit-cycle (visible as jumps) at 30 fps
 var max_extra_substeps := 2 ## strong wind adds up to this many substeps (> 14 and > 22 m/s)
 var sor := 1.0 ## successive over-relaxation factor of the Gauss-Seidel sweeps (faster tension propagation along the grid)
 var max_aero_accel := 1.0e9 ## cap on the aerodynamic acceleration of a particle (m/s2): keeps light flags numerically sane in storms
@@ -246,8 +247,15 @@ func set_anchor(k: int, world_pos: Vector3) -> void:
 func set_capsules(a: PackedVector3Array, b: PackedVector3Array, r: PackedFloat32Array) -> void:
 	cap_a = a; cap_b = b; cap_r = r
 
+## Never integrate more than this per frame, and treat anything longer as a real hitch (see _step). 30 fps (dev cap) is NOT a hitch.
+const HITCH_DT := 0.05
+
 func rebase(shift: Vector3) -> void:
 	sync() # never mutate while the workers run
+	# Keep the world->ship frame of the last step consistent with the shifted particles, or the next read is `shift` metres off.
+	var t := Transform3D(Basis(), shift)
+	_launch_xf = _launch_xf * t
+	_prev_xf = _prev_xf * t
 	for i in n:
 		pos[i] -= shift
 		prev[i] -= shift
@@ -282,7 +290,7 @@ func _finish() -> void:
 ## (plus read-only WindField state). Hot loops work on local copies of the packed arrays (member access is slow in GDScript);
 ## they are written back at the end.
 func _step(delta_raw: float) -> void:
-	var delta := minf(delta_raw, 1.0 / 45.0) # never integrate a huge step...
+	var delta := minf(delta_raw, HITCH_DT) # never integrate a huge step...
 	_frame_dt = delta
 	if not _xf_primed:
 		_prev_xf = _launch_xf
@@ -290,7 +298,7 @@ func _step(delta_raw: float) -> void:
 	if not _anchor_primed:
 		anchor_prev = anchor_t.duplicate()
 		_anchor_primed = true
-	if delta_raw > 1.0 / 45.0 + 1.0e-4:
+	if delta_raw > HITCH_DT + 1.0e-4:
 		# ...but after a hitch the ship has moved a lot in that time: carry the whole cloth rigidly with the ship frame
 		# (instead of letting the pins yank it) and restart the pin interpolation from the new targets.
 		var carry := _launch_xf.affine_inverse() * _prev_xf
@@ -332,8 +340,8 @@ func _step(delta_raw: float) -> void:
 	var LAM := lam
 	# strong wind -> stiffer problem: more substeps (cost only when it blows)
 	var ws := WindField.mean_speed()
-	var nsub := maxi(1, roundi(float(substeps + mini((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0), max_extra_substeps)) * Quality.cloth_scale))
-	var niter := maxi(3, roundi(float(iterations + boost_iters * ((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0))) * Quality.cloth_scale))
+	var nsub := maxi(1, roundi(float(substeps + mini((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0), max_extra_substeps)) * maxf(Quality.cloth_scale, min_quality)))
+	var niter := maxi(3, roundi(float(iterations + boost_iters * ((1 if ws > 14.0 else 0) + (1 if ws > 22.0 else 0))) * maxf(Quality.cloth_scale, min_quality)))
 	var h := delta / float(nsub)
 	var inv_h := 1.0 / h
 	var inv_h2 := inv_h * inv_h
