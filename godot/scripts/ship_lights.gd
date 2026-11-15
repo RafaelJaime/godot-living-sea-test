@@ -1,7 +1,8 @@
 extends Node
 ## Autoload "ShipLights": registry and API for the ship's lanterns (see README "Integration API for NPCs").
 ## Lanterns are OFF by default; NPC behaviour (walking to the stand point, the ignition gesture) belongs to the crew code.
-##   ShipLights.get_lanterns() -> [{id, position, interaction_point, facing_deg, lit}]
+##   ShipLights.get_lanterns() -> [{id, position, interaction_point, facing_deg, lit, is_window, local_position, stand_local}]
+##   ids: stern_port, stern_starboard (the model's two real stern lanterns) and cabin_windows (glow on the real stern windows)
 ##   ShipLights.light(id) / extinguish(id) / is_lit(id)
 ##   signals: lighting_needed(ids)  at dusk (WorldState.daylight low), extinguish_suggested(ids) at dawn
 ## Test aid: --auto-light[=delay_s] lights every lantern (staggered) that long after lighting_needed.
@@ -16,10 +17,13 @@ const DAWN_DAYLIGHT := 0.50
 var _announced_dusk := false
 var _auto_delay := -1.0
 var _auto_timer := -1.0
+var _debug := false
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
-		if a == "--auto-light":
+		if a == "--debug-lights":
+			_debug = true
+		elif a == "--auto-light":
 			_auto_delay = 3.0
 		elif a.begins_with("--auto-light="):
 			_auto_delay = float(a.get_slice("=", 1))
@@ -40,7 +44,8 @@ func get_lanterns() -> Array:
 	var out := []
 	for l in _lanterns():
 		out.append({"id": l.id, "position": l.world_position(), "interaction_point": l.stand_world(),
-			"facing_deg": l.stand_facing_deg, "lit": l.lit, "is_window": l.is_window})
+			"facing_deg": l.stand_facing_deg, "lit": l.lit, "is_window": l.is_window,
+			"local_position": l.position, "stand_local": l.stand_local})
 	return out
 
 func is_lit(id: String) -> bool:
@@ -66,6 +71,8 @@ func extinguish(id: String) -> bool:
 	return true
 
 func _on_changed(id: String, lit: bool) -> void:
+	if _debug:
+		print("[lights] lantern_changed ", id, " lit=", lit)
 	lantern_changed.emit(id, lit)
 
 func _process(delta: float) -> void:
@@ -76,6 +83,8 @@ func _process(delta: float) -> void:
 		for l in _lanterns():
 			if not l.lit:
 				ids.append(l.id)
+		if _debug:
+			print("[lights] lighting_needed ", ids, " get_lanterns=", get_lanterns())
 		if not ids.is_empty():
 			lighting_needed.emit(ids)
 		if _auto_delay >= 0.0:

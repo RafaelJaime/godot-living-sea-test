@@ -57,12 +57,16 @@ Test args: `--timescale=N` (day/weather clocks only), `--start-phase=0..1` (0 mi
 `--sea=0..1`, `--wind=<deg>` (fixed wind direction), `--no-day`, `--engine-scale=N`, `--lightning`, `--plan=world|sky`, `--autopilot-log=<secs>`.
 
 ## Integration API for NPCs (ship lights)
-Autoload `ShipLights` (scripts/ship_lights.gd); lanterns are `ShipLantern` nodes created under `Ship/Pivot/Lights` (table in
-`scripts/ship_lights_builder.gd`: stern_port, stern_starboard, helm, waist, forecastle, cabin). They are OFF by default.
-- `ShipLights.get_lanterns()` -> `[{id, position (world), interaction_point (world deck point where the NPC stands), facing_deg (yaw of the stance, 0 = bow, +90 = port), lit, is_window}]`
-- `ShipLights.light(id)` / `ShipLights.extinguish(id)` / `ShipLights.is_lit(id)`; ignition takes ~2.4 s (flame grows, light fades in), extinguish ~1.2 s.
+Autoload `ShipLights` (scripts/ship_lights.gd). Lights are anchored on the model's REAL parts, nothing is added to the hull but light and
+additive glow (`scripts/ship_lights_builder.gd` under `Ship/Pivot/Lights`, `ShipLantern` nodes). They are OFF by default. Three ids only:
+- `stern_port`, `stern_starboard`: the two caged lanterns on the stern posts (mesh `geo_ship_pinnace_details`). Anchor = centroid of the cage vertices
+  (baked, pivot space); warm OmniLight with ignition + flicker, glow = additive shell over the dark panes + soft halo (no glb change).
+- `cabin_windows` (`is_window`): the eight glazed stern windows (mesh `geo_ship_pinnace_aft`); additive glow panes over the glass + a light behind the transom.
+- `ShipLights.get_lanterns()` -> `[{id, position (world), interaction_point (world deck point where the NPC stands), facing_deg (yaw of the stance, 0 = bow, +90 = port), lit, is_window, local_position (pivot), stand_local (pivot)}]`.
+  Lamp stance = deck point ~0.8 m inboard/forward of the lantern (downward ray against temporary deck colliders, ~7.46 m); cabin stance = stern-rail side of the poop deck (no cabin door in the model).
+- `ShipLights.light(id)` / `ShipLights.extinguish(id)` / `ShipLights.is_lit(id)`; ignition takes ~2.4 s (glow + light fade in), extinguish ~1.2 s.
 - Signals: `lighting_needed(ids)` when `WorldState.daylight` drops below 0.30 (dusk), `extinguish_suggested(ids)` when it rises above 0.50 (dawn), `lantern_changed(id, lit)`.
-- Test aid: `--auto-light[=delay_s]` lights every lantern (staggered) that long after dusk; use `--start-phase=0.0 --no-day` for a night capture.
+- Test aids: `--auto-light[=delay_s]` lights every light (staggered) that long after dusk; use `--start-phase=0.0 --no-day` for a night capture. `--debug-lights` logs stances, `lighting_needed`, `lantern_changed`. `--check-lamps` re-measures the posed cage centroid every second (`[lights] lamp-drift`); the hull is skinned to one bone that never moves relative to the pivot, so anchors are plain children of the pivot (max deviation 0.0 cm over a 125 s storm, anchor-to-centroid 0 cm after baking; evidence in `odd/evidence/lights/`). Retune the tables in the builder if the model changes.
 Other hooks for NPC code: ship deck query = raycast against the ship meshes (see crew_manager.gd), `Ship.roll/pitch/roll_rate/pitch_rate/yaw/yaw_rate/rudder/forward/current_speed`, `Ship.linear_velocity` (RigidBody3D), `WorldState` (daylight, night, storm, cloud, wind_vector(), wind_speed_ms(), sun_elevation_deg).
 
 ## Wind + cloth (R4 / T9 / T9b)
