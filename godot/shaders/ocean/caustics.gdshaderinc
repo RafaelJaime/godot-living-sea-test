@@ -2,7 +2,11 @@
 // shallow tint in ocean_fft.gdshader as: shallow_tint *= 1 + caustics_gain * island_caustics(...). Zero in deep water (weighted by
 // pow(shallow, 1.4)), zero at night and when the sun is below the horizon.
 global uniform vec3 sky_sun_dir; // direction towards the sun (world), published by sky.gd
-uniform float caustics_gain = 0.0; // 0 = off
+uniform float caustics_gain = 0.0;  // albedo scale (shallow tint *= 1 + gain * pattern); 0 = off
+uniform float caustics_emit = 0.0;  // additive light of the pattern (emission); 0 = off
+uniform float caustics_scale = 1.0; // pattern frequency multiplier (smaller = larger cells)
+uniform float caustics_sharp = 3.0; // edge exponent (lower = softer, wider light lines)
+uniform float caustics_wide = 1.0;  // multiplier of the shallow band the pattern fades over
 
 vec2 caustic_hash(vec2 p) {
 	p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -23,14 +27,14 @@ float caustic_cells(vec2 p) {
 			if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
 		}
 	}
-	return pow(clamp(1.0 - (d2 - d1) * 2.6, 0.0, 1.0), 3.0);
+	return pow(clamp(1.0 - (d2 - d1) * 2.6, 0.0, 1.0), caustics_sharp);
 }
 
 float island_caustics(vec2 xz, float t, float shallow_w) {
-	if (caustics_gain <= 0.0 || shallow_w <= 0.0) { return 0.0; }
+	if ((caustics_gain + caustics_emit) <= 0.0 || shallow_w <= 0.0) { return 0.0; }
 	float sun = clamp(sky_sun_dir.y * 2.5, 0.0, 1.0);
 	if (sun <= 0.0) { return 0.0; }
-	float a = caustic_cells(xz * 0.9 + vec2(t * 0.08, t * 0.05));
-	float b = caustic_cells(xz * 1.35 + vec2(-t * 0.06, t * 0.09) + vec2(17.0, 31.0));
+	float a = caustic_cells(xz * 0.9 * caustics_scale + vec2(t * 0.08, t * 0.05) * caustics_scale);
+	float b = caustic_cells(xz * 1.35 * caustics_scale + vec2(-t * 0.06, t * 0.09) * caustics_scale + vec2(17.0, 31.0));
 	return a * b * 2.2 * shallow_w * sun * (1.0 - sky_night);
 }

@@ -61,6 +61,14 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--hull-foam="):
 			_mat.set_shader_parameter("hull_foam_gain", float(a.get_slice("=", 1)))
+		elif a.begins_with("--caustics-emit="):
+			_mat.set_shader_parameter("caustics_emit", float(a.get_slice("=", 1)))
+		elif a.begins_with("--caustics-sharp="):
+			_mat.set_shader_parameter("caustics_sharp", float(a.get_slice("=", 1)))
+		elif a.begins_with("--caustics-scale="):
+			_mat.set_shader_parameter("caustics_scale", float(a.get_slice("=", 1)))
+		elif a.begins_with("--caustics-wide="):
+			_mat.set_shader_parameter("caustics_wide", float(a.get_slice("=", 1)))
 		elif a.begins_with("--caustics="): # M2d candidates: caustics gain (0 = off)
 			_mat.set_shader_parameter("caustics_gain", float(a.get_slice("=", 1)))
 		elif a.begins_with("--horizon-mix="): # M2a.6 candidates
