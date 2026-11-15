@@ -238,6 +238,7 @@ Evidence folder: `odd/evidence/M2c/`. Depends on: M2b-2 merged. Parallel with M3
 Evidence folder: `odd/evidence/M2d/`. Depends on: MQ-c merged or dropped. Parallel with M5-1 (W4); never with M1, M2a or M2b owners of other includes (it owns only the new include).
 
 - [ ] M2d.1 [OS] Create `godot/shaders/ocean/caustics.gdshaderinc`: two scrolling procedural cell patterns modulating `shallow_tint` by `pow(shallow, 1.4)` and sun elevation; zero at night and in deep water. Verify: shore capture at day shows the pattern fading to none past the depth cutoff; night capture shows none. Dependency: MQ.6 (or MQ.5 "already split"), M0.6.
+  - Prototype 2026-11-15 (NOT ticked): `caustics.gdshaderinc` + include/call in the shell + `--caustics=<gain>` (default 0 = inert) + capture aid `--cam-island[=height]`. Shore captures at gain 0 / 0.6 / 1.2 / 2.4 (`odd/evidence/M2d/`) show the pattern almost invisible: the shallow band is thin and the surface reflection dominates the albedo. Needs a visible-design decision (pattern scale, additive instead of albedo scale); plan sent to the lead.
 - [ ] M2d.2 [OS] Add the single include line and call to the shell. Files: `godot/shaders/ocean_fft.gdshader`. Verify: scene compiles, zero errors; `--rebase-test=150` near an island shows no shading discontinuity. Dependency: M2d.1.
 - [ ] M2d.3 [OS] Cost and evidence: `--perf-log=30` at the island with caustics on and off (delta ≤ 0.3 ms at both presets). Files: `odd/evidence/M2d/*`. Dependency: M2d.2.
 

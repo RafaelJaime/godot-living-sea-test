@@ -146,6 +146,9 @@ func _process(delta: float) -> void:
 		_jumped = true
 		var d := get_tree().get_first_node_in_group("camera_director")
 		if d:
+			for ca in OS.get_cmdline_user_args():
+				if ca == '--cam-island' or ca.begins_with('--cam-island='):
+					_aim_debug_cam_at_shore(d, cam_idx, float(ca.get_slice('=', 1)) if '=' in ca else 5.0)
 			d.jump_to(cam_idx, true)
 	if '--lightning' in OS.get_cmdline_user_args() and _step == 2 and _t >= when - 0.08:
 		if WorldState.flash < 0.5:
@@ -308,3 +311,33 @@ func _reg_step(delta: float) -> void:
 				var d2 := get_tree().get_first_node_in_group("camera_director")
 				if d2:
 					d2.jump_to(REG_SHOTS[_reg_shot], true)
+
+## Test aid --cam-island: puts the debug camera (shot `idx`, the one --cam appended) just off the shore of the nearest island,
+## looking at the shallows (a --cam value is still needed to create the shot; its pose is overwritten here).
+func _aim_debug_cam_at_shore(d: Node, idx: int, height: float) -> void:
+	var isl := get_tree().root.get_node_or_null("Main/Islands")
+	var ship := get_tree().root.get_node_or_null("Main/Ship") as Node3D
+	idx = d.shots.size() - 1 # the shot --cam appended is always the last one
+	if isl == null or ship == null or idx < 0:
+		print("[capture] cam-island: missing node or shot (isl=", isl != null, " ship=", ship != null, " idx=", idx, " shots=", d.shots.size(), ")")
+		return
+	var best := {}
+	var best_d := INF
+	for t in isl.targets():
+		var dd: float = (t["pos"] - Vector2(ship.global_position.x, ship.global_position.z)).length()
+		if dd < best_d:
+			best_d = dd
+			best = t
+	if best.is_empty():
+		print("[capture] cam-island: no island target yet")
+		return
+	var c: Vector2 = best["pos"]
+	var shore: float = float(best["radius"]) - 40.0
+	var dir := (Vector2(ship.global_position.x, ship.global_position.z) - c).normalized()
+	var cam_xz := c + dir * (shore + 38.0 + height)
+	var look_xz := c + dir * (shore - 6.0)
+	var to_ship: Transform3D = d._frame().affine_inverse()
+	d.shots[idx]["pos"] = to_ship * Vector3(cam_xz.x, height, cam_xz.y)
+	d.shots[idx]["look"] = to_ship * Vector3(look_xz.x + dir.x * 6.0, -1.0, look_xz.y + dir.y * 6.0)
+	d.shots[idx]["fov"] = 60.0
+	print("[capture] cam-island: island at ", snappedf(best_d, 1.0), " m, shore radius ", snappedf(shore, 1.0))

@@ -11,6 +11,7 @@ render_mode world_vertex_coords, shadows_disabled, depth_draw_opaque;
 #include "res://shaders/ocean/surface.gdshaderinc"
 #include "res://shaders/ocean/foam.gdshaderinc"
 #include "res://shaders/ocean/shading.gdshaderinc"
+#include "res://shaders/ocean/caustics.gdshaderinc"
 
 void fragment() {
 	bool masked_dbg = false;
@@ -71,6 +72,7 @@ void fragment() {
 	vec3 body = mix(deep, scatter, crest01 * 0.4);
 	float sh = pow(shallow, 1.4);
 	vec3 shallow_tint = shallow_color * (0.5 + 0.35 * sh);
+	shallow_tint *= 1.0 + caustics_gain * island_caustics(rest_xz, TIME, sh);
 	vec3 base = mix(body, shallow_tint, sh * 0.85);
 	ALBEDO = mix(base, foam_color.rgb, foam_factor);
 	float hz = horizon_mix * smoothstep(120.0, 3000.0, dist) * (1.0 - sky_night); // no blend at night: the horizon colour is a lighting colour there, the displayed sky is far darker
