@@ -32,7 +32,7 @@ func _ready() -> void:
 	var sky := Sky.new()
 	sky.sky_material = _sky_mat
 	sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
-	sky.radiance_size = Sky.RADIANCE_SIZE_128
+	sky.radiance_size = Sky.RADIANCE_SIZE_256 if Quality.sky_radiance >= 256 else Sky.RADIANCE_SIZE_64
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
@@ -108,6 +108,12 @@ func _apply_ao() -> void:
 		elif a.begins_with("--ao-quality="):
 			quality = int(a.get_slice("=", 1))
 	var env := environment
+	env.ssr_enabled = Quality.ssr # M2a.5: water reflects the real scene (ship, islands) where the sky cubemap cannot
+	if Quality.ssr:
+		env.ssr_max_steps = Quality.ssr_steps
+		env.ssr_fade_in = 0.15
+		env.ssr_fade_out = 2.0
+		env.ssr_depth_tolerance = 0.2
 	env.ssao_enabled = want_ssao
 	env.ssil_enabled = want_ssil
 	if want_ssao or want_ssil:
@@ -124,6 +130,7 @@ func _apply_ao() -> void:
 		env.ssil_intensity = 0.7
 		env.ssil_sharpness = 0.9
 		env.ssil_normal_rejection = 1.0
+	print("[sky] ssr=", env.ssr_enabled, " steps=", env.ssr_max_steps, " radiance=", Quality.sky_radiance)
 	ao_state = "ssao=%s ssil=%s q%d" % [want_ssao, want_ssil, quality]
 	print("[sky] ", Quality.name_, ": ", ao_state, ", shadows=", _sun.shadow_enabled, " splits=4 max_dist=", _sun.directional_shadow_max_distance)
 

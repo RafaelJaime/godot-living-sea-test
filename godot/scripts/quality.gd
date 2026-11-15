@@ -25,6 +25,9 @@ var shadows := true
 var ssao := false                      ## screen-space AO (applied by sky.gd, which owns the Environment)
 var ssao_quality := 0                  ## RenderingServer SSAO quality 0 (very low) .. 3 (high)
 var ssil := false                      ## screen-space indirect light (about +1.1 ms at 1080p on M5: opt-in)
+var ssr := false                       ## screen-space reflections (applied by sky.gd, which owns the Environment)
+var ssr_steps := 64                    ## SSR max steps
+var sky_radiance := 64                 ## sky reflection cube size: 64 (dev) or 256 (final)
 var glow := true
 var render_scale := 1.0
 var msaa := 2                          ## 0 off, 1 = 2x, 2 = 4x, 3 = 8x
@@ -40,7 +43,13 @@ func _init() -> void:
 			want = a.get_slice("=", 1)
 	set_level(want)
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--normal-mips="): # test aid: 1 = no mips (A/B), otherwise the level count
+		if a == "--no-ssr": # test aid: SSR off at any preset (A/B for the cost)
+			ssr = false
+		elif a == "--ssr":
+			ssr = true
+		elif a.begins_with("--msaa="): # test aid: override the MSAA level (0 off .. 3 = 8x)
+			msaa = int(a.get_slice("=", 1))
+		elif a.begins_with("--normal-mips="): # test aid: 1 = no mips (A/B), otherwise the level count
 			normal_mips = maxi(1, int(a.get_slice("=", 1)))
 
 func set_level(n: String) -> void:
@@ -61,6 +70,8 @@ func set_level(n: String) -> void:
 		shadows = false
 		ssao = false
 		ssil = false
+		ssr = false
+		sky_radiance = 64
 		glow = false
 		render_scale = 0.6
 		msaa = 0
@@ -82,6 +93,9 @@ func set_level(n: String) -> void:
 		ssao = true
 		ssao_quality = 0
 		ssil = false
+		ssr = true
+		ssr_steps = 64
+		sky_radiance = 256
 		glow = true
 		render_scale = 1.0
 		msaa = 2
@@ -102,7 +116,7 @@ func _ready() -> void:
 		vp.scaling_3d_scale = render_scale
 	print("[quality] ", name_, ": rings=", ocean_levels, " fft=", fft_size, " cascades=", ocean_cascades, " scale=", render_scale,
 		" msaa=", msaa, " fps_cap=", max_fps, " shadows=", shadows, " glow=", glow)
-	print("[quality] ", name_, ": SSR/volumetric fog disabled; SSAO=", ssao, " (quality ", ssao_quality, ") SSIL=", ssil, " (applied by sky.gd)")
+	print("[quality] ", name_, ": SSR=", ssr, " (", ssr_steps, " steps) sky_radiance=", sky_radiance, "; SSAO=", ssao, " (quality ", ssao_quality, ") SSIL=", ssil, " (applied by sky.gd)")
 	_apply_scene.call_deferred()
 
 func _apply_scene() -> void:
@@ -113,7 +127,6 @@ func _apply_scene() -> void:
 		var env := (n as WorldEnvironment).environment
 		if env:
 			env.glow_enabled = glow and env.glow_enabled
-			env.ssr_enabled = false
 	if not shadows:
 		for l in get_tree().root.find_children("*", "DirectionalLight3D", true, false):
 			(l as DirectionalLight3D).shadow_enabled = false
