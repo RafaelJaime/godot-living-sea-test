@@ -84,6 +84,11 @@ func _initialize() -> void:
 	src.name = "Source"
 	src.source_id = &"workshop"
 	world.add_child(src)
+	var gi := NpcWaypointGraphInstance.new() # shows the graph in the editor (gizmo, inspector buttons); the world uses the same resource at run time
+	gi.name = "GraphView"
+	gi.graph = world.graph
+	gi.platform_root = raft
+	raft.add_child(gi)
 	var sched := NpcWatchScheduler.new()
 	sched.name = "Roster"
 	sched.source_id = &"roster"

@@ -1,3 +1,4 @@
+@tool
 class_name NpcStation
 extends Node3D
 ## A smart object: where and how an agent works, and who occupies it. Everything spatial is expressed in the station's own local space, so a

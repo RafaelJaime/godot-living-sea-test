@@ -39,6 +39,12 @@ var _perf_sum := 0.0
 var _perf_n := 0
 var _perf_max := 0.0
 var _quit_after_s := -1.0
+var _cli_applied := false
+var _pending_debug := false
+var _pending_freeze := false
+var _pending_steps := 0
+var _forced: Dictionary = {} # agent id -> kind
+var _overlay: NpcDebugOverlay
 var _requested: Array[StringName] = []
 var _acc := 0.0
 var _decisions_this_frame := 0
@@ -51,7 +57,8 @@ func _enter_tree() -> void:
 	add_to_group(&"npc_world")
 
 func _ready() -> void:
-	_apply_cli()
+	if not _cli_applied:
+		apply_cli_options(NpcCli.parse(OS.get_cmdline_user_args()))
 	if world_seed == 0:
 		world_seed = int(Time.get_ticks_usec()) & 0x7fffffff # no seed given: generate one and announce it so the run can be replayed
 		print("[npc] seed=%d (generated; replay with --npc-seed=%d)" % [world_seed, world_seed])
@@ -67,12 +74,21 @@ func _ready() -> void:
 		Performance.add_custom_monitor(&"npc_life/tick_usec", NpcWorld._monitor_value) # static: no instance reference to dangle at shutdown
 	for c in get_children():
 		_adopt(c)
+	if _pending_debug:
+		set_debug(true)
 	for a in get_tree().get_nodes_in_group(&"npc_agent"): # agents that entered the tree before this world (they live under the platform)
 		if a is NpcAgent and (a as NpcAgent).world == null:
 			adopt_agent(a)
 	child_entered_tree.connect(_adopt)
 	child_exiting_tree.connect(_forget)
 	board.job_released.connect(_on_board_released)
+	_after_ready_options()
+
+func _after_ready_options() -> void:
+	if _pending_freeze:
+		set_frozen(true)
+	if _pending_steps > 0:
+		step(_pending_steps)
 
 ## Binds an agent to this world and registers it (agents may live anywhere that shares the platform's local space).
 func adopt_agent(a: NpcAgent) -> void:
@@ -144,18 +160,47 @@ func step(ticks := 1) -> void:
 		_frame_update(1.0 / decision_hz)
 	max_decisions_in_a_frame = maxi(max_decisions_in_a_frame, _decisions_this_frame)
 
-## Minimal user-arg parsing (moves to debug/npc_cli.gd with the debug slice): --npc-seed=N, --npc-log[=path], --npc-minutes=N.
-func _apply_cli() -> void:
-	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--npc-seed="):
-			world_seed = int(a.get_slice("=", 1))
-		elif a == "--npc-log":
-			decision_log.enabled = true
-		elif a.begins_with("--npc-log="):
-			decision_log.enabled = true
-			decision_log.open_file(a.get_slice("=", 1))
-		elif a.begins_with("--npc-minutes="):
-			_quit_after_s = float(a.get_slice("=", 1)) * 60.0
+## Applies parsed `--npc-*` options (see NpcCli). Called by `_ready` with the real command line unless the game called it earlier with its own options.
+func apply_cli_options(o: Dictionary) -> void:
+	_cli_applied = true
+	if int(o.get("seed", 0)) != 0:
+		world_seed = int(o["seed"])
+	if o.get("log_enabled", false):
+		decision_log.enabled = true
+		if String(o.get("log", "")) != "":
+			decision_log.open_file(String(o["log"]))
+	if float(o.get("minutes", -1.0)) >= 0.0:
+		_quit_after_s = float(o["minutes"]) * 60.0
+	for f in o.get("force", []):
+		force_job(StringName(f[0]), StringName(f[1]))
+	_pending_debug = bool(o.get("debug", false))
+	_pending_freeze = bool(o.get("freeze", false))
+	_pending_steps = int(o.get("step", 0))
+
+## Pins an agent to a job kind (bypasses scoring; logged as `forced`) until `clear_force`.
+func force_job(agent_id: StringName, kind: StringName) -> void:
+	_forced[agent_id] = kind
+
+func clear_force(agent_id: StringName) -> void:
+	_forced.erase(agent_id)
+
+func forced_kind(agent_id: StringName) -> StringName:
+	return _forced.get(agent_id, &"")
+
+## Debug overlay on or off. Off = no overlay node exists.
+func set_debug(on: bool) -> void:
+	if on and _overlay == null:
+		_overlay = NpcDebugOverlay.new()
+		_overlay.world = self
+		_overlay.name = "NpcDebugOverlay"
+		add_child(_overlay)
+	elif not on and _overlay != null:
+		_overlay.teardown()
+		_overlay.queue_free()
+		_overlay = null
+
+func overlay() -> NpcDebugOverlay:
+	return _overlay
 
 func _tick() -> void:
 	var t0 := Time.get_ticks_usec()
@@ -183,7 +228,8 @@ func _finish_run() -> void:
 	print(summary_text())
 	print("[npc] max local position error=%.4f m (platform-local, all navigators)" % max_local_error())
 	decision_log.write_line(summary_text())
-	print("[npc] perf avg=%.0f usec max=%.0f usec over %d ticks (decisions/frame max=%d)" % [_perf_sum / maxf(_perf_n, 1), _perf_max, _perf_n, max_decisions_in_a_frame])
+	print("[npc] perf avg=%.0f usec max=%.0f usec over %d ticks (decisions/frame max=%d, budget %d, agents %d, monitor npc_life/tick_usec=%.0f)" % [_perf_sum / maxf(_perf_n, 1), _perf_max, _perf_n, max_decisions_in_a_frame, max_decisions_per_frame, _agents.size(), Performance.get_custom_monitor(&"npc_life/tick_usec")])
+	print("[npc] overlay: %s, debug labels in the scene: %d" % ["on" if _overlay != null else "off", get_tree().root.find_children("NpcDebugLabel", "Label3D", true, false).size() if is_inside_tree() else 0])
 	decision_log.close_file()
 	if is_inside_tree():
 		get_tree().call_deferred("quit")
@@ -229,6 +275,10 @@ func rng_for(agent_id: StringName, stream := &"brain") -> NpcRng:
 # ---- agent callbacks --------------------------------------------------------------------------------------------------------------------
 
 func on_agent_decided(agent: NpcAgent, job: NpcJob, reason: StringName, top: Array, temp: float, draw: int, idle_before: float) -> void:
+	var parts := PackedStringArray()
+	for row in top:
+		parts.append("%s %.2f" % [(row["job"] as NpcJob).kind, float(row["score"])])
+	agent.last_decision = {"job": job.id, "reason": reason, "top": "top=[%s]" % ", ".join(parts)}
 	decision_log.record_idle(agent.agent_id, idle_before, idle_bound_s)
 	decision_log.log_decision(tick_count, agent.agent_id, job, reason, top, temp, draw)
 	agent_decided.emit(agent.agent_id, job, reason)

@@ -36,6 +36,10 @@ func set_path(points: PackedVector3Array, types: Array[StringName]) -> void:
 	_last_set = Vector3.INF
 	finished = points.size() < 2
 
+## The polyline being followed (platform-local), for debug drawing.
+func path_points() -> PackedVector3Array:
+	return _pts
+
 ## Path length still ahead.
 func remaining() -> float:
 	if finished:

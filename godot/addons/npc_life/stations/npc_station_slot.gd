@@ -1,3 +1,4 @@
+@tool
 class_name NpcStationSlot
 extends Marker3D
 ## Optional per-slot override under an NpcStation: place it where slot `slot_index` should work, optionally with its own approach point and facing.

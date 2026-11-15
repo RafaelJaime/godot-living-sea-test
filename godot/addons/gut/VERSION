@@ -1,1 +1,1 @@
-GUT v9.6.1 (bitwes/Gut, commit c80954f), MIT, vendored as-is for dev-only tests of addons/npc_life (never referenced by it).
+GUT v9.7.1 (bitwes/Gut, bitwes-Gut-aeb5d4f), MIT, vendored as-is for dev-only tests of addons/npc_life (never referenced by it). Upgraded from 9.6.1 because the editor warned 'may not be compatible with Godot 4.7.2'.

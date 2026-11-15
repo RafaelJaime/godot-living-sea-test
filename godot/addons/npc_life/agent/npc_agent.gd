@@ -21,6 +21,8 @@ var agent_id: StringName
 var tags := PackedStringArray()
 var world: NpcWorld
 var needs: NpcNeeds
+## Last decision (job id, reason, top scores as text), for the overlay.
+var last_decision: Dictionary = {}
 var idle_s := 0.0
 var idle_max_s := 0.0
 
@@ -138,6 +140,11 @@ func needs_decision(w: NpcWorld) -> bool:
 		return true
 	var now := w.now()
 	var cands := w.board.candidates(agent_id, tags)
+	var fk := w.forced_kind(agent_id)
+	if fk != &"" and _job.kind != fk and _job.override == &"": # a pin never pulls an agent off a watch or an emergency
+		for j in cands:
+			if j.kind == fk and not _assigned_elsewhere(j):
+				return true
 	for j in cands:
 		if _assigned_to_me(j) and not (is_keep_job(_job) and not is_keep_job(j)):
 			if not is_protected(_job) or (is_keep_job(j) and not is_keep_job(_job)):
@@ -197,6 +204,24 @@ func decide(w: NpcWorld, now: float) -> void:
 				end_job(&"preempted")
 			if _take(j, &"roster", now, []):
 				return
+	# 2b. debug force-job: pinned to a kind, bypassing scoring and commitment (emergencies and rosters above still win)
+	var fk := w.forced_kind(agent_id)
+	if fk != &"":
+		var pick: NpcJob = null
+		for j in normal:
+			if j.kind == fk:
+				pick = j
+				break
+		if _job != null and (_job.kind == fk or _job.override != &""):
+			return # already on the pinned kind, or holding a watch / emergency job that wins over a debug pin
+		if pick != null:
+			if _job != null:
+				end_job(&"preempted")
+			if _take(pick, &"forced", now, []):
+				return
+		if _job == null:
+			_take_ambient(w, now) # nothing of the pinned kind is open: wait on an ambient job, never another kind
+		return
 	# 3. commitment: an ambient job inside its window is kept (real jobs run to completion, only the timer ends them)
 	if _job != null and now < _committed_until:
 		return

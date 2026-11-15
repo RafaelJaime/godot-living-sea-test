@@ -56,6 +56,18 @@ func _ready() -> void:
 			_shot_cross = not want.has("crossfade")
 			_shot_conv = not want.has("conversation")
 			_shot_aud = not want.has("audience")
+	var extra := int(NpcCli.parse(OS.get_cmdline_user_args())["agents"]) - 3
+	for k in maxi(extra, 0): # --npc-agents=N: scalability check, extra agents with varied tastes and no puppet
+		var d := NpcCharacterDef.new()
+		d.agent_id = StringName("NPC_%02d" % k)
+		var kinds := [&"craft", &"mend", &"lamp", &"listen", &"gather"]
+		d.preferences[kinds[k % kinds.size()]] = 0.8
+		d.needs[&"focus"] = 3.0
+		var ag := NpcAgent.new()
+		ag.name = String(d.agent_id)
+		ag.def = d
+		ag.position = Vector3(-5.5 + float(k % 8) * 0.4, 0, -0.8 + float(k / 8) * 0.4)
+		raft.add_child(ag)
 	var tints := {&"Ana": Color(0.85, 0.45, 0.35), &"Bruno": Color(0.35, 0.6, 0.85), &"Cleo": Color(0.5, 0.8, 0.45)}
 	for n in raft.get_children():
 		if n is NpcAgent:

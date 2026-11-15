@@ -1,3 +1,4 @@
+@tool
 class_name NpcWaypointGraph
 extends Resource
 ## Typed-edge waypoint graph in the LOCAL space of a platform (a ship pivot, a raft). Edges are walk / stairs / ladder / rope (more can be
@@ -39,6 +40,57 @@ func connect_nodes(a: int, b: int, type := &"walk", cost_mul := 1.0, oneway := f
 	edge_oneway.append(1 if oneway else 0)
 	_dirty = true
 	return edge_types.size() - 1
+
+## Removes node `i` and every edge touching it; later node indices shift down by one.
+func remove_node(i: int) -> void:
+	if i < 0 or i >= positions.size():
+		return
+	var keep_edges := PackedInt32Array()
+	var keep_types: Array[StringName] = []
+	var keep_mul := PackedFloat32Array()
+	var keep_one := PackedByteArray()
+	for e in edge_types.size():
+		var a := edges[e * 2]
+		var b := edges[e * 2 + 1]
+		if a == i or b == i:
+			continue
+		keep_edges.append(a - 1 if a > i else a)
+		keep_edges.append(b - 1 if b > i else b)
+		keep_types.append(edge_types[e])
+		keep_mul.append(edge_cost_mul[e] if e < edge_cost_mul.size() else 1.0)
+		keep_one.append(edge_oneway[e] if e < edge_oneway.size() else 0)
+	positions.remove_at(i)
+	if i < node_tags.size():
+		node_tags.remove_at(i)
+	edges = keep_edges
+	edge_types = keep_types
+	edge_cost_mul = keep_mul
+	edge_oneway = keep_one
+	_dirty = true
+
+func remove_edge(e: int) -> void:
+	if e < 0 or e >= edge_types.size():
+		return
+	var ed := Array(edges)
+	ed.remove_at(e * 2 + 1)
+	ed.remove_at(e * 2)
+	edges = PackedInt32Array(ed)
+	edge_types.remove_at(e)
+	if e < edge_cost_mul.size():
+		edge_cost_mul.remove_at(e)
+	if e < edge_oneway.size():
+		edge_oneway.remove_at(e)
+	_dirty = true
+
+func set_edge_type(e: int, type: StringName) -> void:
+	if e >= 0 and e < edge_types.size():
+		edge_types[e] = type
+		_dirty = true
+
+func set_node_position(i: int, pos: Vector3) -> void:
+	if i >= 0 and i < positions.size():
+		positions[i] = pos
+		_dirty = true
 
 func node_count() -> int:
 	return positions.size()
