@@ -249,12 +249,13 @@ func _build_cloth(ax: Vector3) -> void:
 	_cloth.boost_iters = 3
 	_cloth.max_aero_accel = 160.0
 	_cloth.max_extra_substeps = 1
-	_cloth.alpha_bend = 4.0e-3
+	_cloth.alpha_bend = 4.0e-2
 	_cloth.flutter = 1.0
 	_cloth.build(cols, rows, rest)
-	# Only the two hoist corners are tied.
-	_anch.append(_cloth.add_anchor(0, 0.0, _tie_world(0)))
-	_anch.append(_cloth.add_anchor((rows - 1) * cols, 0.0, _tie_world(1)))
+	# The whole hoist edge is laced to the staff (interpolated between the two ties): with only the corners tied the cloth was a
+	# plank hinged on the pole's axis and could never hang limp in a calm.
+	for r in rows:
+		_anch.append(_cloth.add_anchor(r * cols, 0.0, _hoist_world(r)))
 	_cloth.post_step = _after_step
 	_cloth.reset_provider = _rest_layout.bind(ax)
 	_uvs.clear(); _idx.clear()
@@ -273,6 +274,9 @@ func _build_cloth(ax: Vector3) -> void:
 		_cloth.anchor_prev = _cloth.anchor_t.duplicate()
 	_update_mesh()
 
+func _hoist_world(r: int) -> Vector3:
+	return _tie_world(0).lerp(_tie_world(1), float(r) / float(maxi(rows - 1, 1)))
+
 func _tie_world(i: int) -> Vector3:
 	return _pivot.get_global_transform_interpolated() * _tie_local[i]
 
@@ -285,8 +289,8 @@ func _apparent_wind(p: Vector3) -> Vector3:
 func _update_anchors() -> void:
 	_track_staff()
 	_cloth.pivot_inv = _pivot.get_global_transform_interpolated().affine_inverse()
-	_cloth.set_anchor(_anch[0], _tie_world(0))
-	_cloth.set_anchor(_anch[1], _tie_world(1))
+	for r in rows:
+		_cloth.set_anchor(_anch[r], _hoist_world(r))
 	var gt := _pivot.get_global_transform_interpolated()
 	_cloth.set_capsules(PackedVector3Array([gt * _pole_a]), PackedVector3Array([gt * _pole_b]), PackedFloat32Array([pole_radius]))
 
