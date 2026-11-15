@@ -55,6 +55,15 @@ float wake_term(vec2 rxz, vec3 gradient) {
 	return wake;
 }
 
+// Night bioluminescence (M4b2.2): the wake's turbulence (G) glows cold cyan-green, scaled by `sky_biolum` (0 by day, in storms and
+// under thick cloud). Returns an emission colour; zero outside the wake window.
+vec3 wake_biolum(vec2 rxz) {
+	vec2 wuv = (rxz - wake_origin) / wake_size;
+	if (sky_biolum <= 0.001 || wuv.x < 0.02 || wuv.x > 0.98 || wuv.y < 0.02 || wuv.y > 0.98) { return vec3(0.0); }
+	float g = texture(wake_tex, wuv).g;
+	return vec3(0.03, 0.62, 0.55) * smoothstep(0.08, 0.7, g) * sky_biolum * biolum_gain;
+}
+
 // Debug (debug_mode 3 = R foam, G turbulence, B ridge as colour; 4 = R only; 5 = G only; 6 = B only; B maps +-0.5 m to 0..1).
 vec3 wake_debug(vec2 rxz, float mode) {
 	vec2 wuv = (rxz - wake_origin) / wake_size;

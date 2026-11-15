@@ -24,6 +24,8 @@ uniform vec2 wake_origin = vec2(1.0e6);
 uniform float horizon_mix = 1.0;    // M2a.6: far water blends to the sky horizon colour (0 = off, 1 = full) beyond ~0.12..3 km
 global uniform vec3 sky_horizon_color;
 global uniform float sky_night;
+global uniform float sky_biolum;     // M4b2.2: night bioluminescence amount (WorldState.biolum)
+uniform float biolum_gain = 1.0;
 uniform float wake_turb_gain = 1.0;  // G channel: extra roughness + fine normal noise in the turbulent centre line (0 = off)
 uniform float wake_ridge_gain = 1.0; // B channel: Kelvin ridge slope added to the normal (0 = off)
 uniform float wake_size = 320.0;
