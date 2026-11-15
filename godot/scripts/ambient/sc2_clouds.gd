@@ -8,6 +8,7 @@ extends Node
 ## from MSAA to TAA while the clouds are on. Cost (Apple M5, 1920x1080, scene ~14.5 ms): see odd/tasks/living-sea-wallpaper.md R5.
 ## Test aids: `--sc2-res=0..3` (0 native, 1 half, 2 quarter), `--sc2-steps=N`, `--sc2-light-steps=N`.
 
+var _cover_override := -1.0 ## tuning aid --sc2-cover=<0..1>
 var effect: Resource
 var driver: Node
 var _sky: WorldEnvironment
@@ -65,7 +66,7 @@ func _process(_delta: float) -> void:
 	var on: bool = effect.get("enabled")
 	sky.set("volumetric_clouds", on)
 	# Coverage: sparse cumulus when clear, solid deck in storms. Storm decks sit lower and thicker.
-	effect.set("clouds_coverage", clampf(lerpf(0.6, 0.9, w.cloud) + 0.08 * storm, 0.0, 1.0))
+	effect.set("clouds_coverage", clampf(lerpf(0.6, 0.9, w.cloud) + 0.08 * storm, 0.0, 1.0) if _cover_override < 0.0 else _cover_override)
 	effect.set("clouds_density", lerpf(0.9, 3.2, storm))
 	effect.set("cloud_floor", lerpf(1200.0, 600.0, storm))
 	effect.set("cloud_ceiling", lerpf(6500.0, 5200.0, storm))

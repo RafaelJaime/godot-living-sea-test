@@ -376,6 +376,12 @@ void main() {
 			}
 		}
 
+        // LOCAL PATCH (living-sea): sky pixels keep the sky shader's colour. The physical scatter below replaced it with a flat
+        // grey at dusk/night (the project sky already models the atmosphere); it still applies to geometry and distant haze.
+        if (depth <= 0.0) {
+            physicalFogColor = color.rgb;
+            fogweight = 0.0;
+        }
         color.rgb = mix(physicalFogColor, mix(color.rgb, ambientfogdistancecolor, clamp(fogweight, 0.0, 1.0)),  genericData.data.atmosphere_simple_blend);
 
 		color.rgb = mix(color.rgb, currentAccumilation.rgb, density);
