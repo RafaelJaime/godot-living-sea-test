@@ -27,6 +27,7 @@ var ssil := false                      ## screen-space indirect light (about +1.
 var glow := true
 var render_scale := 1.0
 var msaa := 2                          ## 0 off, 1 = 2x, 2 = 4x, 3 = 8x
+var taa := false                       ## dev: no MSAA at 0.6 render scale breaks sub-pixel rigging into dots; TAA keeps it continuous
 var max_fps := 0                       ## 0 = uncapped (vsync decides)
 var fft_updates_per_second := 40.0
 var readback_hz := 20.0
@@ -58,6 +59,7 @@ func set_level(n: String) -> void:
 		glow = false
 		render_scale = 0.6
 		msaa = 0
+		taa = true
 		max_fps = 30
 		fft_updates_per_second = 20.0
 		readback_hz = 10.0
@@ -88,6 +90,7 @@ func _ready() -> void:
 	Engine.max_fps = max_fps
 	var vp := get_viewport()
 	vp.msaa_3d = msaa as Viewport.MSAA
+	vp.use_taa = taa
 	if render_scale < 1.0:
 		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
 		vp.scaling_3d_scale = render_scale
