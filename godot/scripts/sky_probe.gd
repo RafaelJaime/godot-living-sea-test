@@ -27,12 +27,13 @@ var _shots: Array = []
 var _shot_i := 0
 var _shot_t := -1.0
 var _shot_flipped := false
+var _follow := false
 var _game_t := 0.0
 var _last_rev := -1.0
 var _min_rev_gap := INF
 
 func _ready() -> void:
-	process_priority = 5
+	process_priority = 20 # after the camera director (10), so shot -2 can take over the camera
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--sky-log="):
 			_secs = float(a.get_slice("=", 1))
@@ -79,14 +80,20 @@ func _shots_step(delta: float) -> void:
 		var wx := String(it["weather"])
 		WorldState.set_weather("storm" if wx == "storm_end" else wx, true)
 		var d := get_tree().get_first_node_in_group("camera_director")
-		if d and int(it["shot"]) < 0:
+		if d and int(it["shot"]) == -1:
 			it["shot"] = _island_shot(d)
+		elif d and int(it["shot"]) == -2: # camera off the starboard bow, looking at the dolphin pod's zone (ship frame)
+			d.shots.append({"name": "pod", "pos": Vector3(11.0, 1.8, -12.0), "look": Vector3(4.0, 0.2, -21.0), "fov": 65.0})
+			it["shot"] = d.shots.size() - 1
+			it["follow"] = 1
 		if d:
 			if (it["off"] as Vector3).is_finite(): # candidate sweep: override a crew shot's offset
 				d.shots[int(it["shot"])]["off"] = it["off"]
 			d.jump_to(int(it["shot"]), true)
 		print("[sky-shots] ", it["name"], ": phase=", it["phase"], " weather=", wx, " shot=", it["shot"])
 	_shot_t += delta
+	_follow = int(_shots[_shot_i].get("follow", 0)) == 1
+	_follow_dolphin()
 	if String(it["weather"]) == "storm_end" and not _shot_flipped and _shot_t >= 2.0:
 		_shot_flipped = true
 		WorldState.set_weather("clear")
@@ -101,6 +108,26 @@ func _shots_step(delta: float) -> void:
 			" storm=", snappedf(WorldState.storm, 0.01), " rainbow=", snappedf(WorldState.rainbow, 0.01), " exposure=", snappedf(sky.exposure, 0.001))
 		_shot_i += 1
 		_shot_t = -1.0
+
+## Shot -2: the camera itself follows the highest visible dolphin (7 m abeam, 3 m aft, 1.5 m up) and looks at it. Runs after the director.
+func _follow_dolphin() -> void:
+	var life := get_node_or_null("../../AmbientLife")
+	var cam := get_viewport().get_camera_3d()
+	if life == null or cam == null or not _follow:
+		return
+	var best: Dictionary = {}
+	for dd in life.get("_dolphins"):
+		if (dd["node"] as Node3D).visible and (best.is_empty() or float(dd["pos"].y) > float(best["pos"].y)):
+			best = dd
+	if best.is_empty():
+		return
+	var dp: Vector3 = best["pos"]
+	var vel: Vector3 = best["vel"]
+	var fwd := Vector3(vel.x, 0.0, vel.z).normalized() if vel.length() > 0.5 else Vector3(0, 0, -1)
+	var right := fwd.cross(Vector3.UP)
+	cam.global_position = dp + right * 7.0 - fwd * 2.0 + Vector3(0, 1.2, 0)
+	cam.look_at(dp + Vector3(0, 0.2, 0), Vector3.UP)
+	cam.fov = 50.0
 
 ## shot -1: a camera 220 m off the nearest island's shore, 14 m up, looking at the island (adds a shot to the director).
 func _island_shot(d: Node) -> int:

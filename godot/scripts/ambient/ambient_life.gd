@@ -195,22 +195,35 @@ func _tick_flotsam(dt: float) -> void:
 		node.rotation = Vector3(-hz * 0.8, float(f["yaw"]), hx * 0.8)
 
 # ---------------------------------------------------------------- dolphins
+## Real dolphin: Sketchfab "Dolphin" by Alex_Pfe (CC BY 4.0, see ATTRIBUTION.md), converted by export_dolphin.py (swim loop, 1k textures).
+## The model faces +Z with its origin 0.5 m above the body centre; DOLPHIN_SCALE brings the 3.1 m model to about 2.5 m.
+const DOLPHIN_GLB := "res://assets/ambient/dolphin/dolphin.glb"
+const DOLPHIN_SCALE := 0.8
+const POD_MAX := 5
+
 func _build_dolphins() -> void:
-	var body := SphereMesh.new(); body.radius = 0.5; body.height = 1.0; body.radial_segments = 10; body.rings = 6
-	var fin := PrismMesh.new(); fin.size = Vector3(0.06, 0.38, 0.4)
-	var fluke := BoxMesh.new(); fluke.size = Vector3(0.75, 0.05, 0.28)
-	var skin := _mat(Color(0.2, 0.27, 0.33), 0.3)
-	var belly := _mat(Color(0.72, 0.76, 0.8), 0.4)
-	for i in 3:
+	var packed := load(DOLPHIN_GLB) as PackedScene
+	for i in POD_MAX:
 		var n := Node3D.new()
-		var b := MeshInstance3D.new(); b.mesh = body; b.material_override = skin; b.scale = Vector3(0.5, 0.48, 2.3); n.add_child(b)
-		var bl := MeshInstance3D.new(); bl.mesh = body; bl.material_override = belly; bl.scale = Vector3(0.44, 0.3, 2.0); bl.position = Vector3(0, -0.12, 0.05); n.add_child(bl)
-		var f := MeshInstance3D.new(); f.mesh = fin; f.material_override = skin; f.position = Vector3(0, 0.5, -0.1); f.rotation.x = deg_to_rad(-25.0); n.add_child(f)
-		var tail := MeshInstance3D.new(); tail.mesh = fluke; tail.material_override = skin; tail.position = Vector3(0, 0, -1.2); n.add_child(tail)
+		var model: Node3D = packed.instantiate()
+		model.rotation.y = PI # the model's nose is +Z, look_at points -Z along the velocity
+		model.scale = Vector3.ONE * DOLPHIN_SCALE
+		model.position = Vector3(0.0, 0.5, 0.15) * DOLPHIN_SCALE
+		for m in model.find_children("*", "MeshInstance3D", true, false):
+			(m as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # small, fast, mostly airborne
+		n.add_child(model)
+		var ap := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if ap:
+			var anim := ap.get_animation(&"swim")
+			if anim:
+				anim.loop_mode = Animation.LOOP_LINEAR
+			ap.play(&"swim")
+			ap.pause()
 		n.visible = false
 		add_child(n)
-		_dolphins.append({"node": n, "pos": Vector3.ZERO, "vel": Vector3.ZERO, "t": -1.0, "left": 0, "delay": 0.0})
-	var sm := SphereMesh.new(); sm.radius = 0.5; sm.height = 0.5; sm.radial_segments = 8; sm.rings = 3
+		_dolphins.append({"node": n, "ap": ap, "pos": Vector3.ZERO, "vel": Vector3.ZERO, "state": 0, "t": -1.0, "swim_for": 2.0, "left": 0, "delay": 0.0,
+			"lat": 0.0, "ahead": 0.0, "phase": randf() * 2.0})
+	var sm := SphereMesh.new(); sm.radius = 0.5; sm.height = 0.5; sm.radial_segments = 24; sm.rings = 8
 	var splash_mat := StandardMaterial3D.new()
 	splash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	splash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -230,57 +243,112 @@ func _splash(at: Vector3, big: float) -> void:
 			return
 
 func _start_dolphin_event() -> void:
-	# A pod riding the bow wave: dolphins alternate port / starboard of the stem, a few metres ahead of it.
+	# A pod of 2-5 riding the bow wave: they swim just ahead of the stem on both sides, alternate swimming and leaps, then peel off.
 	var fwd := _ship_fwd()
-	var right := fwd.cross(Vector3.UP)
-	var ahead := _ship.global_position + fwd * randf_range(22.0, 28.0)
+	var count := randi_range(2, POD_MAX)
+	print("[ambient] dolphin pod of ", count, " at t=", snappedf(_t, 0.1))
 	for i in _dolphins.size():
 		var d: Dictionary = _dolphins[i]
-		d["left"] = randi_range(2, 3)
-		d["delay"] = float(i) * 0.35
-		d["base"] = ahead + right * ((6.0 + float(i) * 2.0) * (1.0 if i % 2 == 0 else -1.0)) + fwd * (float(i) * 2.0)
+		d["left"] = randi_range(2, 4) if i < count else 0
+		d["delay"] = float(i) * 0.4
+		d["lat"] = (4.5 + floorf(i * 0.5) * 3.0 + randf_range(0.0, 1.5)) * (1.0 if i % 2 == 0 else -1.0)
+		d["ahead"] = 16.0 + float(i) * 2.5 + randf_range(0.0, 3.0)
+		d["state"] = 0
 		d["t"] = -1.0
+		var sp := _ship.global_position + fwd * float(d["ahead"]) + fwd.cross(Vector3.UP) * float(d["lat"])
+		d["pos"] = Vector3(sp.x, Waves.height_at(sp.x, sp.z) - 1.6, sp.z)
+		d["vel"] = _ship_vel()
 
+## state 0 = swimming at the surface (back awash, tracks the bow zone), 1 = leap (ballistic), 2 = peeling off (diving away).
 func _tick_dolphins(dt: float) -> void:
 	var fwd := _ship_fwd()
+	var right := fwd.cross(Vector3.UP)
 	var sv := _ship_vel()
+	var sspeed := maxf(sv.length(), 2.0)
 	for d in _dolphins:
 		var node: Node3D = d["node"]
+		var ap: AnimationPlayer = d["ap"]
 		if float(d["delay"]) > 0.0:
 			d["delay"] = float(d["delay"]) - dt
 			continue
 		var t: float = d["t"]
-		if t < 0.0:
+		var pos: Vector3 = d["pos"]
+		var v: Vector3 = d["vel"]
+		var state: int = d["state"]
+		if t < 0.0: # first frame of this pod member: surface and start swimming
 			if int(d["left"]) <= 0:
 				node.visible = false
+				if ap: ap.pause()
 				continue
-			# Start a jump: horizontal speed matches the ship + a little, launch speed gives ~2.5 m of air.
-			d["left"] = int(d["left"]) - 1
-			var jitter := fwd.cross(Vector3.UP) * randf_range(-3.0, 3.0) + fwd * randf_range(-4.0, 4.0)
-			var p: Vector3 = (d["base"] as Vector3) + jitter
-			d["base"] = (d["base"] as Vector3) + fwd * 6.0
-			d["pos"] = Vector3(p.x, Waves.height_at(p.x, p.z) - 0.6, p.z)
-			d["vel"] = sv * 1.0 + fwd * randf_range(3.5, 5.5) + Vector3(0, randf_range(6.5, 8.0), 0)
 			d["t"] = 0.0
+			d["swim_for"] = randf_range(1.4, 3.0)
 			node.visible = true
-			_splash(d["pos"], 1.0)
-			continue
+			t = 0.0
+			state = 0
+			d["state"] = 0
+			_splash(pos + Vector3(0, 1.6, 0), 0.7)
 		t += dt
 		d["t"] = t
-		var v: Vector3 = d["vel"]
-		v.y -= 9.81 * dt
-		d["vel"] = v
-		var pos: Vector3 = d["pos"] + v * dt
-		d["pos"] = pos
 		var sea := Waves.height_at(pos.x, pos.z)
+		if state == 0:
+			# Ride the bow wave: chase a point ahead of the stem, back awash with a gentle porpoising bob.
+			var tgt := _ship.global_position + fwd * (float(d["ahead"]) + 3.0 * sin(_t * 0.9 + float(d["phase"]))) + right * float(d["lat"])
+			var want := Vector3(tgt.x, 0.0, tgt.z)
+			var cur := Vector3(pos.x, 0.0, pos.z)
+			var nv := sv + (want - cur) * 1.2
+			nv = nv.limit_length(sspeed * 1.6 + 2.0)
+			v = v.lerp(Vector3(nv.x, 0.0, nv.z), 1.0 - exp(-dt * 3.0))
+			pos += v * dt
+			sea = Waves.height_at(pos.x, pos.z)
+			var bob := -0.25 + 0.35 * sin(_t * 2.6 + float(d["phase"]) * 3.0)
+			pos.y = lerpf(pos.y, sea + bob, 1.0 - exp(-dt * 4.0))
+			if t >= float(d["swim_for"]):
+				if int(d["left"]) > 0:
+					d["left"] = int(d["left"]) - 1
+					state = 1
+					# Launch from the surface: horizontal speed of the ship plus a push ahead, about 2.5 m of air.
+					v = sv + fwd * randf_range(3.5, 5.5) + right * randf_range(-1.0, 1.0) + Vector3(0, randf_range(6.5, 8.0), 0)
+					_splash(pos, 1.0)
+				else:
+					state = 2
+		elif state == 1:
+			v.y -= 9.81 * dt
+			pos += v * dt
+			sea = Waves.height_at(pos.x, pos.z)
+			if v.y < 0.0 and pos.y < sea - 0.55:
+				_splash(pos, 1.3)
+				if int(d["left"]) > 0:
+					# Re-enter and come back up swimming at the bow.
+					state = 0
+					d["swim_for"] = randf_range(1.0, 2.4)
+					t = 0.0
+					v = Vector3(v.x, 0.0, v.z) * 0.5
+					pos.y = sea - 0.6
+				else:
+					state = 2
+		else:
+			v = v.lerp(Vector3(sv.x, -1.2, sv.z) * 0.8, 1.0 - exp(-dt * 2.0))
+			pos += v * dt
+			if pos.y < sea - 2.2:
+				node.visible = false
+				d["left"] = 0
+				d["t"] = -1.0
+				if ap: ap.pause()
+				continue
+		d["t"] = t
+		if _force and d == _dolphins[0] and int(_t * 2.0) != int((_t - dt) * 2.0):
+			print("[dolphin0] t=", snappedf(_t, 0.1), " state=", state, " rel=", snappedf(pos.x - _ship.global_position.x, 0.1), ",", snappedf(pos.y, 0.1), ",", snappedf(pos.z - _ship.global_position.z, 0.1), " sea=", snappedf(sea, 0.1))
+		d["state"] = state
+		d["pos"] = pos
+		d["vel"] = v
 		node.global_position = pos
-		if v.length() > 0.1:
+		if v.length() > 0.2:
 			node.look_at(pos + v, Vector3.UP)
-		if v.y < 0.0 and pos.y < sea - 0.5:
-			node.visible = false
-			_splash(pos, 1.3)
-			d["t"] = -1.0
-			d["delay"] = randf_range(0.8, 2.0)
+		if ap:
+			# Tail beat follows the speed: a fast loop while swimming, slower in the air.
+			if not ap.is_playing():
+				ap.play(&"swim")
+			ap.speed_scale = clampf(v.length() / 4.0, 0.5, 2.0) * (0.6 if state == 1 else 1.0)
 
 func _tick_splashes(dt: float) -> void:
 	for s in _splashes:
@@ -292,8 +360,8 @@ func _tick_splashes(dt: float) -> void:
 		var n: MeshInstance3D = s["node"]
 		n.visible = t < 1.0
 		var k := float(s.get("big", 1.0))
-		n.scale = Vector3(1.0 + t * 3.2, 0.7 + t * 1.2, 1.0 + t * 3.2) * k
-		(n.material_override as StandardMaterial3D).albedo_color.a = 0.55 * (1.0 - t)
+		n.scale = Vector3(1.0 + t * 1.8, 0.35 + t * 0.6, 1.0 + t * 1.8) * k
+		(n.material_override as StandardMaterial3D).albedo_color.a = 0.2 * (1.0 - t) * (1.0 - t)
 
 # ---------------------------------------------------------------- whale spout
 func _build_whale() -> void:
