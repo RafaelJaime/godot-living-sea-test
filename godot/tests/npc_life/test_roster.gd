@@ -200,3 +200,29 @@ func test_captain_takes_helm_in_all_hands() -> void:
 	_run(25.0)
 	assert_eq(sched.keeper_of(&"helm"), &"Fuego", "the highest-skill agent takes the helm for the emergency")
 	assert_eq(sched.unstaffed_ticks(&"helm"), 0, "without a staffing gap")
+
+func test_one_agent_never_keeps_two_watches_at_once() -> void:
+	_station(&"helm_post", 4.0)
+	_station(&"lookout_post", -4.0)
+	_agent(&"A")
+	_start(_roster([_watch(&"helm", &"helm_post", [&"A"]), _watch(&"lookout", &"lookout_post", [&"A"])]))
+	for i in 50:
+		world.advance(0.1)
+		var holders := 0
+		for id in [&"helm", &"lookout"]:
+			if sched.keeper_of(id) == &"A":
+				holders += 1
+		assert_lte(holders, 1, "A is the keeper of at most one watch (tick %d)" % i)
+	assert_eq((world.get_agent(&"A") as NpcAgent).current_job_id() != &"", true, "A is busy with the one watch it keeps")
+
+func test_agent_elsewhere_in_another_watch_is_not_offered_the_same_start() -> void:
+	_station(&"helm_post", 4.0)
+	_station(&"lookout_post", -4.0)
+	_agent(&"A")
+	_agent(&"B")
+	_start(_roster([_watch(&"helm", &"helm_post", [&"A", &"B"]), _watch(&"lookout", &"lookout_post", [&"A", &"B"])]))
+	for i in 30:
+		world.advance(0.1)
+	assert_ne(sched.keeper_of(&"helm"), &"", "helm staffed")
+	assert_ne(sched.keeper_of(&"lookout"), &"", "lookout staffed")
+	assert_ne(sched.keeper_of(&"helm"), sched.keeper_of(&"lookout"), "two different keepers")

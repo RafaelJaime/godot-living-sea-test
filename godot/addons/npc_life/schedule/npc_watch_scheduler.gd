@@ -293,13 +293,25 @@ func _other_keepers(st: WatchState, k: int) -> Array[StringName]:
 			out.append(st.posts[i].relief)
 	return out
 
+## True when `id` is already the keeper (or the incoming relief) of a post of a different watch. Judged from the scheduler's own state, not from
+## the agent's current job, because on the first tick the job is not yet claimed and two watches would otherwise pick the same agent and fight
+## over it on every decision.
+func _holds_post_of_other_watch(id: StringName, st: WatchState) -> bool:
+	for wid in _states:
+		if wid == st.def.watch_id:
+			continue
+		for p in (_states[wid] as WatchState).posts:
+			if p.keeper == id or p.relief == id:
+				return true
+	return false
+
 ## Eligible agents that exist in the world and are not keeping another post (current keepers of this watch excluded through `taken`).
 func _free_candidates(st: WatchState, taken: Array[StringName]) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for id in st.def.eligible:
 		var sid := StringName(id)
 		var a := _world.get_agent(sid) as NpcAgent
-		if a == null or taken.has(sid):
+		if a == null or taken.has(sid) or _holds_post_of_other_watch(sid, st):
 			continue
 		var cj := a.current_job()
 		if cj != null and cj.override == &"must_staff" and cj.payload.get("watch", &"") != st.def.watch_id:
