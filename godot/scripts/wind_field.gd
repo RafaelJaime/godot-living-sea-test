@@ -128,6 +128,11 @@ func _gust_test(delta: float) -> void:
 	img.save_png(ProjectSettings.globalize_path("res://_shots/gust_t%d.png" % int(times[_tt_step])))
 	_tt_step += 1
 
+## The cloth step of the last frame is still running on the worker threads when the tree is torn down: join it first, so no
+## worker touches cloth data (or the engine) while it is being dismantled. WindField is an autoload, so it exits after the owners.
+func _exit_tree() -> void:
+	ClothSolver.sync()
+
 func _process(delta: float) -> void:
 	ClothSolver.sync()
 	if "--gust-tex-test" in OS.get_cmdline_user_args() and _gust_tex != null:
