@@ -95,10 +95,12 @@ func _mat(c: Color, rough := 0.8) -> StandardMaterial3D:
 
 # ---------------------------------------------------------------- flotsam / seaweed
 func _build_flotsam() -> void:
-	var plank := BoxMesh.new(); plank.size = Vector3(2.4, 0.08, 0.28)
-	var barrel := CylinderMesh.new(); barrel.top_radius = 0.28; barrel.bottom_radius = 0.28; barrel.height = 0.62; barrel.radial_segments = 8
+	var plank := _plank_mesh()
+	var barrel := _barrel_mesh()
 	var weed_meshes: Array[ArrayMesh] = [_weed_patch_mesh(11), _weed_patch_mesh(23), _weed_patch_mesh(37)]
-	var wood := _mat(Color(0.32, 0.22, 0.13))
+	var wood := _wood_mat(Color(0.62, 0.56, 0.5))
+	var iron := _iron_mat()
+	var wood_two_sided := wood
 	# Seaweed: translucent, irregular, vertex-coloured patches (darker olive core fading to a pale transparent rim), half drowned in the swell.
 	var weed := StandardMaterial3D.new()
 	weed.vertex_color_use_as_albedo = true
@@ -111,7 +113,8 @@ func _build_flotsam() -> void:
 		if kind == 0:
 			var m := MeshInstance3D.new(); m.mesh = plank; m.material_override = wood; n.add_child(m)
 		elif kind == 1:
-			var m := MeshInstance3D.new(); m.mesh = barrel; m.material_override = wood; m.rotation.z = deg_to_rad(80.0); n.add_child(m)
+			var m := MeshInstance3D.new(); m.mesh = barrel; m.rotation.z = deg_to_rad(80.0)
+			m.set_surface_override_material(0, wood_two_sided); m.set_surface_override_material(1, iron); n.add_child(m)
 		else:
 			var m := MeshInstance3D.new(); m.mesh = weed_meshes[i % weed_meshes.size()]; m.material_override = weed
 			m.scale = Vector3.ONE * randf_range(0.8, 1.6)
@@ -159,6 +162,135 @@ func _weed_patch_mesh(seed_i: int) -> ArrayMesh:
 			st.set_normal(Vector3.UP)
 			st.add_vertex(v[0])
 	return st.commit()
+
+## Aged, wet, dark wood (Poly Haven "Dark Wooden Planks", CC0, 1k) tinted darker; used by planks and barrel staves.
+func _wood_mat(tint: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load("res://assets/ambient/flotsam/dwp_diff.jpg") as Texture2D
+	m.albedo_color = tint
+	m.normal_enabled = true
+	m.normal_texture = load("res://assets/ambient/flotsam/dwp_nor_gl.jpg") as Texture2D
+	m.roughness_texture = load("res://assets/ambient/flotsam/dwp_rough.jpg") as Texture2D
+	m.roughness = 0.75
+	m.clearcoat_enabled = true # waterlogged sheen
+	m.clearcoat = 0.35
+	m.clearcoat_roughness = 0.25
+	m.uv1_triplanar = false
+	return m
+
+func _iron_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.09, 0.075, 0.065)
+	m.metallic = 0.75
+	m.roughness = 0.55
+	return m
+
+## Broken plank: 2.4 x 0.28 x 0.07 m, bowed and slightly twisted, one square end and one jagged break; UVs run along the grain.
+func _plank_mesh() -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var L := 2.4
+	var W := 0.28
+	var T := 0.07
+	var segs := 8
+	var rows: Array = []
+	for i in segs + 1:
+		var u := float(i) / segs
+		var x := (u - 0.5) * L
+		var bow := 0.05 * sin(u * PI)
+		var tw := 0.08 * (u - 0.5)
+		var hw := W * 0.5 * (1.0 - (0.35 * smoothstep(0.78, 1.0, u) * rng.randf_range(0.5, 1.0)))
+		rows.append([x, bow, tw, hw, u])
+	var corners := func(r: Array) -> Array:
+		var x: float = r[0]
+		return [Vector3(x, r[1] + T * 0.5, -r[3] + r[2]), Vector3(x, r[1] + T * 0.5, r[3] + r[2]), Vector3(x, r[1] - T * 0.5, r[3] + r[2]), Vector3(x, r[1] - T * 0.5, -r[3] + r[2])]
+	for i in segs:
+		var c0: Array = corners.call(rows[i])
+		var c1: Array = corners.call(rows[i + 1])
+		var u0: float = rows[i][4] * 2.0
+		var u1: float = rows[i + 1][4] * 2.0
+		# top, bottom, two sides
+		for q in [[0, 1], [1, 2], [2, 3], [3, 0]]:
+			var a: int = q[0]
+			var b: int = q[1]
+			var nrm: Vector3 = ((c0[b] as Vector3) - (c0[a] as Vector3)).cross((c1[a] as Vector3) - (c0[a] as Vector3)).normalized()
+			for v in [[c0[a], Vector2(u0, 0.0)], [c1[a], Vector2(u1, 0.0)], [c0[b], Vector2(u0, 0.25)], [c0[b], Vector2(u0, 0.25)], [c1[a], Vector2(u1, 0.0)], [c1[b], Vector2(u1, 0.25)]]:
+				st.set_normal(nrm)
+				st.set_uv(v[1])
+				st.add_vertex(v[0])
+	# end caps
+	for end in [0, segs]:
+		var c: Array = corners.call(rows[end])
+		var nrm: Vector3 = Vector3(-1, 0, 0) if end == 0 else Vector3(1, 0, 0)
+		for idx in ([0, 1, 2, 0, 2, 3] if end == 0 else [0, 2, 1, 0, 3, 2]):
+			st.set_normal(nrm)
+			st.set_uv(Vector2(0.0, 0.1))
+			st.add_vertex(c[idx])
+	st.generate_tangents()
+	return st.commit()
+
+## Barrel: bulged lathe (16 staves) lying on its side, with three iron hoops; surface 0 wood, surface 1 iron.
+func _barrel_mesh() -> ArrayMesh:
+	var h := 0.72
+	var rings := 10
+	var sides := 16
+	var wood := SurfaceTool.new()
+	wood.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var prof := func(t: float) -> float: # t in -1..1 along the axis
+		return 0.27 * (1.0 - 0.2 * t * t)
+	for r in rings:
+		var t0 := -1.0 + 2.0 * float(r) / rings
+		var t1 := -1.0 + 2.0 * float(r + 1) / rings
+		for k in sides:
+			var a0 := float(k) / sides * TAU
+			var a1 := float(k + 1) / sides * TAU
+			var pts := [[t0, a0], [t0, a1], [t1, a0], [t1, a1]]
+			var vs := []
+			for p in pts:
+				var rad: float = prof.call(p[0])
+				var pos := Vector3(cos(p[1]) * rad, p[0] * h * 0.5, sin(p[1]) * rad)
+				var nrm := Vector3(cos(p[1]), -p[0] * 0.2 * 0.6, sin(p[1])).normalized()
+				vs.append([pos, nrm, Vector2(float(k) / sides * 2.0, (p[0] * 0.5 + 0.5) * 1.0)])
+			for idx in [0, 1, 2, 1, 3, 2]:
+				wood.set_normal(vs[idx][1])
+				wood.set_uv(vs[idx][2])
+				wood.add_vertex(vs[idx][0])
+	for sgn in [-1.0, 1.0]: # lids
+		var rad: float = prof.call(sgn)
+		for k in sides:
+			var a0 := float(k) / sides * TAU
+			var a1 := float(k + 1) / sides * TAU
+			var lid := [Vector3(0, sgn * h * 0.5, 0), Vector3(cos(a0) * rad * 0.97, sgn * h * 0.5, sin(a0) * rad * 0.97), Vector3(cos(a1) * rad * 0.97, sgn * h * 0.5, sin(a1) * rad * 0.97)]
+			if sgn > 0.0:
+				lid = [lid[0], lid[2], lid[1]]
+			for v in lid:
+				wood.set_normal(Vector3(0, sgn, 0))
+				wood.set_uv(Vector2(0.5 + v.x * 1.5, 0.5 + v.z * 1.5))
+				wood.add_vertex(v)
+	wood.generate_tangents()
+	var mesh := wood.commit()
+	var iron := SurfaceTool.new()
+	iron.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ty in [-0.78, -0.3, 0.3, 0.78]:
+		var hw := 0.028
+		for sub in [-1.0, 1.0]:
+			pass
+		var rad_c: float = prof.call(ty) + 0.008
+		var y0: float = ty * h * 0.5 - hw
+		var y1: float = ty * h * 0.5 + hw
+		for k in sides:
+			var a0 := float(k) / sides * TAU
+			var a1 := float(k + 1) / sides * TAU
+			var q := [Vector3(cos(a0) * rad_c, y0, sin(a0) * rad_c), Vector3(cos(a1) * rad_c, y0, sin(a1) * rad_c), Vector3(cos(a0) * rad_c, y1, sin(a0) * rad_c), Vector3(cos(a1) * rad_c, y1, sin(a1) * rad_c)]
+			var n0 := Vector3(cos(a0), 0, sin(a0))
+			var n1 := Vector3(cos(a1), 0, sin(a1))
+			for idx in [0, 1, 2, 1, 3, 2]:
+				iron.set_normal(n0 if idx in [0, 2] else n1)
+				iron.add_vertex(q[idx])
+	iron.commit(mesh)
+	return mesh
 
 func _respawn_flot(f: Dictionary, anywhere: bool) -> void:
 	var fwd := _ship_fwd()

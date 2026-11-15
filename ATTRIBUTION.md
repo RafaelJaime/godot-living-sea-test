@@ -8,3 +8,4 @@
 - **Dolphin** by Alex_Pfe, licensed CC BY 4.0 — https://sketchfab.com/3d-models/dolphin-c24dc835a6aa4d3c827450513525cdb8
   Converted FBX -> glTF with `export_dolphin.py` (bubble cubes removed, material rebuilt from 1k textures, swim loop kept); scaled to about 2.5 m in `godot/scripts/ambient/ambient_life.gd`.
 - **Sunshine Clouds 2** by David House, MIT — vendored in `godot/addons/SunshineClouds2` (see its LICENSE). Local patch: sky pixels keep the sky shader colour (`SunshineCloudsPostCompute.comp`).
+- **Dark Wooden Planks** texture by Amal Kumar (Poly Haven), CC0 — https://polyhaven.com/a/dark_wooden_planks (1k diffuse, normal and roughness in `godot/assets/ambient/flotsam/`), used by the flotsam planks and barrel.
