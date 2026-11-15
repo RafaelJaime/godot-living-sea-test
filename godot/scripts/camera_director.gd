@@ -71,7 +71,11 @@ var _cv_ready := false
 var _sol := {}
 var _ship_len := 22.0
 var _samples: Array = []
-const SOLVE_BUDGET := 4 ## candidates tested per frame (a full pass runs synchronously on an instant jump)
+const SOLVE_BUDGET_US := 1500 ## microseconds per frame shared by all solver work (an instant jump still runs a full pass synchronously)
+const BUILD_START_S := 2.5 ## the ship model is loaded by then (ship_ready fires in the first frames)
+const BUILD_BUDGET_US := 1500 ## microseconds per frame for the incremental occluder build (at least one mesh per frame)
+var _deadline_us := 0
+var _cv_force_sync := false
 const REVALIDATE_S := 1.5
 
 func _ready() -> void:
@@ -110,6 +114,8 @@ func jump_to(index: int, instant := false) -> void:
 	_blend_len = 1.6
 	_timer = 0.0
 	if instant:
+		if not _cv_ready and shots[index].get("solve", false):
+			_cv_force_sync = true # an instant jump (hotkey, capture) needs the answer now
 		_update_solver(index, 0.0, true)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -133,7 +139,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		_free_yaw -= mm.relative.x * 0.0028
 		_free_pitch = clampf(_free_pitch - mm.relative.y * 0.0028, -1.5, 1.5)
 
+var _prof_us := 0
+var _prof_on := OS.get_cmdline_user_args().has("--cam-prof")
+
 func _process(delta: float) -> void:
+	var _t0 := Time.get_ticks_usec()
+	_process_inner(delta)
+	if _prof_on:
+		var us := Time.get_ticks_usec() - _t0
+		if us > 800:
+			print("[camprof] t=", snappedf(_time, 0.01), " camera _process ", snappedf(us / 1000.0, 0.1), " ms (solver ", snappedf(_prof_us / 1000.0, 0.1), " ms)")
+	_prof_us = 0
+
+func _process_inner(delta: float) -> void:
 	_time += delta
 	_dt = delta
 	if free_mode:
@@ -150,14 +168,17 @@ func _process(delta: float) -> void:
 		_blend = minf(1.0, _blend + delta / _blend_len)
 		if _blend >= 1.0:
 			_from = _to
-	if not _cv_ready and _time > 6.0:
-		_ensure_cv() # build the occluders once during the start-up ramp, not at the first solved shot
+	if not _cv_ready and _time > BUILD_START_S:
+		_ensure_cv() # builds the occluders in slices during the start-up ramp, not at the first solved shot
 	var solve_set: Array[int] = [_from]
 	for k in [_to, (_to + 1) % cycle_count]: # the next cycle shot is pre-solved so it is ready when blended in
 		if not solve_set.has(k):
 			solve_set.append(k)
+	var _s0 := Time.get_ticks_usec()
+	_deadline_us = _s0 + SOLVE_BUDGET_US
 	for i in solve_set:
 		_update_solver(i, delta, false)
+	_prof_us += Time.get_ticks_usec() - _s0
 	_apply_pose(_time, false)
 
 func _frame() -> Transform3D:
@@ -294,14 +315,19 @@ func _crew_center(s: Dictionary) -> Vector3:
 	var slot := get_node_or_null("../Ship/Pivot/CrewMarkers/" + str(s["slot"])) as Node3D
 	return (slot.position if slot else Vector3.ZERO) + Vector3(0, 1.0, 0)
 
+## Occluder set: built ONCE, incrementally (a few ms per frame, BVHs on worker threads), then cached for the whole run.
+## The first call starts the build once the ship exists; solved shots wait until it is complete.
 func _ensure_cv() -> bool:
 	if _cv_ready:
 		return true
-	var model := get_node_or_null("../Ship/Pivot/Model")
-	if model == null or _time < 2.0 or model.find_children("*", "MeshInstance3D", true, false).is_empty():
-		return false
-	_cv_ready = _cv.build([model, get_node_or_null("../Ship/Pivot/Helm"), get_node_or_null("../Ship/Pivot/Lights")].filter(func(n: Variant) -> bool: return n != null), _pivot())
-	if _cv_ready:
+	if not _cv.building:
+		var model := get_node_or_null("../Ship/Pivot/Model")
+		if model == null or _time < BUILD_START_S or model.get_child_count() == 0:
+			return false
+		_cv.begin_build([model, get_node_or_null("../Ship/Pivot/Helm"), get_node_or_null("../Ship/Pivot/Lights")].filter(func(n: Variant) -> bool: return n != null), _pivot())
+	var immediate := _cv_force_sync
+	if _cv.step_build(1 << 30 if immediate else BUILD_BUDGET_US):
+		_cv_ready = true
 		var rig := 0
 		for it in _cv.items:
 			if String(it["name"]).to_lower().contains("rigging"):
@@ -398,7 +424,7 @@ func _update_solver(i: int, dt: float, immediate: bool) -> void:
 	if st.has("ref") and aim.angle_to(st["ref"]) > deg_to_rad(3.0):
 		st["age"] = 99.0 # the sun / island moved relative to the ship: re-check now instead of at the next interval
 	# 1. revalidate the current goal now and then; a blocked one starts a new search around it
-	if (st["cands"] as Array).is_empty() and (st["goal"] == null or float(st["age"]) >= REVALIDATE_S):
+	if (st["cands"] as Array).is_empty() and (st["goal"] == null or float(st["age"]) >= REVALIDATE_S) and (immediate or Time.get_ticks_usec() < _deadline_us):
 		var ok := false
 		if st["goal"] != null:
 			var g: Vector3 = st["goal"]
@@ -422,9 +448,7 @@ func _update_solver(i: int, dt: float, immediate: bool) -> void:
 			st["best_f"] = -1.0
 	# 2. test candidates in cost order, a few per frame, until one is fully clear
 	var cands: Array = st["cands"]
-	var n := cands.size() if immediate else SOLVE_BUDGET
-	while n > 0 and not cands.is_empty():
-		n -= 1
+	while not cands.is_empty() and (immediate or Time.get_ticks_usec() < _deadline_us):
 		var idx: int = st["ci"]
 		if idx >= cands.size():
 			# nothing fully clear: settle for the least-blocked candidate
