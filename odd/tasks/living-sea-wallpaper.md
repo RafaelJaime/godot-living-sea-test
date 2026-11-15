@@ -133,7 +133,7 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       signals lighting_needed at dusk / extinguish_suggested at dawn). NPC behaviour belongs to the user's session.
       — delegated (godot-ship, after R0)
       Done (2026-11-15, M0.3 sync): ShipLights API 818b2da, lamps anchored to the model 219018f; evidence odd/evidence/lights/.
-- [x] R7 Final QA (done with a recorded shortfall: average 70.9 fps but 1 % low 35.8 fps; re-run after the async ocean readback 69.4 average and 1 % low 36.7 fps, p95 CPU 52.8 -> 40.7 ms, odd/evidence/M6/M6_2_README.md): 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
+- [x] R7 Final QA (done with a recorded shortfall: average 70.9 fps but 1 % low 35.8 fps; re-run after the async ocean readback 69.4 average and 1 % low 36.7 fps, p95 CPU 52.8 -> 40.7 ms; third run after the camera/island hitch fixes 68.8 average and 1 % low 39.0 fps but with 3-4 Godot instances alive for a third of it (godot-ship measured 62.7 fps 1 % low in 125 s on a free machine), odd/evidence/M6/M6_2_README.md): 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
       no visual defects checklist (cracks, popping, floating crew, clipping, keel visible).
 
 ## Acceptance criteria
