@@ -138,7 +138,7 @@ World: `--start-phase=0..1`, `--no-day`, `--timescale=N`, `--weather=clear|cloud
 Ocean and wake: `--water-debug=1..7` (7 = cat's paw mask), `--catpaw=<gain>` (default 1.5, 0 = off), `--no-gust-tex`, `--gust-tex-test`, `--horizon-mix=<0..1>`, `--hull-foam=<gain>`, `--caustics=`, `--caustics-emit=`, `--caustics-scale=`, `--caustics-wide=`, `--caustics-sharp=`, `--wake-log`, `--wake-far=<m>`,
 `--wake-test-speed=<k>`, `--wake-turb=<g>`, `--wake-ridge=<g>`, `--fx-log`, `--no-spray`, `--fx-test-speed=<k>`.
 Ship, rig and lights: `--hold-heading=<deg>`, `--tack-test`, `--rudder-test`, `--analytic-sails`, `--settle-log`, `--log-wobble`, `--furl-log`, `--request-furl=idx:t@sec`, `--maneuver-log`, `--log-boat`, `--no-lash-load`,
-`--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--deck-survey`, `--ambient-now`.
+`--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--deck-survey`, `--debug-stations`, `--ambient-now`.
 Cloth and wind diagnostics: `--cloth-probe=<s>` (per-frame sail/flag vertex motion log, `[probe]` CSV lines), `--cloth-demo=<name>` with `--wind-rel=<deg>` and `--soak-secs=<s>`, `--log-wind` (flag wind log), `--gust-amp=X` (the gust pulse test is `--cloth-demo=gust`).
 Other debug aids: `--debug-phys`, `--debug-pins`, `--debug-rig`, `--debug-wheel`, `--flat` (flat sea), `--no-canto`, `--no-pole`, `--cam-prof`, `--cam-verify`, `--island-verify`, `--beam-log`, `--ao-quality=0..3`, `--sc2-light-steps=N`, `--test-clip=<name>`. Test aids that scale an input (`--wake-test-speed`, `--fx-test-speed`) do not change the real ship speed.
 
@@ -199,6 +199,18 @@ The old ribbon wake (`wake_ribbon.gd`) is gone.
 ### Lashed boat hooks (M5)
 `LashedBoat.state()` -> `{offset_m, tilt_deg, lashing_load_n, in_cradle, left_cradle}` (read-only). The lashing spring force and torque now also act on the ship with opposite sign
 (dynamic part only); test aids `--log-boat` (prints play, tilt and load every 10 s) and `--no-lash-load` (ship ignores the boat, for A/B). Changelog (M5): reaction on the ship added; the rope sag (M5.5) is not implemented.
+
+### Ship stations for npc_life (H1, `scripts/ship_stations.gd`, `ship/ship_stations.tscn`)
+`ShipStations` (class_name, extends the addon's `NpcStationProvider`) is instanced once under `Ship/Pivot` (`Ship/Pivot/ShipStations/Provider`) and turns the Marker3D catalogue,
+the ship lanterns and the sails into `NpcStation` nodes under `Ship/Pivot/ShipStations/Stations`, so every anchor is pivot-local. `provide_stations()` returns the nodes,
+`get_stations()` plain data `{id, kind, anchor (pivot-local), approach, facing_deg (0 = bow, +90 = port), level, slots, anim_tag, ik, occupied_by, must_staff}`,
+`station(id)`, `kind_counts()`, `access_markers()` (stairs, door, nav markers), `rebuild()`, signal `stations_changed`. Built at `ship_ready`; the log prints `[crew] stations: <kind>=<n> ...`.
+Catalogue: `helm` (must_staff, hand_l/hand_r IK from `Helm`), `lantern_<id>` per `ShipLantern` (anchor = its stance point, `look_at` IK = the lantern), `reef_line_<idx>` per sail (beside the nearest mast base),
+`spyglass_post`, `crows_nest`, `ratline_path` x2, `chart_table`, `violin_seat`, `listen_spot` x3, `social_spot` x2, `fishing_rail` x2, `repair_spot` x2, `mop_zone` x2, `boat_check`.
+Markers carry metadata `kind`, `slots`, `facing_deg`, `anim_tag`, `must_staff`; navigation nodes (`kind = nav`) carry `edge_to` ("name[:type],...") for the waypoint graph (H3). Positions come from
+`odd/evidence/npc-crew-jobs/H1/deck_survey.md`; `ship/gen_ship_stations.py` regenerates the scene. Test aid `--debug-stations` draws a labelled magenta marker on every station and logs each one.
+Limits: the crow's nest and ratline markers are placed from mast-mesh measurements (not checked against a render); the model has no cabin door (a `door` marker stands at the companionway); no extra geometry was added.
+Changelog (H1): `ShipLights.get_lanterns()` gained `local_position` / `stand_local`; `ShipStations` is additive, nothing in the crew files changed.
 
 ### Ocean shader layout (godot/shaders/ocean/)
 `ocean_fft.gdshader` is a shell: header, four includes and `fragment()`. Owners: `common.gdshaderinc` = all (defines, uniforms, varyings, island_distance);

@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -25,6 +25,7 @@
 [ext_resource type="Script" path="res://scripts/ambient/ambient_life.gd" id="96_amb"]
 [ext_resource type="Script" path="res://scripts/ambient/ambient_director.gd" id="95_dir"]
 [ext_resource type="Script" path="res://scripts/ambient/passing_ships.gd" id="94_pass"]
+[ext_resource type="PackedScene" path="res://ship/ship_stations.tscn" id="98_stations"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -79,6 +80,8 @@ script = ExtResource("17_rig")
 
 [node name="Lights" type="Node3D" parent="Ship/Pivot"]
 script = ExtResource("99_lights")
+
+[node name="ShipStations" parent="Ship/Pivot" instance=ExtResource("98_stations")]
 
 [node name="CrewMarkers" type="Node3D" parent="Ship/Pivot"]
 script = ExtResource("5_crewmgr")
