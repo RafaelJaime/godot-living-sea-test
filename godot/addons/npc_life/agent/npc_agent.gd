@@ -33,6 +33,8 @@ var _committed_until := 0.0
 var _last_done: Dictionary = {} # kind -> logical time
 var _last_station_id: StringName = &""
 var _ambient_serial := 0
+var _action_done: Dictionary = {} # action id -> logical time it last finished (signature action cooldowns)
+var _begun_action_id: StringName = &""
 var _ending := false
 
 func _enter_tree() -> void:
@@ -297,10 +299,8 @@ func _begin(j: NpcJob, st: NpcStation, reason: StringName, now: float, top: Arra
 	elif j.station_id != &"":
 		_last_station_id = j.station_id
 	_committed_until = now if j.override != &"" else now + world.commit_time_s
-	var act: NpcActionDef = j.action
-	if act == null:
-		var kd: NpcJobKindDef = world.kind_defs.get(j.kind)
-		act = kd.default_action as NpcActionDef if kd else null
+	var act := _resolve_action(j, st, now)
+	_begun_action_id = act.action_id if act else &""
 	var dr := act.duration_range if act else Vector2(6.0, 14.0)
 	var work_s := world.rng_for(agent_id, &"work").randf_range(dr.x, maxf(dr.y, dr.x))
 	idle_max_s = maxf(idle_max_s, idle_s)
@@ -312,7 +312,31 @@ func _begin(j: NpcJob, st: NpcStation, reason: StringName, now: float, top: Arra
 	executor.start(j, st, work_s, act)
 	world.on_agent_decided(self, j, reason, top, temp, draw, idle_before)
 
+## The job's own action, else one of this character's signature actions that fits the job kind and station and is not cooling down (drawn with
+## the agent's `action` stream), else the job kind default, else none.
+func _resolve_action(j: NpcJob, st: NpcStation, now: float) -> NpcActionDef:
+	if j.action != null:
+		return j.action as NpcActionDef
+	if def != null:
+		var pool: Array[NpcActionDef] = []
+		for a in def.signature_actions:
+			if a == null or not a.job_kinds.has(String(j.kind)):
+				continue
+			if a.station_kind != &"" and (st == null or st.kind != a.station_kind):
+				continue
+			if not a.is_ready(float(_action_done.get(a.action_id, -1.0)), now):
+				continue
+			pool.append(a)
+		if not pool.is_empty():
+			return pool[world.rng_for(agent_id, &"action").randi() % pool.size()]
+	var kd: NpcJobKindDef = world.kind_defs.get(j.kind)
+	return kd.default_action as NpcActionDef if kd else null
+
 # ---- ending --------------------------------------------------------------------------------------------------------------------------------
+
+## Id of the action used by the current (or most recent) job, &"" when it had none.
+func last_action_id() -> StringName:
+	return _begun_action_id
 
 ## Finishes the current job as `done` (or `aborted`): satisfies needs, records the recency, releases the claims.
 func complete_job(result: StringName) -> void:
@@ -321,6 +345,8 @@ func complete_job(result: StringName) -> void:
 	var j := _job
 	if result == &"done":
 		_last_done[j.kind] = world.now()
+		if _begun_action_id != &"":
+			_action_done[_begun_action_id] = world.now()
 		var kd: NpcJobKindDef = world.kind_defs.get(j.kind)
 		if kd and kd.satisfies != &"" and needs:
 			needs.satisfy(kd.satisfies, kd.satisfy_amount)

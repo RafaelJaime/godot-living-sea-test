@@ -88,6 +88,10 @@ func update(delta: float) -> void:
 				_set_phase(&"leave")
 				agent.complete_job(&"done")
 
+## The action being performed (null when the job has none).
+func current_action() -> NpcActionDef:
+	return _action
+
 func _effect_at() -> float:
 	return _action.effect_at if _action else 0.5
 
