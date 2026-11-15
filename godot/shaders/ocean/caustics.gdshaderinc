@@ -2,11 +2,11 @@
 // shallow tint in ocean_fft.gdshader as: shallow_tint *= 1 + caustics_gain * island_caustics(...). Zero in deep water (weighted by
 // pow(shallow, 1.4)), zero at night and when the sun is below the horizon.
 global uniform vec3 sky_sun_dir; // direction towards the sun (world), published by sky.gd
-uniform float caustics_gain = 0.0;  // albedo scale (shallow tint *= 1 + gain * pattern); 0 = off
-uniform float caustics_emit = 0.0;  // additive light of the pattern (emission); 0 = off
-uniform float caustics_scale = 1.0; // pattern frequency multiplier (smaller = larger cells)
-uniform float caustics_sharp = 3.0; // edge exponent (lower = softer, wider light lines)
-uniform float caustics_wide = 1.0;  // multiplier of the shallow band the pattern fades over
+uniform float caustics_gain = 0.8;  // albedo scale (shallow tint *= 1 + gain * pattern); 0 = off (candidate D)
+uniform float caustics_emit = 0.28; // additive light of the pattern (emission); 0 = off
+uniform float caustics_scale = 0.4; // pattern frequency multiplier (smaller = larger cells)
+uniform float caustics_sharp = 1.4; // edge exponent (lower = softer, wider light lines)
+uniform float caustics_wide = 1.8;  // multiplier of the shallow band the pattern fades over
 
 vec2 caustic_hash(vec2 p) {
 	p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));

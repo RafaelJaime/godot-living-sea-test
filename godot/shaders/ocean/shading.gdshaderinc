@@ -23,7 +23,7 @@ void light() {
 	SPECULAR_LIGHT += min(fresnel * microfacet_distribution * geometric_attenuation / (4.0 * dot_nv + 0.1), 5.0) * LIGHT_COLOR * 0.22 * ATTENUATION; // light colour+energy included (the moon must not glint like the sun); clamped
 
 	const vec3 sss_modifier = vec3(0.9, 1.15, 0.85);
-	float sss_height = 1.0 * max(0.0, wave_height + 2.5) * pow(max(dot(LIGHT, -VIEW), 0.0), 4.0) * pow(0.5 - 0.5 * dot(LIGHT, NORMAL), 3.0);
+	float sss_height = 1.8 * max(0.0, wave_height + 2.5) * pow(max(dot(LIGHT, -VIEW), 0.0), 4.0) * pow(0.5 - 0.5 * dot(LIGHT, NORMAL), 3.0);
 	float sss_near = 0.34 * pow(dot_nv, 2.0);
 	float lambertian = 0.16 * dot_nl; // water is not a diffuse surface: keep sunlit faces from turning into pale patches
 	vec3 sss_tint = mix(vec3(1.0), vec3(0.6, 1.3, 1.2), shallow);
