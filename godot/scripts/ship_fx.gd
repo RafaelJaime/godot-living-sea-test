@@ -1,7 +1,7 @@
 extends Node3D
 ## Bow spray: sharp velocity-aligned droplets plus a little mist, emitted in world space.
 ## Emission rate follows how hard the stem slams into the water (immersion rate) and sea_state.
-## (The foam wake lives in wake_ribbon.gd.)
+## (The foam wake lives in wake_field.gd.)
 
 @export var pivot_path := NodePath("../Pivot")
 

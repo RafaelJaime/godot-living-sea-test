@@ -33,7 +33,7 @@ void fragment() {
 	// light diffusion
 	float px = 1.0 / float(textureSize(prev, 0).x);
 	float nb = 0.25 * (texture(prev, suv + vec2(px, 0.0)).r + texture(prev, suv - vec2(px, 0.0)).r + texture(prev, suv + vec2(0.0, px)).r + texture(prev, suv - vec2(0.0, px)).r);
-	f = mix(f, nb, 0.12 * clamp(dt * 30.0, 0.0, 1.0));
+	f = mix(f, nb, 1.0 - exp(-3.82 * dt)); // frame-rate independent (0.12 at the fixed 30 Hz step)
 	f *= exp(-decay * dt * (1.0 + 2.0 * (1.0 - clamp(f * 2.0, 0.0, 1.0)))); // thin foam breaks up faster
 	vec2 q = pw * 0.7 + vec2(seed_t * 0.4, 0.0);
 	vec2 qi = floor(q); vec2 qf = fract(q); qf = qf * qf * (3.0 - 2.0 * qf);

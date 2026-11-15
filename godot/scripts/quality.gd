@@ -18,7 +18,7 @@ var fft_size := 512
 var ocean_cascades := 3
 var normal_mips := 5                   ## mip levels of the ocean normal/foam map (3 at dev: the 128 px map has only 3 useful levels)
 var wake_resolution := 1024
-var wake_updates_per_second := 0.0     ## 0 = every frame
+var wake_updates_per_second := 30.0    ## fixed wake update rate (accumulator), independent of the frame rate
 var cloth_scale := 1.0                 ## multiplies cloth substeps / iterations
 var particle_scale := 1.0              ## multiplies rain / spray / mist particle counts
 var shadows := true
@@ -66,7 +66,7 @@ func set_level(n: String) -> void:
 		ocean_cascades = 2
 		normal_mips = 3
 		wake_resolution = 256
-		wake_updates_per_second = 20.0
+		wake_updates_per_second = 30.0
 		cloth_scale = 0.5
 		particle_scale = 0.25
 		shadows = false
@@ -88,7 +88,7 @@ func set_level(n: String) -> void:
 		ocean_cascades = 3
 		normal_mips = 5
 		wake_resolution = 1024
-		wake_updates_per_second = 0.0
+		wake_updates_per_second = 30.0
 		cloth_scale = 1.0
 		particle_scale = 1.0
 		shadows = true

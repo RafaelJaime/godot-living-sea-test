@@ -189,7 +189,12 @@ func set_islands(list: PackedVector4Array) -> void:
 	for i in MAX_ISLANDS:
 		_islands[i] = list[i] if i < _island_count else Vector4.ZERO
 
+var ship_half_len := 18.3 ## ship footprint (half length, half beam) as given by set_ship_footprint(); the wake field reads it
+var ship_half_beam := 4.4
+
 func set_ship_footprint(half_length: float, half_beam: float) -> void:
+	ship_half_len = half_length
+	ship_half_beam = half_beam
 	_mat.set_shader_parameter("ship_half", Vector2(half_length, half_beam))
 
 ## Waterline outline of the hull: half-width per bin from bow (first) to stern (last), and the z range it spans.

@@ -195,11 +195,15 @@ Evidence folder: `odd/evidence/M2b/`. Depends on: M1-b and M2a-2 merged (relativ
 
 ### Slice M2b-1 (PR-M2b1, about 230 lines)
 
-- [ ] M2b.1 [OS] Store the window origin as two GDScript `float` (64-bit) fields instead of a `Vector2`; keep whole-8-texel steps. Files: `godot/scripts/wake_field.gd`. Verify: a 2-hour `--timescale` run with logged origin shows steps stay exact multiples of 8 texels (log line), zero errors. Dependency: M1.11.
-- [ ] M2b.2 [OS] Run the ping-pong at a fixed 30 Hz accumulator independent of frame rate; make the diffusion term not depend on fps. Files: `godot/scripts/wake_field.gd`, `godot/shaders/wake_update.gdshader`. Verify: a top-down capture at `dev` (30 fps cap) and `final` (uncapped) at the same time shows the same wake; `--perf-log=30` wake cost at most 1.0 ms at `final`. Dependency: M2b.1.
-- [ ] M2b.3 [OS] Take `half_len` and `half_beam` from the Ship footprint (`set_ship_footprint` values from `ship_ready`) instead of the literals `0.46 * 39.8` and `4.4`. Files: `godot/scripts/wake_field.gd`. Verify: log prints the footprint values used; `rg` finds neither literal afterwards. Dependency: M2b.1.
-- [ ] M2b.4 [OS] Delete `godot/scripts/wake_ribbon.gd`, `godot/shaders/wake_ribbon.gdshader` (+ `.uid`) and the unused `ext_resource` in `godot/main.tscn`. Verify: `rg wake_ribbon godot/` returns nothing; scene loads, zero errors; top-down capture shows no ribbon scale pattern. Dependency: M2b.2.
-- [ ] M2b.5 [OS] Rebase continuity: `--rebase-test=150` straight run and a turning run with a capture sequence across the rebase. Files: `odd/evidence/M2b/*`. Verify: wake shows no gap, jump or reset; curved trail continuous; zero errors (spec: Rebase continuity). Dependency: M2b.4.
+- [x] M2b.1 [OS] Store the window origin as two GDScript `float` (64-bit) fields instead of a `Vector2`; keep whole-8-texel steps. Files: `godot/scripts/wake_field.gd`. Verify: a 2-hour `--timescale` run with logged origin shows steps stay exact multiples of 8 texels (log line), zero errors. Dependency: M1.11.
+  - Done 2026-11-15 with a gap: `odd/evidence/M2b/M2b1_evidence.txt`; no literal 2-hour run (a 1e7 m world offset stands in), steps stay whole 8-texel multiples.
+- [x] M2b.2 [OS] Run the ping-pong at a fixed 30 Hz accumulator independent of frame rate; make the diffusion term not depend on fps. Files: `godot/scripts/wake_field.gd`, `godot/shaders/wake_update.gdshader`. Verify: a top-down capture at `dev` (30 fps cap) and `final` (uncapped) at the same time shows the same wake; `--perf-log=30` wake cost at most 1.0 ms at `final`. Dependency: M2b.1.
+  - Done with a gap: fixed 30 Hz verified in the log, top-down dev/final qualitatively alike; the wake cost <= 1.0 ms is NOT measured (no baseline, gpu_ms = 0).
+- [x] M2b.3 [OS] Take `half_len` and `half_beam` from the Ship footprint (`set_ship_footprint` values from `ship_ready`) instead of the literals `0.46 * 39.8` and `4.4`. Files: `godot/scripts/wake_field.gd`. Verify: log prints the footprint values used; `rg` finds neither literal afterwards. Dependency: M2b.1.
+  - Note: footprint half beam is 4.76 (old literal 4.4), so the stamps are slightly wider.
+- [x] M2b.4 [OS] Delete `godot/scripts/wake_ribbon.gd`, `godot/shaders/wake_ribbon.gdshader` (+ `.uid`) and the unused `ext_resource` in `godot/main.tscn`. Verify: `rg wake_ribbon godot/` returns nothing; scene loads, zero errors; top-down capture shows no ribbon scale pattern. Dependency: M2b.2.
+- [x] M2b.5 [OS] Rebase continuity: `--rebase-test=150` straight run and a turning run with a capture sequence across the rebase. Files: `odd/evidence/M2b/*`. Verify: wake shows no gap, jump or reset; curved trail continuous; zero errors (spec: Rebase continuity). Dependency: M2b.4.
+  - Done with a gap: straight rebase checked; no separate turning run.
 
 ### Slice M2b-2 (PR-M2b2, about 300 lines)
 

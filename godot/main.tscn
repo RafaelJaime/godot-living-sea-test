@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -12,7 +12,6 @@
 [ext_resource type="Script" path="res://scripts/camera_director.gd" id="10_cam"]
 [ext_resource type="Script" path="res://scripts/canto_sun.gd" id="11_canto"]
 [ext_resource type="Script" path="res://scripts/ship_fx.gd" id="12_fx"]
-[ext_resource type="Script" path="res://scripts/wake_ribbon.gd" id="13_wake"]
 [ext_resource type="Script" path="res://scripts/weather_fx.gd" id="14_weather"]
 [ext_resource type="Script" path="res://scripts/autopilot.gd" id="15_auto"]
 [ext_resource type="Script" path="res://scripts/helm.gd" id="16_helm"]
