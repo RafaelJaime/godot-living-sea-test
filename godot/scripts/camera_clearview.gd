@@ -95,6 +95,21 @@ func step_build(budget_us: int) -> bool:
 	building = false
 	return not items.is_empty()
 
+## Exit safety: worker tasks must not outlive the scene tree. A worker blocked in a RenderingServer read needs the main thread to flush its command
+## queue, so a plain wait would deadlock; flush while polling (bounded), then release every task.
+func finish_pending(timeout_ms := 3000) -> void:
+	var t_end := Time.get_ticks_msec() + timeout_ms
+	for p in _pending:
+		while not WorkerThreadPool.is_task_completed(p["task"]) and Time.get_ticks_msec() < t_end:
+			RenderingServer.force_sync()
+			OS.delay_usec(500)
+	for p in _pending:
+		if WorkerThreadPool.is_task_completed(p["task"]):
+			WorkerThreadPool.wait_for_task_completion(p["task"])
+	_pending.clear()
+	_meshes.clear()
+	building = false
+
 func _queue_one(mi: MeshInstance3D) -> void:
 	if mi.mesh == null or not mi.is_visible_in_tree():
 		return

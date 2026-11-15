@@ -100,6 +100,9 @@ func _ready() -> void:
 	_noise.fractal_octaves = 2
 	_apply_pose(_time, true)
 
+func _exit_tree() -> void:
+	_cv.finish_pending() # never leave occluder-build tasks running while the tree is destroyed
+
 func rebase(shift: Vector3) -> void:
 	if free_mode:
 		global_position -= shift
