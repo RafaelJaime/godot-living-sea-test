@@ -11,7 +11,7 @@ signal job_finished(job: NpcJob, agent_id: StringName, result: StringName) ## do
 @export var world_seed := 0
 ## Local space for agents, stations and the graph (the ship pivot, a raft).
 @export var platform_root: Node3D
-@export var graph: Resource ## NpcWaypointGraph (navigation slice)
+@export var graph: NpcWaypointGraph
 ## Station providers; empty = scan the group `npc_station`.
 @export var station_providers: Array[NodePath] = []
 @export var decision_hz := 10.0
@@ -28,9 +28,12 @@ var max_decisions_in_a_frame := 0
 var inputs := NpcWorldInputs.new()
 var board := NpcJobBoard.new()
 var decision_log := NpcDecisionLog.new()
+## Optional height correction for walking agents (see NpcGroundProbe).
+var ground_probe: NpcGroundProbe
 var tick_count := 0
 
 var _rngs: Dictionary = {} # "agent|stream" -> NpcRng
+static var _monitor_usec := 0.0
 var _tick_usec_last := 0.0
 var _perf_sum := 0.0
 var _perf_n := 0
@@ -43,6 +46,9 @@ var _frozen := false
 var _agents: Dictionary = {} # id -> Node
 var _sources: Array[NpcJobSource] = []
 
+func _enter_tree() -> void:
+	add_to_group(&"npc_world")
+
 func _ready() -> void:
 	_apply_cli()
 	if world_seed == 0:
@@ -51,19 +57,30 @@ func _ready() -> void:
 	else:
 		print("[npc] seed=%d" % world_seed)
 	decision_log.write_line("[npc] seed=%d" % world_seed)
+	if graph != null:
+		var problems := graph.validate()
+		for p in problems:
+			push_warning("[npc] graph: " + p)
+		graph.build_distance_cache()
 	if not Performance.has_custom_monitor(&"npc_life/tick_usec"):
-		Performance.add_custom_monitor(&"npc_life/tick_usec", func() -> float: return _tick_usec_last)
+		Performance.add_custom_monitor(&"npc_life/tick_usec", NpcWorld._monitor_value) # static: no instance reference to dangle at shutdown
 	for c in get_children():
 		_adopt(c)
+	for a in get_tree().get_nodes_in_group(&"npc_agent"): # agents that entered the tree before this world (they live under the platform)
+		if a is NpcAgent and (a as NpcAgent).world == null:
+			adopt_agent(a)
 	child_entered_tree.connect(_adopt)
 	child_exiting_tree.connect(_forget)
 	board.job_released.connect(_on_board_released)
 
+## Binds an agent to this world and registers it (agents may live anywhere that shares the platform's local space).
+func adopt_agent(a: NpcAgent) -> void:
+	a.bind_world(self)
+	register_agent(a.agent_id, a)
+
 func _adopt(n: Node) -> void:
 	if n is NpcAgent:
-		var a := n as NpcAgent
-		a.bind_world(self)
-		register_agent(a.agent_id, a)
+		adopt_agent(n)
 		return
 	if n is NpcJobSource and not _sources.has(n):
 		var s := n as NpcJobSource
@@ -75,10 +92,12 @@ func _forget(n: Node) -> void:
 	if n is NpcJobSource:
 		_sources.erase(n)
 	elif n is NpcAgent:
-		var a := n as NpcAgent
-		if a.current_job() != null:
-			a.end_job(&"aborted")
-		unregister_agent(a.agent_id)
+		_release_agent(n as NpcAgent)
+
+func _release_agent(a: NpcAgent) -> void:
+	if a.current_job() != null:
+		a.end_job(&"aborted")
+	unregister_agent(a.agent_id)
 
 func _process(delta: float) -> void:
 	advance(delta)
@@ -88,6 +107,9 @@ func summary_text() -> String:
 	for id in agent_ids():
 		decision_log.merge_idle_max(id, (_agents[id] as NpcAgent).idle_max_s)
 	return decision_log.summary_text()
+
+static func _monitor_value() -> float:
+	return NpcWorld._monitor_usec
 
 ## Logical seconds: whole ticks only, independent of the frame rate.
 func now() -> float:
@@ -103,6 +125,7 @@ func advance(delta: float) -> void:
 	while _acc + 1.0e-9 >= dt:
 		_acc -= dt
 		_tick()
+	_frame_update(delta)
 	max_decisions_in_a_frame = maxi(max_decisions_in_a_frame, _decisions_this_frame)
 
 func set_frozen(frozen: bool) -> void:
@@ -113,6 +136,7 @@ func step(ticks := 1) -> void:
 	_decisions_this_frame = 0
 	for i in ticks:
 		_tick()
+		_frame_update(1.0 / decision_hz)
 	max_decisions_in_a_frame = maxi(max_decisions_in_a_frame, _decisions_this_frame)
 
 ## Minimal user-arg parsing (moves to debug/npc_cli.gd with the debug slice): --npc-seed=N, --npc-log[=path], --npc-minutes=N.
@@ -142,6 +166,7 @@ func _tick() -> void:
 	_run_decisions(ids)
 	ticked.emit(tick_count)
 	_tick_usec_last = float(Time.get_ticks_usec() - t0)
+	NpcWorld._monitor_usec = _tick_usec_last
 	_perf_sum += _tick_usec_last
 	_perf_n += 1
 	_perf_max = maxf(_perf_max, _tick_usec_last)
@@ -151,11 +176,16 @@ func _tick() -> void:
 func _finish_run() -> void:
 	_quit_after_s = -1.0
 	print(summary_text())
+	print("[npc] max local position error=%.4f m (platform-local, all navigators)" % max_local_error())
 	decision_log.write_line(summary_text())
 	print("[npc] perf avg=%.0f usec max=%.0f usec over %d ticks (decisions/frame max=%d)" % [_perf_sum / maxf(_perf_n, 1), _perf_max, _perf_n, max_decisions_in_a_frame])
 	decision_log.close_file()
 	if is_inside_tree():
 		get_tree().call_deferred("quit")
+
+func _frame_update(delta: float) -> void:
+	for id in agent_ids():
+		(_agents[id] as NpcAgent).frame_update(delta)
 
 ## Decisions of this tick, staggered: agents are visited round-robin in sorted id order and the frame budget caps how many decide.
 func _run_decisions(ids: Array[StringName]) -> void:
@@ -189,6 +219,16 @@ func on_agent_decided(agent: NpcAgent, job: NpcJob, reason: StringName, top: Arr
 	decision_log.log_decision(tick_count, agent.agent_id, job, reason, top, temp, draw)
 	agent_decided.emit(agent.agent_id, job, reason)
 
+## Called by the executor when a job's WORK reached its effect moment: the world signal and the owning source's callback.
+func on_job_effect(agent: NpcAgent, job: NpcJob, effect: StringName) -> void:
+	for s in _sources:
+		if s.source_id == job.source_id:
+			s._on_job_effect(job, agent, effect)
+	job_effect.emit(job, agent.agent_id, effect)
+
+func on_edge_entered(agent: NpcAgent, edge_type: StringName) -> void:
+	decision_log.log_edge(tick_count, agent.agent_id, edge_type)
+
 func on_job_finished(agent: NpcAgent, job: NpcJob, result: StringName) -> void:
 	if result == &"done" and not NpcAmbient.is_ambient(job):
 		decision_log.record_done(agent.agent_id, job.kind)
@@ -221,14 +261,40 @@ func nearest_station_tagged(agent: Node3D, tag: String) -> NpcStation:
 				best = st
 	return best
 
-## Straight-line distance from an agent to a station in platform-local space (path distance joins with the navigation slice).
+## Path distance from an agent to a station: graph distance (all-pairs cache) when a graph exists, straight line in platform space otherwise.
 func distance_to(agent: Node3D, station: NpcStation) -> float:
 	if station == null:
 		return 0.0
-	if platform_root:
-		var inv := platform_root.global_transform.affine_inverse()
-		return (inv * agent.global_position).distance_to(station.anchor_local(0, platform_root).origin)
-	return agent.global_position.distance_to(station.anchor_world(0))
+	var inv := platform_root.global_transform.affine_inverse() if platform_root else Transform3D.IDENTITY
+	var from_local: Vector3 = (inv * agent.global_position) if platform_root else agent.position
+	var to_local := station.approach_local(0, platform_root)
+	if graph != null and graph.node_count() > 0:
+		var d := graph.distance(graph.nearest_node(from_local), graph.nearest_node(to_local))
+		if d != INF:
+			return d + from_local.distance_to(graph.positions[graph.nearest_node(from_local)]) + to_local.distance_to(graph.positions[graph.nearest_node(to_local)])
+	return from_local.distance_to(to_local)
+
+## False when the graph has no route from the agent to the station's approach point (the job is then not eligible).
+func reachable_from(agent: Node3D, station: NpcStation) -> bool:
+	if graph == null or graph.node_count() == 0 or station == null:
+		return true
+	return graph.path_info(agent.position, station.approach_local(0, platform_root))["reason"] == &""
+
+## Other agents (for the navigator's courtesy), in sorted id order.
+func neighbors_of(agent: Node3D) -> Array:
+	var out := []
+	for id in agent_ids():
+		var o := _agents[id] as Node3D
+		if o != agent:
+			out.append(o)
+	return out
+
+## Largest local-position error any navigator logged (m).
+func max_local_error() -> float:
+	var m := 0.0
+	for id in _agents:
+		m = maxf(m, (_agents[id] as NpcAgent).executor.navigator.max_error)
+	return m
 
 # ---- registries -----------------------------------------------------------------------------------------------------------------------------
 

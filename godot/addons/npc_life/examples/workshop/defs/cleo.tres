@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="1_m10qc"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="2_kveik"]
+
+[resource]
+script = ExtResource("1_m10qc")
+agent_id = &"Cleo"
+display_name = "Cleo"
+preferences = Dictionary[StringName, float]({
+&"lamp": 0.9,
+&"mend": 0.2
+})
+needs = Dictionary[StringName, float]({
+&"focus": 3.0
+})
+temperature_scale = 0.9

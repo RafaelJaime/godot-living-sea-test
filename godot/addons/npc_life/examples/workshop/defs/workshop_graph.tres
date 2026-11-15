@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="NpcWaypointGraph" format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/nav/npc_waypoint_graph.gd" id="1_m1esu"]
+
+[resource]
+script = ExtResource("1_m1esu")
+positions = PackedVector3Array(-5, 0, 0, -1.5, 0, 0, 2, 0, 0, 5, 0, 0, -1.5, 0, 3, -1.5, 0, -3)
+node_tags = Array[StringName]([&"dock", &"hub", &"mid", &"workbench", &"lamp", &"net"])
+edges = PackedInt32Array(0, 1, 1, 2, 2, 3, 1, 4, 1, 5)
+edge_types = Array[StringName]([&"walk", &"walk", &"walk", &"stairs", &"walk"])
+edge_cost_mul = PackedFloat32Array(1, 1, 1, 1, 1)
+edge_oneway = PackedByteArray(0, 0, 0, 0, 0)

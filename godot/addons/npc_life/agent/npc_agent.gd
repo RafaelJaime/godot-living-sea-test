@@ -4,9 +4,14 @@ extends Node3D
 ## executor that perform the job. Decision precedence: (1) emergency / all-hands overrides, (2) roster must-staff jobs, (3) commitment,
 ## (4) softmax over utility scores, (5) ambient fallback. Spatial state lives in the local space of the world's platform root.
 ##
-## Until the executor exists, a claimed job is "performed" by a work timer drawn from the action's duration range (stream `work`).
+## A claimed job is performed by the NpcJobExecutor (MOVE, ALIGN, WORK, LEAVE) per frame; WORK lasts a duration drawn from the action's
+## range with the agent's `work` stream.
+
+signal phase_changed(phase: StringName)
 
 @export var def: NpcCharacterDef
+## Optional explicit world; otherwise the agent finds the NpcWorld among its ancestors, or the only world in the scene (group `npc_world`).
+@export var world_path: NodePath
 
 var agent_id: StringName
 var tags := PackedStringArray()
@@ -17,15 +22,39 @@ var idle_max_s := 0.0
 
 var _job: NpcJob
 var _station: NpcStation
+var executor: NpcJobExecutor
 var _committed_until := 0.0
-var _work_left := 0.0
 var _last_done: Dictionary = {} # kind -> logical time
 var _last_station_id: StringName = &""
 var _ambient_serial := 0
 var _ending := false
 
+func _enter_tree() -> void:
+	add_to_group(&"npc_agent")
+	if world == null:
+		var w := _find_world()
+		if w != null:
+			w.adopt_agent(self)
+
+func _find_world() -> NpcWorld:
+	if not world_path.is_empty():
+		return get_node_or_null(world_path) as NpcWorld
+	var n := get_parent()
+	while n != null:
+		if n is NpcWorld:
+			return n
+		n = n.get_parent()
+	for w in get_tree().get_nodes_in_group(&"npc_world"):
+		return w as NpcWorld
+	return null
+
 func bind_world(w: NpcWorld) -> void:
+	if world == w:
+		return
 	world = w
+	executor = NpcJobExecutor.new(self)
+	executor.phase_changed.connect(func(p: StringName) -> void: phase_changed.emit(p))
+	executor.navigator.edge_entered.connect(func(t: StringName, _i: int) -> void: world.on_edge_entered(self, t))
 	if def:
 		agent_id = def.agent_id
 		tags = def.all_tags()
@@ -51,17 +80,25 @@ func skill_for(key: StringName) -> float:
 
 # ---- per-tick ------------------------------------------------------------------------------------------------------------------------------
 
-## Advances needs, idle accounting and the work timer by one logical tick.
+## Advances needs and idle accounting by one logical tick.
 func tick(dt: float) -> void:
 	if needs:
 		needs.advance(dt)
 	if _job == null:
 		idle_s += dt
 		idle_max_s = maxf(idle_max_s, idle_s)
-		return
-	_work_left -= dt
-	if _work_left <= 0.0:
-		complete_job(&"done")
+
+## Per-frame update: moves and works through the executor.
+func frame_update(delta: float) -> void:
+	if _job != null and executor != null:
+		executor.update(delta)
+
+func phase() -> StringName:
+	return executor.phase if executor else &""
+
+## Drops the current job as `aborted` (claims released).
+func abort_job() -> void:
+	end_job(&"aborted")
 
 ## True when this agent should run a decision now (the world applies the per-frame budget).
 func needs_decision(w: NpcWorld) -> bool:
@@ -151,6 +188,8 @@ func _score(w: NpcWorld, j: NpcJob, now: float) -> float:
 
 func _take(j: NpcJob, reason: StringName, now: float, top: Array, temp := 0.0, draw := 0) -> bool:
 	var st := _station_for(j)
+	if st != null and not world.reachable_from(self, st):
+		return false # unreachable on the waypoint graph: not eligible, the caller picks another
 	if st != null and st.claim(self, -1, tags) < 0:
 		return false
 	if not world.board.claim(j.id, agent_id, tags):
@@ -182,10 +221,11 @@ func _begin(j: NpcJob, st: NpcStation, reason: StringName, now: float, top: Arra
 		var kd: NpcJobKindDef = world.kind_defs.get(j.kind)
 		act = kd.default_action as NpcActionDef if kd else null
 	var dr := act.duration_range if act else Vector2(6.0, 14.0)
-	_work_left = world.rng_for(agent_id, &"work").randf_range(dr.x, maxf(dr.y, dr.x))
+	var work_s := world.rng_for(agent_id, &"work").randf_range(dr.x, maxf(dr.y, dr.x))
 	idle_max_s = maxf(idle_max_s, idle_s)
 	var idle_before := idle_s
 	idle_s = 0.0
+	executor.start(j, st, work_s, act)
 	world.on_agent_decided(self, j, reason, top, temp, draw, idle_before)
 
 # ---- ending --------------------------------------------------------------------------------------------------------------------------------
@@ -208,6 +248,7 @@ func end_job(result: StringName) -> void:
 		return
 	var j := _job
 	_ending = true
+	executor.reset()
 	if _station:
 		_station.release(self)
 		_station = null
@@ -221,6 +262,7 @@ func on_job_removed(reason: StringName) -> void:
 	if _job == null:
 		return
 	var j := _job
+	executor.reset()
 	if _station:
 		_station.release(self)
 		_station = null
@@ -228,5 +270,6 @@ func on_job_removed(reason: StringName) -> void:
 	world.on_job_finished(self, j, &"expired" if reason == &"expired" else &"aborted")
 
 func _exit_tree() -> void:
-	if world and _job:
-		end_job(&"aborted")
+	if world:
+		world._release_agent(self)
+		world = null

@@ -1,0 +1,102 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/workshop.gd" id="1_cogx3"]
+[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/raft_motion.gd" id="2_lhsv2"]
+[ext_resource type="Script" path="res://addons/npc_life/core/npc_world.gd" id="3_x1kdi"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/workshop_graph.tres" id="4_basce"]
+[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/workshop_sources.gd" id="5_8jhtr"]
+[ext_resource type="Script" path="res://addons/npc_life/stations/npc_station.gd" id="6_v53jr"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_agent.gd" id="7_8576l"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/ana.tres" id="8_rdf6y"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/bruno.tres" id="9_q3keo"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/cleo.tres" id="10_xm2hj"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_e5bfy"]
+size = Vector3(14, 0.2, 8)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_dsm7f"]
+radius = 0.25
+height = 1.7
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_phmvl"]
+radius = 0.25
+height = 1.7
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_j11dl"]
+radius = 0.25
+height = 1.7
+
+[node name="Workshop" type="Node3D" unique_id=68502116]
+script = ExtResource("1_cogx3")
+
+[node name="Raft" type="Node3D" parent="." unique_id=1054145277]
+script = ExtResource("2_lhsv2")
+
+[node name="Deck" type="MeshInstance3D" parent="Raft" unique_id=781727373]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11, 0)
+mesh = SubResource("BoxMesh_e5bfy")
+
+[node name="NpcWorld" type="Node" parent="Raft" unique_id=1672522091 node_paths=PackedStringArray("platform_root")]
+script = ExtResource("3_x1kdi")
+platform_root = NodePath("..")
+graph = ExtResource("4_basce")
+
+[node name="Source" type="Node" parent="Raft/NpcWorld" unique_id=944730566]
+script = ExtResource("5_8jhtr")
+source_id = &"workshop"
+
+[node name="Workbench" type="Node3D" parent="Raft" unique_id=3471332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 0, 0)
+script = ExtResource("6_v53jr")
+station_id = &"workbench"
+kind = &"workbench"
+approach_offset = Vector3(0, 0, 0)
+facing_deg = 90.0
+
+[node name="LampPost" type="Node3D" parent="Raft" unique_id=443001827]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.3, 3.5)
+script = ExtResource("6_v53jr")
+station_id = &"lamp_post"
+kind = &"lamp"
+approach_offset = Vector3(0, 0, 0)
+facing_deg = 180.0
+
+[node name="NetRack" type="Node3D" parent="Raft" unique_id=1172200869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, -3.5)
+script = ExtResource("6_v53jr")
+station_id = &"net_rack"
+kind = &"net"
+approach_offset = Vector3(0, 0, 0)
+
+[node name="Ana" type="Node3D" parent="Raft" unique_id=713364600]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 0.4)
+script = ExtResource("7_8576l")
+def = ExtResource("8_rdf6y")
+
+[node name="Puppet" type="MeshInstance3D" parent="Raft/Ana" unique_id=1136229853]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("CapsuleMesh_dsm7f")
+
+[node name="Bruno" type="Node3D" parent="Raft" unique_id=1647739285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -0.4)
+script = ExtResource("7_8576l")
+def = ExtResource("9_q3keo")
+
+[node name="Puppet" type="MeshInstance3D" parent="Raft/Bruno" unique_id=1515577548]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("CapsuleMesh_phmvl")
+
+[node name="Cleo" type="Node3D" parent="Raft" unique_id=70348348]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 0, 0)
+script = ExtResource("7_8576l")
+def = ExtResource("10_xm2hj")
+
+[node name="Puppet" type="MeshInstance3D" parent="Raft/Cleo" unique_id=2127801928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("CapsuleMesh_j11dl")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=361750034]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 14)
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=393126003]
+transform = Transform3D(0.8660254, -0.38302222, 0.32139382, 0, 0.64278764, 0.76604444, -0.5, -0.66341394, 0.5566704, 0, 0, 0)

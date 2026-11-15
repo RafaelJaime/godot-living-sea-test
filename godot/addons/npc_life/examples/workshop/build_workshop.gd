@@ -1,0 +1,113 @@
+extends SceneTree
+## Builds the example resources and scene (run once, the outputs are committed):
+##   godot --headless --path <project> -s addons/npc_life/examples/workshop/build_workshop.gd
+const DIR := "res://addons/npc_life/examples/workshop/"
+
+func _initialize() -> void:
+	var g := NpcWaypointGraph.new()
+	var dock := g.add_node(Vector3(-5, 0, 0), &"dock")
+	var hub := g.add_node(Vector3(-1.5, 0, 0), &"hub")
+	var mid := g.add_node(Vector3(2, 0, 0), &"mid")
+	var bench := g.add_node(Vector3(5, 0, 0), &"workbench")
+	var lamp := g.add_node(Vector3(-1.5, 0, 3), &"lamp")
+	var net := g.add_node(Vector3(-1.5, 0, -3), &"net")
+	g.connect_nodes(dock, hub, &"walk")
+	g.connect_nodes(hub, mid, &"walk")
+	g.connect_nodes(mid, bench, &"walk")
+	g.connect_nodes(hub, lamp, &"stairs") # a step up to the lamp: shows a non-walk edge type
+	g.connect_nodes(hub, net, &"walk")
+	ResourceSaver.save(g, DIR + "defs/workshop_graph.tres")
+	for k in [["craft", 0.2, &"focus", &"crafted"], ["mend", 0.15, &"focus", &"mended"], ["lamp", 0.3, &"", &"lit"]]:
+		var act := NpcActionDef.new()
+		act.action_id = StringName(k[0])
+		act.job_kinds = PackedStringArray([k[0]])
+		act.effect = k[3]
+		act.duration_range = Vector2(6.0, 10.0)
+		var kd := NpcJobKindDef.new()
+		kd.default_action = act
+		kd.kind = StringName(k[0])
+		kd.base_score = k[1]
+		kd.satisfies = k[2]
+		kd.satisfy_amount = 0.4
+		ResourceSaver.save(kd, DIR + "defs/kind_%s.tres" % k[0])
+	var defs := [
+		["Ana", "Ana", {&"craft": 0.9, &"mend": -0.2}, 0.8],
+		["Bruno", "Bruno", {&"mend": 0.9, &"craft": -0.1}, 1.1],
+		["Cleo", "Cleo", {&"lamp": 0.9, &"mend": 0.2}, 0.9],
+	]
+	for d in defs:
+		var def := NpcCharacterDef.new()
+		def.agent_id = StringName(d[0])
+		def.display_name = d[1]
+		for k in d[2]:
+			def.preferences[k] = d[2][k]
+		def.needs[&"focus"] = 3.0
+		def.temperature_scale = d[3]
+		ResourceSaver.save(def, DIR + "defs/%s.tres" % String(d[0]).to_lower())
+	# scene
+	var root := Node3D.new()
+	root.name = "Workshop"
+	root.set_script(load(DIR + "workshop.gd"))
+	var raft := Node3D.new()
+	raft.name = "Raft"
+	raft.set_script(load(DIR + "raft_motion.gd"))
+	root.add_child(raft)
+	var deck := MeshInstance3D.new()
+	deck.name = "Deck"
+	var box := BoxMesh.new()
+	box.size = Vector3(14, 0.2, 8)
+	deck.mesh = box
+	deck.position.y = -0.11
+	raft.add_child(deck)
+	var world := NpcWorld.new()
+	world.name = "NpcWorld"
+	world.platform_root = raft
+	world.graph = load(DIR + "defs/workshop_graph.tres")
+	raft.add_child(world)
+	var src := (load(DIR + "workshop_sources.gd") as GDScript).new() as NpcJobSource
+	src.name = "Source"
+	src.source_id = &"workshop"
+	world.add_child(src)
+	for st in [["workbench", &"workbench", Vector3(5.5, 0, 0), 90.0], ["lamp_post", &"lamp", Vector3(-1.5, 0.3, 3.5), 180.0], ["net_rack", &"net", Vector3(-1.5, 0, -3.5), 0.0]]:
+		var s := NpcStation.new()
+		s.name = String(st[0]).capitalize().replace(" ", "")
+		s.station_id = StringName(st[0])
+		s.kind = st[1]
+		s.position = st[2]
+		s.facing_deg = st[3]
+		s.approach_offset = Vector3(0, 0, 0)
+		raft.add_child(s)
+	var starts := [Vector3(-5, 0, 0.4), Vector3(-5, 0, -0.4), Vector3(-4.2, 0, 0)]
+	for i in 3:
+		var a := NpcAgent.new()
+		a.name = String(defs[i][0])
+		a.def = load(DIR + "defs/%s.tres" % String(defs[i][0]).to_lower())
+		a.position = starts[i]
+		raft.add_child(a)
+		var cap := MeshInstance3D.new()
+		cap.name = "Puppet"
+		var cm := CapsuleMesh.new()
+		cm.radius = 0.25
+		cm.height = 1.7
+		cap.mesh = cm
+		cap.position.y = 0.85
+		a.add_child(cap)
+	var cam := Camera3D.new()
+	cam.name = "Camera"
+	cam.position = Vector3(0, 12, 14)
+	root.add_child(cam)
+	var sun := DirectionalLight3D.new()
+	sun.name = "Sun"
+	sun.rotation_degrees = Vector3(-50, 30, 0)
+	root.add_child(sun)
+	_own(root, root)
+	var ps := PackedScene.new()
+	ps.pack(root)
+	ResourceSaver.save(ps, DIR + "workshop.tscn")
+	print("[build_workshop] saved ", DIR)
+	quit(0)
+
+func _own(n: Node, owner_node: Node) -> void:
+	for c in n.get_children():
+		c.owner = owner_node
+		_own(c, owner_node)

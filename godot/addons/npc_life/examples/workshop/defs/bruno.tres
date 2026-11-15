@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="1_1kbbv"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="2_7m0f5"]
+
+[resource]
+script = ExtResource("1_1kbbv")
+agent_id = &"Bruno"
+display_name = "Bruno"
+preferences = Dictionary[StringName, float]({
+&"craft": -0.1,
+&"mend": 0.9
+})
+needs = Dictionary[StringName, float]({
+&"focus": 3.0
+})
+temperature_scale = 1.1

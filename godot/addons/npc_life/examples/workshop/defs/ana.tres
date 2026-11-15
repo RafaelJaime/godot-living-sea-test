@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="1_7nicf"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="2_fkixa"]
+
+[resource]
+script = ExtResource("1_7nicf")
+agent_id = &"Ana"
+display_name = "Ana"
+preferences = Dictionary[StringName, float]({
+&"craft": 0.9,
+&"mend": -0.2
+})
+needs = Dictionary[StringName, float]({
+&"focus": 3.0
+})
+temperature_scale = 0.8

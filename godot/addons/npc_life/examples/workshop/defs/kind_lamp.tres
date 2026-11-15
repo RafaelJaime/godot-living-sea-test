@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="NpcJobKindDef" format=3]
+
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="1_14owo"]
+[ext_resource type="Script" path="res://addons/npc_life/jobs/npc_job_kind_def.gd" id="2_j0wmt"]
+
+[sub_resource type="Resource" id="Resource_xlbsv"]
+script = ExtResource("1_14owo")
+action_id = &"lamp"
+job_kinds = PackedStringArray("lamp")
+duration_range = Vector2(6, 10)
+effect = &"lit"
+
+[resource]
+script = ExtResource("2_j0wmt")
+kind = &"lamp"
+base_score = 0.3
+satisfy_amount = 0.4
+default_action = SubResource("Resource_xlbsv")

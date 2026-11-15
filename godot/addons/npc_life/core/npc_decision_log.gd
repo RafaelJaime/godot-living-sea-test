@@ -37,6 +37,11 @@ func log_decision(tick: int, agent_id: StringName, job: NpcJob, reason: StringNa
 		parts.append("%s %.2f" % [(row["job"] as NpcJob).kind, float(row["score"])])
 	_write("[npc] T=%06d agent=%s pick=%s reason=%s top=[%s] temp=%.2f draw=%d" % [tick, agent_id, job.id, reason, ", ".join(parts), temperature, draw])
 
+## Edge type entered while walking (logged per traversal, in order).
+func log_edge(tick: int, agent_id: StringName, edge_type: StringName) -> void:
+	if enabled:
+		_write("[npc] T=%06d agent=%s edge=%s" % [tick, agent_id, edge_type])
+
 func write_line(line: String) -> void:
 	if enabled:
 		_write(line)
