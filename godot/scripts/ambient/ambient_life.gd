@@ -406,8 +406,8 @@ const DOLPHIN_GLB := "res://assets/ambient/dolphin/dolphin.glb"
 const DOLPHIN_SCALE := 0.8
 const POD_MAX := 5
 const FLOTSAM_BASE := 16
-## Pods only pace the bow above this ship speed (m/s); `--dolphin-min-speed=<m/s>` overrides it for tests.
-var dolphin_min_speed := 3.0
+## Pods only pace the bow above this ship speed (m/s; 1.5 so slow ships get company too); `--dolphin-min-speed=<m/s>` overrides it for tests.
+var dolphin_min_speed := 1.5
 
 func _build_dolphins() -> void:
 	var packed := load(DOLPHIN_GLB) as PackedScene
