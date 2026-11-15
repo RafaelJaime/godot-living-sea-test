@@ -150,6 +150,10 @@ B (ridge slope by central differences, gain `wake_ridge_gain`); both gains defau
 stern turbulence and arm origins follow the track. Test aids: `--wake-log`, `--wake-far=<m>`, `--wake-test-speed=<k>`, `--wake-turb=<g>`, `--wake-ridge=<g>`, `--water-debug=3..6` (channel views).
 The old ribbon wake (`wake_ribbon.gd`) is gone.
 
+### Lashed boat hooks (M5)
+`LashedBoat.state()` -> `{offset_m, tilt_deg, lashing_load_n, in_cradle, left_cradle}` (read-only). The lashing spring force and torque now also act on the ship with opposite sign
+(dynamic part only); test aids `--log-boat` (prints play, tilt and load every 10 s) and `--no-lash-load` (ship ignores the boat, for A/B). Changelog (M5): reaction on the ship added; the rope sag (M5.5) is not implemented.
+
 ### Ocean shader layout (godot/shaders/ocean/)
 `ocean_fft.gdshader` is a shell: header, four includes and `fragment()`. Owners: `common.gdshaderinc` = all (defines, uniforms, varyings, island_distance);
 `surface.gdshaderinc` = M2a/M2b (vertex displacement, bicubic normal sampling); `foam.gdshaderinc` = M2b/M1.9 (`hull_foam_term` heel-aware via `hull_inv`

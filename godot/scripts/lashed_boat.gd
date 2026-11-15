@@ -91,6 +91,13 @@ var max_play := 0.0
 var max_tilt := 0.0
 var _log_t := 0.0
 var _log := OS.get_cmdline_user_args().has('--log-boat')
+var _apply_load := not OS.get_cmdline_user_args().has('--no-lash-load') ## test aid: --no-lash-load leaves the ship unaffected by the boat (A/B)
+var _load_n := 0.0       ## |lashing force| of the last step (N)
+var _offset_m := 0.0
+var _tilt_rad := 0.0
+var _peak_load := 0.0
+var _in_cradle := true
+var _left_cradle := false
 func _physics_process(_delta: float) -> void:
 	if _body == null or _ship.freeze:
 		if _body and _ship.freeze:
@@ -109,6 +116,7 @@ func _physics_process(_delta: float) -> void:
 	if over > 0.0:
 		f += err.normalized() * over * kp * 6.0 # hard travel limit
 	_body.apply_central_force(f + Vector3(0.0, m * 9.81, 0.0)) # weight is carried by the cradle: the spring only handles deviations
+	var ship_torque := Vector3.ZERO
 	# --- orientation spring ---
 	var q_err := (target.basis.get_rotation_quaternion() * _body.global_transform.basis.get_rotation_quaternion().inverse()).normalized()
 	if q_err.w < 0.0:
@@ -118,7 +126,20 @@ func _physics_process(_delta: float) -> void:
 	var kr := i_avg * pow(TAU * rot_freq, 2.0)
 	var cr := 2.0 * rot_zeta * sqrt(kr * i_avg)
 	var rel_w := _body.angular_velocity - _ship.angular_velocity
-	_body.apply_torque(axis_angle * kr - rel_w * cr)
+	var boat_torque := axis_angle * kr - rel_w * cr
+	_body.apply_torque(boat_torque)
+	# Newton's third law: the lashings push back on the ship with the same force (at the boat's position) and torque. Only the
+	# dynamic part is returned: the boat's weight stays inside the ship's own mass.
+	_load_n = f.length()
+	_offset_m = err.length()
+	_tilt_rad = axis_angle.length()
+	_peak_load = maxf(_peak_load, _load_n)
+	_in_cradle = err.length() < max_travel * 0.98
+	if _age > 12.0 and not _in_cradle:
+		_left_cradle = true
+	if _apply_load:
+		_ship.apply_force(-f, _body.global_position - _ship.global_position)
+		_ship.apply_torque(-boat_torque)
 	_age += _delta
 	if _age > 12.0: # ignore the start-up settling
 		max_play = maxf(max_play, err.length())
@@ -126,7 +147,7 @@ func _physics_process(_delta: float) -> void:
 	_log_t += _delta
 	if _log and _log_t > 10.0:
 		_log_t = 0.0
-		print('[boat] max play so far ', snappedf(max_play * 100.0, 0.1), ' cm, max tilt ', snappedf(rad_to_deg(max_tilt), 0.1), ' deg')
+		print('[boat] max play so far ', snappedf(max_play * 100.0, 0.1), ' cm, max tilt ', snappedf(rad_to_deg(max_tilt), 0.1), ' deg, load now ', snappedf(_load_n, 1.0), ' N (peak ', snappedf(_peak_load, 1.0), ' N), applied to ship: ', _apply_load, ', left cradle: ', _left_cradle)
 
 func _process(_delta: float) -> void:
 	if _body == null:
@@ -147,3 +168,8 @@ func _process(_delta: float) -> void:
 		var x := y.cross(Vector3.UP if absf(y.dot(Vector3.UP)) < 0.95 else Vector3.RIGHT).normalized()
 		var z := x.cross(y)
 		r.global_transform = Transform3D(Basis(x, y * l, z), (a + b) * 0.5)
+
+## Read-only state for gameplay/NPC code: offset from the rest pose (m), tilt (deg), current lashing load (N), whether the boat is inside its
+## cradle travel (it never leaves: spring plus hard limit; `left_cradle` latches if it ever does after the start-up settling).
+func state() -> Dictionary:
+	return {"offset_m": _offset_m, "tilt_deg": rad_to_deg(_tilt_rad), "lashing_load_n": _load_n, "in_cradle": _in_cradle, "left_cradle": _left_cradle}
