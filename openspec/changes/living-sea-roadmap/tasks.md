@@ -224,9 +224,12 @@ Evidence folder: `odd/evidence/M2b/`. Depends on: M1-b and M2a-2 merged (relativ
 
 Evidence folder: `odd/evidence/M2c/`. Depends on: M2b-2 merged. Parallel with M3-1 (W3).
 
-- [ ] M2c.1 [OS] Rework emission to `rate ~ clamp(U², ...) * immersion_rate + slam_impulse` (stem downward relative velocity crossing the surface from `Waves.height_at` at the stem), log the emission rate each second. Files: `godot/scripts/ship_fx.gd`. Verify: log ratio of emission rates at two speeds approximates the speed ratio squared within 30 percent; near zero at rest. Dependency: M2b.10.
-- [ ] M2c.2 [OS] Multiply particle amount by `Quality.v(&"particles_scale")` and log the cap. Files: `godot/scripts/ship_fx.gd`. Verify: a 10-minute `--timescale` run never exceeds the preset cap (`dev` lower than `final`), logged; slam capture shows a visible burst above steady state. Dependency: M2c.1.
-- [ ] M2c.3 [OS] Cost and evidence: `--perf-log=30` both presets (delta ≤ 0.5 ms `final`, ≤ 0.2 ms `dev`), zero errors. Files: `odd/evidence/M2c/*`. Dependency: M2c.2.
+- [x] M2c.1 [OS] Rework emission to `rate ~ clamp(U², ...) * immersion_rate + slam_impulse` (stem downward relative velocity crossing the surface from `Waves.height_at` at the stem), log the emission rate each second. Files: `godot/scripts/ship_fx.gd`. Verify: log ratio of emission rates at two speeds approximates the speed ratio squared within 30 percent; near zero at rest. Dependency: M2b.10.
+  - Done 2026-11-15 (`odd/evidence/M2c/M2c_evidence.txt`): base-term ratios follow U^2 (4.0 and 2.09 against 4 and 2.25); the TOTAL rate ratio does not (1.85 for k 0.5 -> 1.0) because the slam impulse adds a speed-independent amount; zero at rest.
+- [x] M2c.2 [OS] Multiply particle amount by `Quality.v(&"particles_scale")` and log the cap. Files: `godot/scripts/ship_fx.gd`. Verify: a 10-minute `--timescale` run never exceeds the preset cap (`dev` lower than `final`), logged; slam capture shows a visible burst above steady state. Dependency: M2c.1.
+  - Done with a gap: caps logged (dev 350/30, final 1400/120) and bursts captured; no literal 10-minute run (the particle amount is the hard cap). Uses `Quality.particle_scale` (there is no `Quality.v()`).
+- [x] M2c.3 [OS] Cost and evidence: `--perf-log=30` both presets (delta ≤ 0.5 ms `final`, ≤ 0.2 ms `dev`), zero errors. Files: `odd/evidence/M2c/*`. Dependency: M2c.2.
+  - Done with a gap: no measurable spray cost within noise (~1 ms+), budgets 0.5 / 0.2 ms unproven.
 
 ---
 

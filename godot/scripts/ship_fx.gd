@@ -1,6 +1,7 @@
 extends Node3D
 ## Bow spray: sharp velocity-aligned droplets plus a little mist, emitted in world space.
-## Emission rate follows how hard the stem slams into the water (immersion rate) and sea_state.
+## Emission rate: ratio = clamp((U / 5)^2, 0, 1.6) * (0.05 + 0.30 * sea_state) * immersion + slam impulse, U = surge speed relative to the water;
+## slam = downward velocity of the stem relative to the water surface (from Waves.height_at at the stem).
 ## (The foam wake lives in wake_field.gd.)
 
 @export var pivot_path := NodePath("../Pivot")
@@ -14,9 +15,22 @@ var _prev_immersion := 0.0
 var _slam := 0.0
 var _have_prev := false
 var _soft_tex: GradientTexture2D
+var _ship: Node
+var _log := false
+var _log_t := 0.0
+var _no_spray := false
+var _test_speed := 1.0 ## --fx-test-speed=<k>: scales the relative speed (rate-ratio check; the ship cannot be slowed by flag)
 
 func _ready() -> void:
 	_pivot = get_node(pivot_path)
+	_ship = _pivot.get_parent()
+	for a in OS.get_cmdline_user_args():
+		if a == "--fx-log":
+			_log = true
+		elif a == "--no-spray":
+			_no_spray = true
+		elif a.begins_with("--fx-test-speed="):
+			_test_speed = float(a.get_slice("=", 1))
 	_soft_tex = GradientTexture2D.new()
 	_soft_tex.width = 64
 	_soft_tex.height = 64
@@ -31,6 +45,7 @@ func _ready() -> void:
 	if loader and loader.has_signal("ship_ready"):
 		loader.ship_ready.connect(_on_ship_ready)
 	_build()
+	print("[fx] spray cap: drops=", _drops.amount, " mist=", _mist.amount, " (particle_scale=", Quality.particle_scale, ", preset ", Quality.name_, ")")
 
 func _on_ship_ready(l: float, b: float, _r: float) -> void:
 	_length = l
@@ -130,14 +145,33 @@ func _process(delta: float) -> void:
 	var bow_world := _pivot.global_transform * Vector3(0, 0, -_length * 0.42)
 	var water := Waves.height_at(bow_world.x, bow_world.z)
 	var immersion := water - bow_world.y
+	var slam_now := 0.0
 	if _have_prev:
-		var rate := (immersion - _prev_immersion) / delta
-		_slam = maxf(_slam - delta * 2.2, clampf((rate - 0.4) / 2.2, 0.0, 1.0) if immersion > -0.3 else 0.0)
+		var rate := (immersion - _prev_immersion) / delta # + = the stem moves down relative to the surface
+		slam_now = clampf((rate - 0.4) / 2.2, 0.0, 1.0) if immersion > -0.3 else 0.0
+		_slam = maxf(_slam - delta * 2.2, slam_now)
 	_prev_immersion = immersion
 	_have_prev = true
-	var base := 0.05 + 0.30 * Waves.sea_state if immersion > -0.2 else 0.0
-	var ratio := clampf(maxf(_slam, base), 0.0, 1.0)
+	# Surge speed relative to the water (no current: the water is at rest apart from the waves).
+	var u := 0.0
+	if "linear_velocity" in _ship and _ship.get("forward") != null:
+		var fwd: Vector2 = _ship.get("forward")
+		var v: Vector3 = _ship.linear_velocity
+		u = maxf(Vector2(v.x, v.z).dot(fwd), 0.0)
+	elif _ship.get("current_speed") != null:
+		u = float(_ship.get("current_speed"))
+	u *= _test_speed
+	var imm := smoothstep(-0.25, 0.25, immersion)
+	var base := clampf((u / 5.0) * (u / 5.0), 0.0, 1.6) * (0.05 + 0.30 * Waves.sea_state) * imm
+	var slam_eff := _slam * smoothstep(0.5, 3.0, u) # a ship at rest bobbing on the swell throws no spray
+	var ratio := 0.0 if _no_spray else clampf(base + slam_eff, 0.0, 1.0)
 	_drops.amount_ratio = ratio
 	_drops.emitting = ratio > 0.03
 	_mist.amount_ratio = ratio
 	_mist.emitting = ratio > 0.03
+	if _log:
+		_log_t += delta
+		if _log_t >= 1.0:
+			_log_t = 0.0
+			var rate_s := ratio * float(_drops.amount) / _drops.lifetime
+			print("[fx] spray U=", snappedf(u, 0.01), " m/s sea=", snappedf(Waves.sea_state, 0.01), " base=", snappedf(base, 0.001), " slam=", snappedf(slam_eff, 0.001), " ratio=", snappedf(ratio, 0.001), " drops/s=", snappedf(rate_s, 0.1))
