@@ -65,12 +65,16 @@ flat, sails/flag are rigid, and the ship model is lower quality than the charact
       AnimationLibrary across same-rig characters if retarget works, else per character). Helmsman and
       violinist react (turn head toward visitor). Depends on final ship choice (door/stairs). — delegated
 - [x] T3 note: flag cloth physics confirmed in scope (user asked 2026-11-14). — done in the `feat(ship)` commit
-- [ ] T8 Physics-driven ship (user 2026-11-14: realism instead of scripted roll): RigidBody3D with per-sample
+- [x] T8 Physics-driven ship (user 2026-11-14: realism instead of scripted roll): RigidBody3D with per-sample
       hydrostatic buoyancy on the FFT surface, keel-effect drag, sail aerodynamic forces (thrust + heel from apparent
       wind at each sail's centre of effort), rudder hydrodynamic lift, yards braced to the wind, sails luff/back;
       stable for hours, never capsizes, keel hidden except extreme storm moments. — delegated
-- [ ] T8b Realistic ship's boat: lashed to the deck with ropes, slight physical play (spring/rope constraints),
+      Done (2026-11-15, M0.3 sync): RigidBody3D + per-sample buoyancy (buoyancy.gd), sail forces 4593c47, calibration 66761de, keel 7abc4a1,
+      settled start/reefing c73b543; evidence odd/evidence/M1/, odd/evidence/M5/ (optional M5.7 dynamic draft not done).
+- [x] T8b Realistic ship's boat: lashed to the deck with ropes, slight physical play (spring/rope constraints),
       never falls off. — delegated
+      Done (2026-11-15, M0.3 sync): boat split + spring lashing 2df831a, stiffer lashing within 5 cm at sea 0.9 52f296f, reaction on ship 7d96b05,
+      LashedBoat.state(); evidence odd/evidence/boat/, odd/evidence/M5/.
 - [x] T9 Flags: stern flag pinned to the real (bone-posed) staff; second Pirat flag at the main masthead. — delegated (re-done on XPBD in R4, 2026-11-14)
 - [x] T9b Unified wind: one WindField (travelling gusts) + identical cloth aerodynamics for sails AND flags
       (apparent wind per point incl. ship/mast motion); sail forces on the ship come from the same cloth pressure,
@@ -104,10 +108,13 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       subsurface scattering through wave crests (sun behind waves glows teal), depth/absorption colour,
       calibrated sun glitter, realistic foam (patchy whitecaps from accumulated Jacobian with decay, lacy
       textured foam, no artificial white lines), turquoise shallows like ref_3s. Check vs ref_3s/ref_12s.
+      M0.3 sync: merged a8945db (SSR/sky radiance), 509f3ad (horizon blend), mip chain 2ad1fc1, evidence odd/evidence/M2a/; open: M2a.7 crest SSS, M2a.10, M2d caustics.
 - [ ] R3 Wake & spray realism: wake from the same foam accumulation (Kelvin wake ~19.5° arms, turbulent
       centre), bow wave and spray tied to hull/water relative speed; no ribbon artifacts. Check vs ref_12s.
       Progress 2026-11-15: wake field hardened and ribbon removed (M2b.1-M2b.10: 64-bit origin, fixed 30 Hz, footprint, Froude/heel stamps,
       G/B channels, gains 1.0). Open: spray rework (M2c), bow-wave-only capture, total M2b cost vs pre-M2b.
+      M0.3 sync: spray rework DONE (M2c: 3932b5d, captures c09b1ca, odd/evidence/M2c/); M2b cost evidence in odd/evidence/M2b/; still open: bow-wave-only capture
+      (the M2b6/M2b7 evidence notes the camera never isolates the bow wave).
 - [x] R4 Cloth realism (sails + flags, one WindField): flags tied at the 2 hoist corners only, correct mass
       and gravity (hang fully in calm, droop in light wind, stream in strong wind), drag/lift aero, enough
       substeps; sails as the same cloth pinned to yards with sheets; forces feed T8 propulsion. Check: calm /
@@ -116,14 +123,16 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       time of day and weather, auto-exposure, SSAO/SSIL where affordable, crisp ship shadows, storm darkness
       and rain like ref_15s/ref_18s.
 - [ ] R6 Physics ship (T8/T8b) and crew physics (T10) as already specified.
+      Progress (M0.3 sync): ship half done and on main (T8, T8b ticked above); open: T10 crew physics only.
 - [x] R8 Ambient life (done on feat/sky-ambient: gull/albatross boids, bow dolphins, whale spouts, horizon ships with lanterns, lighthouse beams, flotsam/seaweed; biolum hook = WorldState.biolum / global sky_biolum; wet deck and cat's paws NOT done (ship/ocean side). Final preset 1080p: 13.3 ms with everything on, ambient cost within noise): gull/albatross boids, dolphins at the bow, distant whale spouts, passing
       ships on the horizon (lights at night), lighthouse with rotating beam on islands, night bioluminescence in the
       wake, visible wind gusts on the water (cat's paws), flotsam/seaweed, wet deck in rain, rainbow after storms,
       morning fog. See odd/research/realism-techniques.md.
-- [ ] R9 Ship night lighting, NPC-gated: stern/deck lanterns + cabin glow, OFF by default; turned on only when a
+- [x] R9 Ship night lighting, NPC-gated: stern/deck lanterns + cabin glow, OFF by default; turned on only when a
       crew member lights them via the NPC Integration API (ShipLights.get_lanterns/light/extinguish/is_lit,
       signals lighting_needed at dusk / extinguish_suggested at dawn). NPC behaviour belongs to the user's session.
       — delegated (godot-ship, after R0)
+      Done (2026-11-15, M0.3 sync): ShipLights API 818b2da, lamps anchored to the model 219018f; evidence odd/evidence/lights/.
 - [ ] R7 Final QA: 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
       no visual defects checklist (cracks, popping, floating crew, clipping, keel visible).
 
@@ -140,6 +149,26 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
 ## Credits budget (Higgsfield)
 - Spent this feature: re-rig 24 + hull views 1 + hull 3D 30 = 55.
 - Reserve: up to ~60 for hull iterations if the quality gate fails; nothing else planned.
+
+## M0.2 worktree reconciliation (2026-11-15, against main 920278d)
+Unmerged commits per branch (`git log main..<branch>`). Verdict: covered = already on main / nothing to merge, overlapping = touches a roadmap task's files, new = not in the roadmap.
+| Worktree / branch | Unmerged commit | Verdict | Note |
+|---|---|---|---|
+| `ocean` / `feat/m2d-cands` | 6688571 wip(m2d): caustics candidate parameters and captures (branch only) | new (candidate data for M2d.1) | Scope note on M2d.1: reuse these candidates; `feat/m2d` ddb729e is the prototype behind `--caustics`. |
+| `cloth-wind` / `feat/cloth-wind` | none | covered | Fully merged (R4/T9/T9b). |
+| `sky-ambient` / `feat/sky-ambient` | 3378aff wip(sky-ambient): worktree WIP preserved (M0.1) | overlapping | Adds `ambient/ambient_director.gd` and `Quality.ambient_scale`/`Quality.v()` (= M4a.1), plus edits to `shaders/ocean/common.gdshaderinc`, `foam.gdshaderinc`, `ocean_fft.gdshader` (ocean-owned, M2b/M2d files). Scope note on M4a.1 (SA already has a draft) and on the M2b/M2d shader tasks (review those 3 shader hunks with the OS track before merging). |
+| `cloth-jump` / `feat/wind-regimes` | 5783823, 469537a, 4f98b76, d12bdf4 (wind regimes, becalmed drift, limp flags, evidence) | new | Not in the roadmap; needs a user/lead decision before merge. |
+| (no worktree) `feat/m5d` | a5c6174 wip(m5.5): rope slack candidates (branch only) | covered | M5.5 is ticked "rope sag not needed" (1c14c34); keep as reference or prune. |
+
+## M0.7 pruning candidates (2026-11-15) - NOTHING DELETED, awaiting the user's explicit OK
+Question for the user: may these be removed? (`stable` is never touched; recorded OK + exact approved list goes below this line.)
+- Local branches fully merged into main (`git branch --merged main`): debug/lamp-candidates, diag/cloth-jump, feat/boat, feat/cloth-wind, feat/h2, feat/horizon, feat/keel,
+  feat/lights, feat/m1, feat/m1-9, feat/m1-close, feat/m1-close2, feat/m1b, feat/m1c, feat/m1d, feat/m2a1, feat/m2a2, feat/m2a6, feat/m2a67, feat/m2a6b, feat/m2a8, feat/m2b1,
+  feat/m2b6, feat/m2b8, feat/m2b8b, feat/m2c, feat/m2c-caps, feat/m2d, feat/m55-skip, feat/m5a, feat/m5b, feat/m5c, feat/m6, feat/mq, feat/ocean-r0, feat/quality,
+  feat/quality-default, feat/real-lamps, feat/sail-cal, feat/sail-forces, feat/wake, feat/wake-field, feat/water-shading, fix/sails-speckle.
+- Worktrees with a clean tree and a merged branch: `cloth-wind` (feat/cloth-wind), `sails-fix` (fix/sails-speckle), and `camera-islands` (feat/camera-islands) once this track ends.
+- NOT candidates: `stable`; `ocean` (feat/m2d-cands, 1 wip commit); `sky-ambient` (feat/sky-ambient, wip commit + active edits); `cloth-jump` (feat/wind-regimes, 4 unmerged commits); `wind-base` (152 dirty entries); branch feat/m5d (wip, branch only).
+- Approved list: (none recorded yet)
 
 ## Progress / evidence
 - Baseline (before this feature): Gerstner ocean, Canto sun, 4 final crew GLBs placed, jitter fixed.
