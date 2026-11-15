@@ -20,7 +20,7 @@ The following models and textures are own models, released by the author under
 
 - The four crew characters (`godot/assets/characters/`: `papi_fuego`, `papi_diagnostica`, `el_salchipapa`, `don_omar`) and their base animations (`godot/assets/anim_src/walk.glb`, `talk.glb`, `climb_stairs.glb`).
 - `godot/assets/ship/barco.glb` (placeholder ship) and `godot/assets/ship/ship_wheel.glb`.
-- `godot/assets/sky/canto_sun.png` and the other textures and clips authored in this repository.
+- The other textures and clips authored in this repository.
 
 ## Project code
 

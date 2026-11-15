@@ -20,7 +20,7 @@ func _ready() -> void:
 	process_priority = 200 # after camera
 	_sun = get_node(sun_path)
 	if not ResourceLoader.exists(texture_path):
-		push_warning("Canto texture missing: " + texture_path)
+		print_verbose("Canto texture missing: " + texture_path)
 		visible = false
 		return
 	var q := QuadMesh.new()

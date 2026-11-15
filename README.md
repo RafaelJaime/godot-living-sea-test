@@ -62,15 +62,15 @@ godot --path godot -- --quality=final      # full quality
 
 ## Performance
 
-Measured on an Apple M5 (Mac17,2) at 1920x1080 during development: the `final` preset averages about 84 fps with 1 % lows
-around 62 to 68 fps; `dev` is capped at a fixed 30 fps. These numbers come from the development branches and are not
-included in the evidence kept in this repository (see `odd/tasks/living-sea-wallpaper.md` for the earlier QA runs).
+Measured on an Apple M5 (Mac17,2) at 1920x1080 with the machine otherwise idle (120 s runs): the `final` preset averages
+about 84 fps, with 1 % lows of 62 to 68 fps. With other Godot instances running at the same time it drops to about 70 fps on
+average and 36 to 39 fps in the 1 % lows. The `dev` preset is capped at a fixed 30 fps.
 
 ## Controls
 
 | Key | Action |
 |---|---|
-| `1` to `7` | Jump to a camera preset (3/4 bow, side low, high wide, captain, deck crew, "Canto", silhouette) |
+| `1` to `7` | Jump to a camera preset (3/4 bow, side low, high wide, captain, deck crew, "Canto" (needs an optional sun texture), silhouette) |
 | `C` | Toggle the free-fly debug camera |
 | `W` `A` `S` `D`, `Q` `E`, `Shift` | Free-fly: move, down/up, fast |
 | Mouse | Free-fly: look |
