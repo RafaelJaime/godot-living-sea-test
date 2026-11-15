@@ -21,8 +21,6 @@ var _cam_attr: CameraAttributesPractical
 ## Deterministic exposure (M3.5): a pure function of sun elevation, cloud cover and storm; lightning never feeds it.
 var exposure := 1.0
 var sun_energy_now := 0.0
-const AO_MODE := "ssao" # SSIL costs ~1.1 ms more at 1080p on the M5 (odd/evidence/M3/perf_final_*.log): off by default, `--ao=both` turns it on
-const AO_QUALITY := 0
 ## Quality-gated ambient occlusion state, for logs and the probe ("off", "ssao+ssil").
 var ao_state := "off"
 
@@ -81,7 +79,7 @@ func _ready() -> void:
 		_moon.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 		_moon.light_color = Color(0.62, 0.72, 1.0)
 	_update()
-	_apply_ao.call_deferred()
+	_apply_ao()
 	if _has_arg("--sky-log") or _has_arg("--sky-shots"):
 		var probe: Node = (load("res://scripts/sky_probe.gd") as GDScript).new()
 		probe.set("sky", self)
@@ -93,25 +91,26 @@ func _has_arg(prefix: String) -> bool:
 			return true
 	return false
 
-## SSAO + SSIL: final only (half-res, the project default), off in dev. Quality patches the environment two frames after
-## start (and forces SSAO off), so this waits until after that. `--no-ao` is a test aid for A/B cost runs.
+## SSAO / SSIL come from Quality (`ssao`, `ssao_quality`, `ssil`; final: SSAO q0, SSIL off; dev: both off). Half-res, one blur pass,
+## faded out beyond 60-250 m. Quality no longer touches these. Test aids: `--no-ao`, `--ao=both|ssao|ssil`, `--ao-quality=0..3`.
 func _apply_ao() -> void:
-	for _i in 4:
-		await get_tree().process_frame
-	var on := Quality.level == Quality.Level.FINAL and not _has_arg("--no-ao")
-	var env := environment
-	# Tuning aids: --ao=ssao|ssil|both (default AO_MODE), --ao-quality=0..3 (very low .. high, default AO_QUALITY).
-	var mode := AO_MODE
-	var quality := AO_QUALITY
+	var want_ssao: bool = Quality.ssao
+	var want_ssil: bool = Quality.ssil
+	var quality: int = Quality.ssao_quality
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--ao="):
-			mode = a.get_slice("=", 1)
+		if a == "--no-ao":
+			want_ssao = false
+			want_ssil = false
+		elif a.begins_with("--ao="):
+			var m := a.get_slice("=", 1)
+			want_ssao = m != "ssil"
+			want_ssil = m != "ssao"
 		elif a.begins_with("--ao-quality="):
 			quality = int(a.get_slice("=", 1))
-	env.ssao_enabled = on and mode != "ssil"
-	env.ssil_enabled = on and mode != "ssao"
-	if on:
-		# Half-res, adaptive, one blur pass, faded out beyond 60-250 m: AO only matters on and around the ship.
+	var env := environment
+	env.ssao_enabled = want_ssao
+	env.ssil_enabled = want_ssil
+	if want_ssao or want_ssil:
 		RenderingServer.environment_set_ssao_quality(quality as RenderingServer.EnvironmentSSAOQuality, true, 0.5, 1, 60.0, 250.0)
 		RenderingServer.environment_set_ssil_quality(quality as RenderingServer.EnvironmentSSILQuality, true, 0.5, 4, 60.0, 250.0)
 		env.ssao_radius = 1.8
@@ -125,9 +124,8 @@ func _apply_ao() -> void:
 		env.ssil_intensity = 0.7
 		env.ssil_sharpness = 0.9
 		env.ssil_normal_rejection = 1.0
-	ao_state = (mode + " q" + str(quality)) if on else "off"
-	print("[sky] ", Quality.name_, ": SSAO/SSIL ", ("enabled (" + mode + ", quality " + str(quality) + ", half-res)") if on else "disabled", ", shadows=", _sun.shadow_enabled,
-		" splits=4 max_dist=", _sun.directional_shadow_max_distance)
+	ao_state = "ssao=%s ssil=%s q%d" % [want_ssao, want_ssil, quality]
+	print("[sky] ", Quality.name_, ": ", ao_state, ", shadows=", _sun.shadow_enabled, " splits=4 max_dist=", _sun.directional_shadow_max_distance)
 
 func _process(delta: float) -> void:
 	_update()

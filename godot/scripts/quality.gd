@@ -21,6 +21,9 @@ var wake_updates_per_second := 0.0     ## 0 = every frame
 var cloth_scale := 1.0                 ## multiplies cloth substeps / iterations
 var particle_scale := 1.0              ## multiplies rain / spray / mist particle counts
 var shadows := true
+var ssao := false                      ## screen-space AO (applied by sky.gd, which owns the Environment)
+var ssao_quality := 0                  ## RenderingServer SSAO quality 0 (very low) .. 3 (high)
+var ssil := false                      ## screen-space indirect light (about +1.1 ms at 1080p on M5: opt-in)
 var glow := true
 var render_scale := 1.0
 var msaa := 2                          ## 0 off, 1 = 2x, 2 = 4x, 3 = 8x
@@ -50,6 +53,8 @@ func set_level(n: String) -> void:
 		cloth_scale = 0.5
 		particle_scale = 0.25
 		shadows = false
+		ssao = false
+		ssil = false
 		glow = false
 		render_scale = 0.6
 		msaa = 0
@@ -66,6 +71,9 @@ func set_level(n: String) -> void:
 		cloth_scale = 1.0
 		particle_scale = 1.0
 		shadows = true
+		ssao = true
+		ssao_quality = 0
+		ssil = false
 		glow = true
 		render_scale = 1.0
 		msaa = 2
@@ -85,7 +93,7 @@ func _ready() -> void:
 		vp.scaling_3d_scale = render_scale
 	print("[quality] ", name_, ": rings=", ocean_levels, " fft=", fft_size, " cascades=", ocean_cascades, " scale=", render_scale,
 		" msaa=", msaa, " fps_cap=", max_fps, " shadows=", shadows, " glow=", glow)
-	print("[quality] ", name_, ": SSR/SSAO/SSIL/volumetric fog disabled (none enabled in the scene; forced off here)")
+	print("[quality] ", name_, ": SSR/volumetric fog disabled; SSAO=", ssao, " (quality ", ssao_quality, ") SSIL=", ssil, " (applied by sky.gd)")
 	_apply_scene.call_deferred()
 
 func _apply_scene() -> void:
@@ -96,7 +104,6 @@ func _apply_scene() -> void:
 		var env := (n as WorldEnvironment).environment
 		if env:
 			env.glow_enabled = glow and env.glow_enabled
-			env.ssao_enabled = false
 			env.ssr_enabled = false
 	if not shadows:
 		for l in get_tree().root.find_children("*", "DirectionalLight3D", true, false):

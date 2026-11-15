@@ -106,8 +106,8 @@ off a field here: off in dev, on in final.
 - Clouds are gated by the quality preset: SC2 runs with `--quality=final` (or `--sc2` in dev); dev uses the sky shader fbm layer.
 - Exposure is deterministic (no auto-exposure): `Sky.exposure` = `Sky._exposure_for(sun_elevation, cloud, storm)` written to `CameraAttributesPractical.exposure_multiplier`
   (0.82 at a clear noon, 1.0 at dusk/night, x0.86 in storms; lightning never feeds it), so captures reproduce and a `--timescale` run cannot pump.
-- SSAO + SSIL (half-res) are enabled by `sky.gd` in `final` only (dev: disabled, logged as `[sky] dev: SSAO/SSIL disabled`); ship shadows are 4 cascades over 160 m with blur 1.3
-  (dev has no shadows). Both are applied four frames after start, after `Quality` has patched the environment. A/B aids: `--no-ao`, `--no-shadows`.
+- SSAO (half-res) is applied by `sky.gd` from `Quality` in `final` only (`Quality.ssao`, `ssao_quality`, `ssil`; final: SSAO q0 only, SSIL opt-in with `--ao=both`; dev: off; logged as `[sky] <preset>: ssao=.. ssil=..`); ship shadows are 4 cascades over 160 m with blur 1.3
+  (dev has no shadows). A/B aids: `--no-ao`, `--no-shadows`.
 - Storms: fog density x7, saturation 1.08 -> 0.78, exposure x0.86, rain streaks dim with daylight; rain particles = 7000 x `Quality.particle_scale` (logged as `[weather] rain particles cap=`).
 - Probe (`scripts/sky_probe.gd`, created by `sky.gd` only with the flags): `--sky-log=<wall s> --timescale=N` logs exposure/ambient/fog/horizon and reports max rate of change, its ratio to the
   99th percentile (a tint step shows as a large ratio) and exposure direction reversals; `--storm-end-test` (storm -> clear, state 60 game seconds later vs a clear reference);
