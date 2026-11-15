@@ -145,6 +145,8 @@ func _add_yard_bones(mi: MeshInstance3D, bl: Array) -> void:
 		return
 	if not bl.has(yard):
 		bl.append(yard)
+	if not "--no-yard-restore" in OS.get_cmdline_user_args():
+		_restore_yard_mesh(mi.get_parent(), key, yard)
 	var yname := _skel.get_bone_name(yard)
 	var prefixes := [yname + "_susp"]
 	if yname.ends_with("_sail"):
@@ -160,6 +162,64 @@ func _add_yard_bones(mi: MeshInstance3D, bl: Array) -> void:
 			added.append(bn)
 	if "--rig-log" in OS.get_cmdline_user_args():
 		print("[rig] yard of ", mi.name, ": ", ", ".join(added))
+
+## The rigging mesh of 7 sails is hidden as a "duplicate" of its `_down` variant (see _on_ship_ready), and with it went the yard, so
+## those sails hung from nothing. Rebuild just the yard from that hidden mesh: the triangles whose three vertices are weighted
+## (>= 50 %) to the yard bone. Same material, skin and skeleton as the original, so it turns with the brace like the other yards.
+func _restore_yard_mesh(model: Node, key: String, yard: int) -> void:
+	for n in model.find_children("*", "MeshInstance3D", true, false):
+		var o := n as MeshInstance3D
+		var on := o.name.to_lower()
+		if o.skin == null or not on.contains("rigging_") or on.ends_with("_down") or _sail_key(on) != key or not _has_down(model, on):
+			continue
+		var yname := _skel.get_bone_name(yard)
+		var mesh := ArrayMesh.new()
+		var kept := 0
+		for si in o.mesh.get_surface_count():
+			var arr := o.mesh.surface_get_arrays(si)
+			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			if arr[Mesh.ARRAY_BONES] == null or verts.is_empty():
+				continue
+			var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+			var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+			var stride := bones.size() / verts.size()
+			var is_yard := PackedByteArray()
+			is_yard.resize(verts.size())
+			for v in verts.size():
+				var w := 0.0
+				for q in stride:
+					if o.skin.get_bind_name(bones[v * stride + q]) == yname:
+						w += wts[v * stride + q]
+				is_yard[v] = 1 if w >= 0.5 else 0
+			var idx_src: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			if idx_src.is_empty():
+				idx_src.resize(verts.size())
+				for v in verts.size():
+					idx_src[v] = v
+			var idx := PackedInt32Array()
+			for t in range(0, idx_src.size() - 2, 3):
+				if is_yard[idx_src[t]] == 1 and is_yard[idx_src[t + 1]] == 1 and is_yard[idx_src[t + 2]] == 1:
+					idx.append(idx_src[t]); idx.append(idx_src[t + 1]); idx.append(idx_src[t + 2])
+			if idx.is_empty():
+				continue
+			arr[Mesh.ARRAY_INDEX] = idx
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+			var si_new := mesh.get_surface_count() - 1
+			mesh.surface_set_material(si_new, o.mesh.surface_get_material(si))
+			kept += idx.size() / 3
+		if kept == 0:
+			return
+		var ni := MeshInstance3D.new()
+		ni.name = "yard_" + key
+		ni.mesh = mesh
+		ni.skin = o.skin
+		ni.skeleton = o.skeleton
+		ni.transform = o.transform
+		ni.extra_cull_margin = 4.0
+		o.get_parent().add_child(ni)
+		if "--rig-log" in OS.get_cmdline_user_args():
+			print("[rig] restored yard ", yname, " from ", o.name, ": ", kept, " triangles")
+		return
 
 func _has_down(model: Node, nm: String) -> bool:
 	return model.find_child(nm + "_down", true, false) != null or model.find_child(nm.replace("geo_", "geo_") + "_down", true, false) != null
