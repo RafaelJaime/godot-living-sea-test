@@ -14,6 +14,7 @@ First time (or after dropping new GLBs): `godot --headless --path <project> --im
 Screenshots + quit: `godot --path <project> -- --capture` writes `_shots/shot_01..07.png`.
 
 ## Controls
+- `F11` toggle fullscreen (borderless; autoload `FullscreenToggle`, `scripts/fullscreen_toggle.gd`, input action `toggle_fullscreen`)
 - `C` toggle free-fly debug camera (WASD, Q/E down/up, mouse look, Shift fast, Esc frees the mouse)
 - `1`-`5` jump to camera shots (3/4 bow, side low, high wide, captain, deck crew)
 - Auto camera blends to the next shot every 20 s with drift and handheld noise.
