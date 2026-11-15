@@ -233,18 +233,56 @@ func set_hull_profile(widths: PackedFloat32Array, z_bow: float, z_stern: float) 
 
 # --- CPU surface (async GPU readback) ----------------------------------------------------------
 
-## Note: texture_get_data_async on a texture-array layer crashes Godot 4.7.2 intermittently
-## ("Index p_index out of bounds" in LocalVector), so the layers are read back synchronously at readback_hz.
+## Readback without stalling the frame (M6.3 defect 1): the synchronous texture_get_data of two 2 MB layers at 20 Hz stalled the render thread
+## for ~12 ms on every readback frame (see odd/evidence/M6/M6_3_cpu_spikes.txt). Godot 4.7.2 crashes on texture_get_data_async of a texture-ARRAY
+## layer, so each cascade layer is first copied on the GPU into a plain 2D texture and THAT is read back asynchronously. `--sync-readback` keeps the
+## old synchronous path for A/B.
+var _rb_tex: Array[RID] = []
+var _rb_busy: Array[bool] = [false, false, false]
+var _sync_readback := OS.get_cmdline_user_args().has("--sync-readback")
+
+func _ensure_rb_textures(rd: RenderingDevice) -> void:
+	if _rb_tex.size() == CPU_CASCADES:
+		return
+	for i in CPU_CASCADES:
+		var f := RDTextureFormat.new()
+		f.width = map_size
+		f.height = map_size
+		f.format = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
+		f.texture_type = RenderingDevice.TEXTURE_TYPE_2D
+		f.usage_bits = RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+		_rb_tex.append(rd.texture_create(f, RDTextureView.new()))
+
 func _request_readback() -> void:
 	var rd := RenderingServer.get_rendering_device()
 	var rid: RID = wave_generator.descriptors[&"displacement_map"].rid
+	if _sync_readback:
+		for i in CPU_CASCADES:
+			var data := rd.texture_get_data(rid, i)
+			if data.size() < map_size * map_size * 8:
+				continue
+			_imgs_prev[i] = _imgs[i]
+			_imgs[i] = Image.create_from_data(map_size, map_size, false, Image.FORMAT_RGBAH, data)
+		_img_age = 0.0
+		return
+	_ensure_rb_textures(rd)
 	for i in CPU_CASCADES:
-		var data := rd.texture_get_data(rid, i)
-		if data.size() < map_size * map_size * 8:
+		if _rb_busy[i]:
 			continue
-		_imgs_prev[i] = _imgs[i]
-		_imgs[i] = Image.create_from_data(map_size, map_size, false, Image.FORMAT_RGBAH, data)
-	_img_age = 0.0
+		_rb_busy[i] = true
+		rd.texture_copy(rid, _rb_tex[i], Vector3.ZERO, Vector3.ZERO, Vector3(map_size, map_size, 1), 0, 0, i, 0)
+		var err := rd.texture_get_data_async(_rb_tex[i], 0, _on_readback.bind(i))
+		if err != OK:
+			_rb_busy[i] = false
+
+func _on_readback(data: PackedByteArray, layer: int) -> void:
+	_rb_busy[layer] = false
+	if data.size() < map_size * map_size * 8:
+		return
+	_imgs_prev[layer] = _imgs[layer]
+	_imgs[layer] = Image.create_from_data(map_size, map_size, false, Image.FORMAT_RGBAH, data)
+	if layer == 0:
+		_img_age = 0.0
 
 func _sample(layer: int, x: float, z: float) -> Vector3:
 	var cur := _sample_img(_imgs[layer], layer, x, z)
@@ -333,3 +371,8 @@ func _exit_tree() -> void:
 	# Detach the compute textures before the generator frees them (avoids RID errors on shutdown).
 	displacement_maps.texture_rd_rid = RID()
 	normal_maps.texture_rd_rid = RID()
+	var rd_free := RenderingServer.get_rendering_device()
+	for r in _rb_tex:
+		if r.is_valid():
+			rd_free.free_rid(r)
+	_rb_tex.clear()

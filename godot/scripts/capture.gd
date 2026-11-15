@@ -24,6 +24,9 @@ const REG_SHOTS := [1, 14, 0] # camera shot indices (side low, top down, 3/4 bow
 const REG_SETTLE := 8.0
 
 var _perf_secs := 0.0
+var _spike_log := false
+var _spike_times := PackedFloat64Array()
+var _spike_thr_ms := 35.0
 var _perf_t := 0.0
 var _perf_frame: PackedFloat64Array = PackedFloat64Array()
 var _perf_cpu: PackedFloat64Array = PackedFloat64Array()
@@ -70,6 +73,15 @@ func _ready() -> void:
 			_log_secs = float(a.get_slice('=', 1))
 		elif a.begins_with('--perf-log='):
 			_perf_secs = float(a.get_slice('=', 1))
+		elif a == '--spike-log': # prints every frame whose process time exceeds the threshold, then the interval statistics
+			_spike_log = true
+		elif a.begins_with('--spike-ms='):
+			_spike_thr_ms = float(a.get_slice('=', 1))
+		elif a == '--spike-probe' or a.begins_with('--spike-probe='):
+			var sp := Node.new()
+			sp.set_script(load('res://scripts/spike_probe.gd'))
+			sp.name = 'SpikeProbe'
+			get_tree().root.add_child.call_deferred(sp)
 		elif a == '--poll-sail-state':
 			_poll_state = true
 		elif a == '--plan=regression':
@@ -278,9 +290,20 @@ func _perf_step(delta: float) -> void:
 		_perf_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		_perf_phys.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 		_perf_gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()))
+		if _spike_log and _perf_cpu[_perf_cpu.size() - 1] > _spike_thr_ms:
+			_spike_times.append(_perf_t)
+			print('[spike] t=%.2f frame=%.1f ms process=%.1f ms physics=%.1f ms objects=%d orphans=%d static_mem=%.1f MB draw_calls=%d' % [_perf_t, delta * 1000.0, _perf_cpu[_perf_cpu.size() - 1], _perf_phys[_perf_phys.size() - 1], int(Performance.get_monitor(Performance.OBJECT_COUNT)), int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)), Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))])
 	if _perf_t >= 5.0 + _perf_secs:
 		var res := get_viewport().get_visible_rect().size
 		var p99 := _pct(_perf_frame, 0.99)
+		var spp := get_tree().root.get_node_or_null('SpikeProbe')
+		if spp:
+			spp.report()
+		if _spike_log:
+			var iv := PackedFloat64Array()
+			for i in range(1, _spike_times.size()):
+				iv.append(_spike_times[i] - _spike_times[i - 1])
+			print('[spike] count=', _spike_times.size(), ' in ', snappedf(_perf_secs, 0.1), ' s; interval p50=', snappedf(_pct(iv, 0.5), 0.01), ' s  min=', snappedf(_pct(iv, 0.0), 0.01), ' s  p90=', snappedf(_pct(iv, 0.9), 0.01), ' s')
 		print("[perf] preset=%s quality=%s res=%dx%d frames=%d frame_ms p50=%.2f p95=%.2f p99=%.2f 1%%low_fps=%.1f avg_fps=%.1f cpu_ms p50=%.2f p95=%.2f phys_ms p50=%.2f gpu_ms p50=%.2f p95=%.2f" % [
 			Quality.name_, Quality.name_, int(res.x), int(res.y), _perf_frame.size(), _pct(_perf_frame, 0.5), _pct(_perf_frame, 0.95), p99,
 			1000.0 / maxf(p99, 0.001), 1000.0 / maxf(_pct(_perf_frame, 0.5), 0.001), _pct(_perf_cpu, 0.5), _pct(_perf_cpu, 0.95),

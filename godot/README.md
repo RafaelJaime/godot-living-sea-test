@@ -132,7 +132,7 @@ Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-bir
 Presets: `--quality=dev|final`, `--uncap`, `--ssr` / `--no-ssr`, `--msaa=N`, `--fft-size=N`, `--normal-mips=N`, `--no-ao`.
 Captures and measurement: `--capture` (writes `_shots/shot_NN.png`), `--shots=i,j,k` (camera shot indices, one every 2.5 s), `--cam=x,y,z,lx,ly,lz[,fov]` (debug camera in ship space, appended as the LAST shot),
 `--cam-island[=height]` (debug camera at the nearest island shore), `--cam-sweep=N[,height]` (N shots turning through 360 degrees), `--plan=regression` (4 fixed presets x 3 shots -> `_shots/reg_*.png`),
-`--perf-log=<s>` (frame-time percentiles after a 5 s warm-up; `gpu_ms` reads 0.00 on the Apple GPU), `--autopilot-log=<s>` (motion summary, `[keel]` line), `--jitter-test`, `--rebase-test=<m>`, `--poll-sail-state`.
+`--perf-log=<s>` (frame-time percentiles after a 5 s warm-up; `gpu_ms` reads 0.00 on the Apple GPU), `--autopilot-log=<s>` (motion summary, `[keel]` line), `--jitter-test`, `--rebase-test=<m>`, `--poll-sail-state`, `--spike-probe[=ms]` (per-priority-band frame split for CPU spikes), `--spike-log`, `--spike-ms=<ms>`, `--sync-readback` (old synchronous CPU-surface readback, for A/B).
 World: `--start-phase=0..1`, `--no-day`, `--timescale=N`, `--weather=clear|cloudy|storm`, `--sea=0..1`, `--wind=<deg>|calm|light|moderate|fresh|strong|storm`, `--wind-ms=N`, `--wind-hold`, `--wind-seed=N`, `--wind-log`.
 Ocean and wake: `--water-debug=1..6`, `--horizon-mix=<0..1>`, `--hull-foam=<gain>`, `--caustics=`, `--caustics-emit=`, `--caustics-scale=`, `--caustics-wide=`, `--caustics-sharp=`, `--wake-log`, `--wake-far=<m>`,
 `--wake-test-speed=<k>`, `--wake-turb=<g>`, `--wake-ridge=<g>`, `--fx-log`, `--no-spray`, `--fx-test-speed=<k>`.
