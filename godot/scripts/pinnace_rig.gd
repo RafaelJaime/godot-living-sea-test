@@ -94,6 +94,73 @@ func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 	_init_furl_state()
 	print("[sails] total area m2=", snappedf(tot, 1.0), " cloth=", cloth, " hidden furled/duplicate=", hidden, " rudder_bone=", _rudder_bone)
 
+## Key shared by a sail mesh and its furled/yard meshes: "geo_ship_pinnace_sails_fore_topsail_down" and "..._sails_fore_topsail_top"
+## and "..._rigging_foretopsail" all give "foretop".
+static func _sail_key(mesh_name: String) -> String:
+	var k := mesh_name.to_lower().trim_prefix("geo_ship_pinnace_").trim_prefix("rigging_")
+	if k.begins_with("sailsmain"): # the one mesh named "sailsmain_course_top"
+		k = "main" + k.substr(9)
+	k = k.trim_prefix("sails_")
+	for suf in ["_down", "_top"]:
+		k = k.trim_suffix(suf)
+	k = k.replace("_", "")
+	for suf in ["sails", "sail"]:
+		k = k.trim_suffix(suf)
+	return k
+
+## The yard of each sail is NOT a separate mesh: it lives in the (hidden or visible) rigging mesh, skinned to the yard bone `def_<sail>`,
+## whose vertices also dominate the furled `_top` sail mesh. The brace list only held the canvas bones (`.L` / `.R`), so the yards
+## stayed square to the ship while their sails turned. Add the yard bone and the yard's own suspension lines (they run from the mast
+## top, which is on the brace axis, so they turn rigidly with the yard).
+func _add_yard_bones(mi: MeshInstance3D, bl: Array) -> void:
+	if _skel == null:
+		return
+	var key := _sail_key(String(mi.name))
+	var root_idx := _skel.find_bone("def_root")
+	var yard := -1
+	for n in mi.get_parent().find_children("*", "MeshInstance3D", true, false):
+		var o := n as MeshInstance3D
+		var on := o.name.to_lower()
+		if o.skin == null or not (on.ends_with("_top")) or not on.contains("sail") or _sail_key(on) != key:
+			continue
+		var cnt := {}
+		for si in o.mesh.get_surface_count():
+			var arr := o.mesh.surface_get_arrays(si)
+			if arr[Mesh.ARRAY_BONES] == null:
+				continue
+			var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+			var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+			var stride := bones.size() / maxi(arr[Mesh.ARRAY_VERTEX].size(), 1)
+			for v in arr[Mesh.ARRAY_VERTEX].size():
+				if wts[v * stride] > 0.5:
+					var b := _skel.find_bone(o.skin.get_bind_name(bones[v * stride]))
+					if b >= 0 and b != root_idx:
+						cnt[b] = int(cnt.get(b, 0)) + 1
+		var best := 0
+		for b in cnt:
+			if int(cnt[b]) > best:
+				best = int(cnt[b])
+				yard = int(b)
+	if yard < 0:
+		return
+	if not bl.has(yard):
+		bl.append(yard)
+	var yname := _skel.get_bone_name(yard)
+	var prefixes := [yname + "_susp"]
+	if yname.ends_with("_sail"):
+		prefixes.append(yname.trim_suffix("_sail") + "_susp") # def_main_sail -> def_main_suspension
+	var added := [yname]
+	for b in _skel.get_bone_count():
+		var bn := _skel.get_bone_name(b)
+		var mine := false
+		for pf in prefixes:
+			mine = mine or bn.begins_with(pf)
+		if b != yard and b != root_idx and mine and not bl.has(b):
+			bl.append(b)
+			added.append(bn)
+	if "--rig-log" in OS.get_cmdline_user_args():
+		print("[rig] yard of ", mi.name, ": ", ", ".join(added))
+
 func _has_down(model: Node, nm: String) -> bool:
 	return model.find_child(nm + "_down", true, false) != null or model.find_child(nm.replace("geo_", "geo_") + "_down", true, false) != null
 
@@ -127,6 +194,8 @@ func _make_cloth(mi: MeshInstance3D, shader: Shader, mast_zs: PackedFloat32Array
 						bidx = mi.skin.get_bind_bone(bones[q])
 					if bidx >= 0 and bidx != _skel.find_bone("def_root") and not bl.has(bidx):
 						bl.append(bidx)
+	if not "--no-yard-brace" in OS.get_cmdline_user_args(): # test aid: the old behaviour (yards stay square to the ship)
+		_add_yard_bones(mi, bl)
 	_sail_bones.append(bl)
 	_mast_ship.append(axis)
 	if "sail_defs" in _ship:
