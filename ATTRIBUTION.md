@@ -12,3 +12,16 @@
 - **Fishing Rod** (`rod_q1`) by Quaternius, CC0 1.0 — https://poly.pizza/m/0YAR0Lg58p (`godot/assets/props/fishing_rod/`), hand prop.
 - **Wooden Hammer 01**, **Handsaw Wood** and **Wooden Lantern 01** by Poly Haven, CC0 — https://polyhaven.com/a/wooden_hammer_01, https://polyhaven.com/a/handsaw_wood, https://polyhaven.com/a/wooden_lantern_01 (1k glTF in `godot/assets/props/`), hand props.
 - Spyglass, swab and the ratline climb / spyglass look / deck swab animations are generated in this repo (CC0).
+
+## Own assets (CC0 1.0)
+
+The following models and textures are own models, released by the author under
+[CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). They were generated with Meshy and then rigged, retargeted and edited in this project.
+
+- The four crew characters (`godot/assets/characters/`: `papi_fuego`, `papi_diagnostica`, `el_salchipapa`, `don_omar`) and their base animations (`godot/assets/anim_src/walk.glb`, `talk.glb`, `climb_stairs.glb`).
+- `godot/assets/ship/barco.glb` (placeholder ship) and `godot/assets/ship/ship_wheel.glb`.
+- `godot/assets/sky/canto_sun.png` and the other textures and clips authored in this repository.
+
+## Project code
+
+The project's own code is under the MIT licence, see [LICENSE](LICENSE). It was written with AI assistance (Claude Code). Vendored third-party code keeps its own licence in each addon folder.
