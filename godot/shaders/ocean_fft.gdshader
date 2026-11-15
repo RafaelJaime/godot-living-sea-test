@@ -73,6 +73,9 @@ void fragment() {
 	vec3 shallow_tint = shallow_color * (0.5 + 0.35 * sh);
 	vec3 base = mix(body, shallow_tint, sh * 0.85);
 	ALBEDO = mix(base, foam_color.rgb, foam_factor);
+	float hz = horizon_mix * smoothstep(120.0, 3000.0, dist);
+	ALBEDO *= (1.0 - hz);
+	EMISSION = sky_horizon_color * hz;
 	if (debug_mode > 0.5 && debug_mode < 1.5) { ALBEDO = vec3(whitecap, hull_foam, shallow); }
 	if (debug_mode > 2.5 && debug_mode < 6.5) { ALBEDO = vec3(0.0); EMISSION = wake_debug(rest_xz, debug_mode); }
 

@@ -61,6 +61,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--hull-foam="):
 			_mat.set_shader_parameter("hull_foam_gain", float(a.get_slice("=", 1)))
+		elif a.begins_with("--horizon-mix="): # M2a.6 candidates
+			_mat.set_shader_parameter("horizon_mix", float(a.get_slice("=", 1)))
 		elif a.begins_with("--wake-turb="): # M2b.8 candidates: gain of the turbulence channel (0 = off)
 			_mat.set_shader_parameter("wake_turb_gain", float(a.get_slice("=", 1)))
 		elif a.begins_with("--wake-ridge="): # M2b.8 candidates: gain of the ridge channel (0 = off)
