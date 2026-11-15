@@ -34,6 +34,8 @@ var _bush_mesh: ArrayMesh
 var _ring: MeshInstance3D
 var _ring_mat: ShaderMaterial
 var _shallow := SHALLOW_DEFAULT
+var _lamp_mats: Array[StandardMaterial3D] = []
+var _beam_tick := -1
 
 func _lit_mat(tint: Color, use_vertex_color := false, rough := 0.95) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
@@ -74,6 +76,16 @@ func _push_to_ocean() -> void:
 
 func _process(_delta: float) -> void:
 	_push_to_ocean()
+	# Lighthouse lamps: dormant by day, same switch-on rule as the beam (lighthouse_beam.gd).
+	var w := WorldState
+	var on := clampf(maxf(w.night, w.storm * 0.6 * (1.0 - w.daylight * 0.5)), 0.0, 1.0)
+	if "--beam-log" in OS.get_cmdline_user_args() and int(Time.get_ticks_msec() / 500) != _beam_tick:
+		_beam_tick = int(Time.get_ticks_msec() / 500)
+		for b in get_tree().get_nodes_in_group("lighthouse_beam"):
+			print("[lighthouse] t=", snappedf(Time.get_ticks_msec() / 1000.0, 0.1), " beam_yaw=", snappedf(b.beam_yaw_deg(), 0.1), " on=", b.is_on(), " pos=", (b as Node3D).global_position.round())
+	for lm in _lamp_mats:
+		lm.emission_energy_multiplier = 3.0 * on
+		lm.albedo_color = Color(0.45, 0.42, 0.3).lerp(Color(1.0, 0.9, 0.5), on)
 	# The far mountains take their colour from the sky globals in island_horizon.gdshader (no manual dimming).
 	_ring.global_position = Vector3(_ship.global_position.x, 0.0, _ship.global_position.z)
 	var sp := Vector2(_ship.global_position.x, _ship.global_position.z)
@@ -305,6 +317,7 @@ func _make_lighthouse(base_y: float) -> Node3D:
 	lm.albedo_color = Color(1.0, 0.9, 0.5); lm.emission_enabled = true
 	lm.emission = Color(1.0, 0.8, 0.35); lm.emission_energy_multiplier = 3.0
 	lamp.material_override = lm
+	_lamp_mats.append(lm)
 	lamp.position = Vector3(0, base_y + 17.1, 0)
 	n.add_child(lamp)
 	var beam := Node3D.new()

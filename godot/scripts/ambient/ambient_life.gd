@@ -715,6 +715,7 @@ func _build_far_ship() -> Node3D:
 	return n
 
 func _tick_far_ship(dt: float) -> void:
+	if not "--far-ship-test" in OS.get_cmdline_user_args(): return # passing_ships.gd owns the passing ships now (M4b1)
 	var w := WorldState
 	if _far == null:
 		_ship_next -= dt
