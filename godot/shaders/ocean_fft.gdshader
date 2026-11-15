@@ -38,6 +38,10 @@ void fragment() {
 		float fade = (i == 2U) ? (1.0 - smoothstep(25.0, 110.0, dist)) : 1.0;
 		gradient += mix(texture_bicubic(normals, coords), texture(normals, coords), min(1.0, ppm * 0.1)).xyw * vec3(scales.ww * fade, 1.0);
 	}
+	// Wake channels: ridge slope tilts the normal, turbulence roughens the centre line (both off unless the gains are set).
+	vec3 wk = wake_normal_terms(rest_xz);
+	gradient.xy += wk.xy;
+	gradient.xy += wk.z * wake_turb_gain * 0.25 * vec2(sin(rest_xz.x * 7.0 + TIME * 3.0), cos(rest_xz.y * 6.0 - TIME * 2.5));
 	// Toksvig-style filtering: slope variance across the pixel footprint widens the specular lobe instead of aliasing.
 	vec2 dgx = dFdx(gradient.xy);
 	vec2 dgy = dFdy(gradient.xy);
@@ -77,6 +81,6 @@ void fragment() {
 
 	fresnel = mix(pow(1.0 - dot(VIEW, NORMAL), 5.0 * exp(-2.69 * roughness)) / (1.0 + 22.7 * pow(roughness, 1.5)), 1.0, REFLECTANCE);
 	if (masked_dbg) { ALBEDO = vec3(1.0, 0.0, 1.0); EMISSION = vec3(1.0, 0.0, 1.0); }
-	ROUGHNESS = clamp(sqrt(roughness * roughness + 1.0 * min(slope_var, 0.2)) + foam_factor * 0.25, 0.08, 0.9);
+	ROUGHNESS = clamp(sqrt(roughness * roughness + 1.0 * min(slope_var, 0.2)) + foam_factor * 0.25 + wk.z * wake_turb_gain * 0.3, 0.08, 0.9);
 }
 

@@ -21,6 +21,8 @@ uniform vec2 hull_z = vec2(-11.0, 11.0);        // local z of bin 0 (bow) and th
 uniform float ship_speed = 6.0;
 uniform sampler2D wake_tex : filter_linear, repeat_disable;
 uniform vec2 wake_origin = vec2(1.0e6);
+uniform float wake_turb_gain = 0.0;  // G channel: extra roughness + fine normal noise in the turbulent centre line (0 = off)
+uniform float wake_ridge_gain = 0.0; // B channel: Kelvin ridge slope added to the normal (0 = off)
 uniform float wake_size = 320.0;
 uniform float hull_foam_gain = 1.0;
 uniform float debug_mode = 0.0;

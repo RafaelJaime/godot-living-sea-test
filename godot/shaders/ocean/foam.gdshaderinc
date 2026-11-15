@@ -68,3 +68,15 @@ vec3 wake_debug(vec2 rxz, float mode) {
 	if (mode > 3.5) { return vec3(w.r); }
 	return vec3(w.r, w.g, ridge);
 }
+
+// Wake normal terms (M2b.8): returns (slope.x, slope.y, turbulence). Slope comes from central differences of the signed ridge
+// height (B), turbulence is G. Zero outside the window or when both gains are 0.
+vec3 wake_normal_terms(vec2 rxz) {
+	vec2 wuv = (rxz - wake_origin) / wake_size;
+	if ((wake_turb_gain + wake_ridge_gain) <= 0.0 || wuv.x < 0.02 || wuv.x > 0.98 || wuv.y < 0.02 || wuv.y > 0.98) { return vec3(0.0); }
+	vec2 px = vec2(1.0) / vec2(textureSize(wake_tex, 0));
+	float bx = texture(wake_tex, wuv + vec2(px.x, 0.0)).b - texture(wake_tex, wuv - vec2(px.x, 0.0)).b;
+	float by = texture(wake_tex, wuv + vec2(0.0, px.y)).b - texture(wake_tex, wuv - vec2(0.0, px.y)).b;
+	float texel_m = wake_size * px.x;
+	return vec3(vec2(bx, by) / (2.0 * texel_m) * wake_ridge_gain, texture(wake_tex, wuv).g);
+}
