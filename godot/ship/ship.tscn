@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/flag.gd" id="19_flag"]
 [ext_resource type="Script" path="res://scripts/ship_lights_builder.gd" id="99_lights"]
 [ext_resource type="PackedScene" path="res://ship/ship_stations.tscn" id="98_stations"]
+[ext_resource type="PackedScene" path="res://assets/ship/pinnace/barco_pinnace.glb" id="101_hull"]
 
 [node name="Ship" type="RigidBody3D"]
 script = ExtResource("3_ship")
@@ -28,6 +29,11 @@ script = ExtResource("12_fx")
 
 [node name="Model" type="Node3D" parent="Pivot"]
 script = ExtResource("4_loader")
+
+[node name="Normalized" type="Node3D" parent="Pivot/Model"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.023975, -1.14587, 0.918434)
+
+[node name="barco_pinnace" parent="Pivot/Model/Normalized" instance=ExtResource("101_hull")]
 
 [node name="Helm" type="Node3D" parent="Pivot"]
 script = ExtResource("16_helm")

@@ -33,21 +33,26 @@ var _sail_phase: Array[float] = []
 var _t := 0.0
 
 func _ready() -> void:
-	var path := model_path if ModelUtil.file_present(model_path) else PLACEHOLDER_PATH
-	var inst := ModelUtil.load_glb(path)
-	if inst == null and path == model_path:
-		push_warning("Final ship GLB failed to load, using placeholder")
-		path = PLACEHOLDER_PATH
-		inst = ModelUtil.load_glb(path)
-	if inst == null:
-		push_error("No ship model available")
-		return
-	used_path = path
-	var holder := Node3D.new() # raw model, normalized through `holder`
-	holder.name = "Normalized"
-	add_child(holder)
-	var raw := inst as Node3D
-	holder.add_child(raw)
+	# ship.tscn instances the hull GLB under Model/Normalized so the editor shows it; then nothing is loaded here (the transform is recomputed below,
+	# so the baked one in the scene is only the editor preview). Without it (old scenes, placeholder fallback) the GLB is loaded by path as before.
+	var holder := get_node_or_null("Normalized") as Node3D
+	if holder != null and holder.get_child_count() > 0:
+		used_path = model_path
+	else:
+		var path := model_path if ModelUtil.file_present(model_path) else PLACEHOLDER_PATH
+		var inst := ModelUtil.load_glb(path)
+		if inst == null and path == model_path:
+			push_warning("Final ship GLB failed to load, using placeholder")
+			path = PLACEHOLDER_PATH
+			inst = ModelUtil.load_glb(path)
+		if inst == null:
+			push_error("No ship model available")
+			return
+		used_path = path
+		holder = Node3D.new() # raw model, normalized through `holder`
+		holder.name = "Normalized"
+		add_child(holder)
+		holder.add_child(inst as Node3D)
 	_normalize(holder)
 	_collect_sails(holder)
 	ship_ready.emit.call_deferred(length, beam, 0.0)
@@ -76,7 +81,7 @@ func _normalize(holder: Node3D) -> void:
 	var origin_raw := Vector3(center.x, keel_y + waterline_above_keel / s, center.z)
 	holder.transform = Transform3D(hull_basis, -(hull_basis * origin_raw))
 	print("[ship] ", used_path, " raw_len=", snappedf(raw_len, 0.01), " scale=", snappedf(s, 0.001),
-		" bow_sign=", bow_sign, " yaw=", snappedf(rad_to_deg(yaw), 0.1), " length=", snappedf(length, 0.01))
+		" bow_sign=", bow_sign, " yaw=", snappedf(rad_to_deg(yaw), 0.1), " length=", snappedf(length, 0.01), " origin=", holder.transform.origin)
 
 ## Heuristic: the bow is the narrower end of the long axis (stern carries the wide transom/quarterdeck).
 func _detect_bow_sign(holder: Node3D, box: AABB, long_is_x: bool) -> float:
