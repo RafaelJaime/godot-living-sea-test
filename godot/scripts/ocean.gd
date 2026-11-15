@@ -239,6 +239,7 @@ func set_hull_profile(widths: PackedFloat32Array, z_bow: float, z_stern: float) 
 ## old synchronous path for A/B.
 var _rb_tex: Array[RID] = []
 var _rb_busy: Array[bool] = [false, false, false]
+var _closing := false
 var _sync_readback := OS.get_cmdline_user_args().has("--sync-readback")
 
 func _ensure_rb_textures(rd: RenderingDevice) -> void:
@@ -277,6 +278,8 @@ func _request_readback() -> void:
 
 func _on_readback(data: PackedByteArray, layer: int) -> void:
 	_rb_busy[layer] = false
+	if _closing:
+		return
 	if data.size() < map_size * map_size * 8:
 		return
 	_imgs_prev[layer] = _imgs[layer]
@@ -368,6 +371,7 @@ func _snap(cam_pos: Vector3) -> void:
 		_level_nodes[l].set_instance_shader_parameter("lod_bias", 0.08 * float(l))
 
 func _exit_tree() -> void:
+	_closing = true # late async readback callbacks must not touch the freed textures / images
 	# Detach the compute textures before the generator frees them (avoids RID errors on shutdown).
 	displacement_maps.texture_rd_rid = RID()
 	normal_maps.texture_rd_rid = RID()
