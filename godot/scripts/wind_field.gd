@@ -36,16 +36,17 @@ var _off := Vector2.ZERO
 ## darker ripple patches on the water are the gusts that hit the sails. Texel value = (n + 1) / 2 with n the raw noise of
 ## gust_factor(): the shader rebuilds the factor with the skew and gust_amp() below. Exposed as the global shader parameters
 ## `gust_tex` (sampler2D), `gust_win` (vec4: origin x, origin z, size x, size z, LOCAL metres, rebase-safe) and `gust_amp`.
-const GUST_TEX_W_FULL := 128 ## final: 128 x 232 texels over ~1 km (8 m per texel in x)
-const GUST_TEX_H_FULL := 232
+const GUST_TEX_W_FULL := 64 ## 64 x 116 texels over ~1 km (16 m per texel in x): enough for 55 m gusts, ~4x cheaper than 128 x 232
 const GUST_REFRESH := 0.25 ## s
 const GUST_STRETCH := 1.8
 
 var GUST_TEX_W := GUST_TEX_W_FULL
-var GUST_TEX_H := GUST_TEX_H_FULL
-var GUST_CELL := 8.0 ## m per texel in x (z texel is GUST_CELL / 1.8: the z stretch of the noise); dev uses half the texels over the same window
+var GUST_TEX_H := 116
+var GUST_CELL := 16.0 ## m per texel in x (z texel is GUST_CELL / 1.8: the z stretch of the noise)
+var gust_refresh_peak_us := 0.0 ## worst refresh so far (microseconds)
 var _gust_adv_b := Vector2.ZERO ## advect value the texture was built with
 var _gust_org := Vector2.ZERO ## window origin (local) at build time
+var _gust_tex_built_once := false
 var gust_refresh_us := 0.0 ## cost of the last refresh (microseconds), for the perf logs
 var _gust_img := FastNoiseLite.new()
 var _gust_tex: ImageTexture
@@ -68,10 +69,6 @@ func _ready() -> void:
 	_gust_img.noise_type = _gust.noise_type
 	_gust_img.fractal_type = _gust.fractal_type
 	_gust_img.fractal_octaves = _gust.fractal_octaves
-	if Quality.level == Quality.Level.DEV:
-		GUST_TEX_W = GUST_TEX_W_FULL / 2
-		GUST_TEX_H = GUST_TEX_H_FULL / 2
-		GUST_CELL = 16.0
 	_gust_img.frequency = GUST_CELL / GUST_LENGTH
 	_turb.seed = 99
 	_turb.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -107,6 +104,9 @@ var _tt_step := 0
 func _gust_test(delta: float) -> void:
 	_tt += delta
 	var times := [2.0, 7.0]
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--rebase-test="):
+			times = [2.0, 7.0, 40.0, 60.0, 80.0] # spans several rebases
 	if _tt_step >= times.size() or _tt < times[_tt_step]:
 		return
 	var img := _gust_tex.get_image()
@@ -124,7 +124,7 @@ func _gust_test(delta: float) -> void:
 		var tex := img.get_pixel(i, j).r * 2.0 - 1.0
 		err = maxf(err, absf(n - tex))
 		mx = maxf(mx, absf(n))
-	print("[gust-tex] t=", snappedf(_tt, 0.1), " win=", w, " advect=", _advect.snapped(Vector2.ONE * 0.1), " max|n-texel|=", snappedf(err, 0.0001), " (max|n| ", snappedf(mx, 0.01), ") refresh_us=", snappedf(gust_refresh_us, 1.0), " mean_speed=", snappedf(_speed, 0.1))
+	print("[gust-tex] t=", snappedf(_tt, 0.1), " win=", w, " advect=", _advect.snapped(Vector2.ONE * 0.1), " max|n-texel|=", snappedf(err, 0.0001), " (max|n| ", snappedf(mx, 0.01), ") refresh_us=", snappedf(gust_refresh_us, 1.0), " peak_us=", snappedf(gust_refresh_peak_us, 1.0), " mean_speed=", snappedf(_speed, 0.1))
 	img.save_png(ProjectSettings.globalize_path("res://_shots/gust_t%d.png" % int(times[_tt_step])))
 	_tt_step += 1
 
@@ -178,6 +178,8 @@ func _refresh_gust_texture() -> void:
 	_gust_win = Vector4(_gust_org.x, _gust_org.y, span.x, span.y)
 	RenderingServer.global_shader_parameter_set(&"gust_win", _gust_win)
 	RenderingServer.global_shader_parameter_set(&"gust_amp", gust_amp())
+	gust_refresh_peak_us = maxf(gust_refresh_peak_us, float(Time.get_ticks_usec() - t0)) if _gust_tex_built_once else 0.0
+	_gust_tex_built_once = true
 	gust_refresh_us = lerpf(gust_refresh_us, float(Time.get_ticks_usec() - t0), 0.2) if gust_refresh_us > 0.0 else float(Time.get_ticks_usec() - t0)
 
 ## Mean wind speed (m/s) and unit direction (world x, z) this frame.

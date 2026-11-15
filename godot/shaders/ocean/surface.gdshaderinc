@@ -45,7 +45,7 @@ vec4 texture_bicubic(in sampler2DArray sampler, in vec3 uvw) {
 global uniform sampler2D gust_tex : filter_linear, repeat_disable;
 global uniform vec4 gust_win;
 global uniform float gust_amp;
-uniform float cat_paw_gain = 0.0; // 0 = off (default); the look is decided with captures, see --catpaw=<gain>
+uniform float cat_paw_gain = 1.5; // 0 = off; default is the subtle look approved with captures, --catpaw=<gain> overrides
 
 float gust_patch(vec2 world_xz, float dist) {
 	vec2 uv = (world_xz - gust_win.xy) / gust_win.zw;
