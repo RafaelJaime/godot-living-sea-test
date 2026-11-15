@@ -9,6 +9,11 @@ var PLAN: Array = [[3.0, 11, 0.2], [6.0, 14, 0.2], [9.0, 2, 0.2], [13.0, 11, 0.9
 var _active := false
 var _t := 0.0
 var _step := 0
+var _seq_n := 0
+var _seq_h := 15.0
+var _seq_i := 0
+var _seq_t0 := 0.0
+var _seq_speed := 0.0
 var _sweep_n := 0
 var _sweep_h := 40.0
 var _jumped := false
@@ -82,6 +87,10 @@ func _ready() -> void:
 			sp.set_script(load('res://scripts/spike_probe.gd'))
 			sp.name = 'SpikeProbe'
 			get_tree().root.add_child.call_deferred(sp)
+		elif a.begins_with('--frame-seq='): # M6 popping test: N consecutive frames saved as _shots/seq_NNN.png from a ship-space camera at the given height
+			_seq_n = int(a.get_slice('=', 1).get_slice(',', 0))
+			_seq_h = float(a.get_slice('=', 1).get_slice(',', 1)) if a.count(',') >= 1 else 15.0
+			_seq_speed = float(a.get_slice('=', 1).get_slice(',', 2)) if a.count(',') >= 2 else 0.0
 		elif a == '--poll-sail-state':
 			_poll_state = true
 		elif a == '--plan=regression':
@@ -94,7 +103,7 @@ func _ready() -> void:
 		_active = true
 		return
 	_active = "--capture" in OS.get_cmdline_user_args()
-	_active = _active or _log_secs > 0.0 or _perf_secs > 0.0 or _reg
+	_active = _active or _log_secs > 0.0 or _perf_secs > 0.0 or _reg or _seq_n > 0
 	if _perf_secs > 0.0:
 		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	set_process(_active)
@@ -131,6 +140,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _seq_n > 0:
+		_seq_step(delta)
+		return
 	if _perf_secs > 0.0:
 		_perf_step(delta)
 		return
@@ -384,3 +396,28 @@ func _aim_debug_cam_at_shore(d: Node, idx: int, height: float) -> void:
 	d.shots[idx]["look"] = to_ship * Vector3(look_xz.x + dir.x * 6.0, -1.0, look_xz.y + dir.y * 6.0)
 	d.shots[idx]["fov"] = 60.0
 	print("[capture] cam-island: island at ", snappedf(best_d, 1.0), " m, shore radius ", snappedf(shore, 1.0))
+
+## --frame-seq=N[,height]: after a 6 s settle, saves N consecutive frames (use `--fixed-fps 30` so every frame is 1/30 s of simulation).
+## The camera (the shot appended by --cam, pose rewritten here) hangs in the ship frame at `height`, looking at the horizon 3 degrees below.
+func _seq_step(_delta: float) -> void:
+	var d := get_tree().get_first_node_in_group('camera_director')
+	if _seq_i == 0 and _t >= 5.0 and d and _seq_t0 == 0.0:
+		var idx: int = d.shots.size() - 1
+		d.shots[idx]["pos"] = Vector3(0.0, _seq_h, 20.0)
+		d.shots[idx]["look"] = Vector3(0.0, _seq_h - 12.0, -230.0)
+		d.shots[idx]["fov"] = 60.0
+		d.jump_to(idx, true)
+		_seq_t0 = _t
+	if _seq_t0 > 0.0 and _seq_speed != 0.0 and d:
+		var idx2: int = d.shots.size() - 1
+		var z := 20.0 - _seq_speed * (_t - _seq_t0)
+		d.shots[idx2]["pos"] = Vector3(0.0, _seq_h, z)
+		d.shots[idx2]["look"] = Vector3(0.0, _seq_h - 12.0, z - 250.0)
+		d.jump_to(idx2, true)
+	if _seq_t0 > 0.0 and _t >= _seq_t0 + 1.0:
+		var img := get_viewport().get_texture().get_image()
+		img.save_png(ProjectSettings.globalize_path("%s/seq_%03d.png" % [SHOT_DIR, _seq_i]))
+		_seq_i += 1
+		if _seq_i >= _seq_n:
+			print("[capture] frame sequence saved: ", _seq_n, " frames")
+			get_tree().quit()
