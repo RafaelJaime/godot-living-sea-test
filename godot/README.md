@@ -93,7 +93,7 @@ validates final visuals. `--uncap` removes the fps cap and vsync for benchmarkin
 | render scale / MSAA / fps cap | 0.6 FSR / off / 30 | 1.0 / 4x / vsync |
 | directional shadows, glow | off | on |
 | ocean rings / FFT / cascades | 6 / 128 / 2 | 11 / 512 / 3 |
-| wake field | 256^2 at 20 Hz | 1024^2 every frame |
+| wake field | 256^2 at 30 Hz | 1024^2 at 30 Hz |
 | cloth substeps+iterations | x0.5 | x1 |
 | particles (rain, spray) | x0.25 | x1 |
 Other systems read `Quality.<field>` (ocean_levels, fft_size, ocean_cascades, wake_resolution, cloth_scale, particle_scale, shadows, glow,
@@ -140,6 +140,15 @@ Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-bir
 - `Autopilot` signals `maneuver_started(kind, side)` (`&"tack"` when the tack side flips, `&"beat"` when beating starts; side = +1/-1) and `maneuver_ended(kind)` (rudder settled, `|rudder| < 0.1` for 3 s, or 90 s timeout).
   Never nested; `maneuver_lead_s` (default 0) delays the flip to give consumers lead time. Logged with `--autopilot-log` or `--maneuver-log`.
 - Changelog (H2): per-sail furl and maneuver signals are additive; existing Ship/Autopilot properties and logs are unchanged.
+
+### Wake texture contract (M2b)
+`scripts/wake_field.gd` renders a `Quality.wake_resolution`^2 (`wake_res`: 256 dev, 1024 final) RGBA16F field over a `size` = 320 m (`wake_size`) world window with a ping-pong
+pair of SubViewports (`shaders/wake_update.gdshader`), at a fixed `Quality.wake_updates_per_second` (30 Hz) step. The window origin is kept as two 64-bit floats and moves in whole 8-texel steps;
+`Waves.ocean.set_wake(texture, origin_local, size)` hands it to the water shader (`wake_tex`, `wake_origin`, `wake_size`). Channels: R = foam 0..1, G = centre-line turbulence 0..1 (decay ~1/s),
+B = signed Kelvin ridge height in metres (clamped +-0.5, decay ~0.6/s). `foam.gdshaderinc` reads R (foam) and, through `wake_normal_terms`, G (roughness, fine normal noise, gain `wake_turb_gain`) and
+B (ridge slope by central differences, gain `wake_ridge_gain`); both gains default to 1.0. Stamps scale with the Froude number of the surge speed relative to the water, the leeward side stamps stronger,
+stern turbulence and arm origins follow the track. Test aids: `--wake-log`, `--wake-far=<m>`, `--wake-test-speed=<k>`, `--wake-turb=<g>`, `--wake-ridge=<g>`, `--water-debug=3..6` (channel views).
+The old ribbon wake (`wake_ribbon.gd`) is gone.
 
 ### Ocean shader layout (godot/shaders/ocean/)
 `ocean_fft.gdshader` is a shell: header, four includes and `fragment()`. Owners: `common.gdshaderinc` = all (defines, uniforms, varyings, island_distance);
