@@ -121,7 +121,7 @@ func _shots_step(delta: float) -> void:
 		var path := ProjectSettings.globalize_path("res://_shots/sky_%s.png" % it["name"])
 		img.save_png(path)
 		print("[sky-shots] saved ", path, " ", img.get_size(), " sun_elev=", snappedf(WorldState.sun_elevation_deg, 0.1), " cloud=", snappedf(WorldState.cloud, 0.01),
-			" storm=", snappedf(WorldState.storm, 0.01), " rainbow=", snappedf(WorldState.rainbow, 0.01), " exposure=", snappedf(sky.exposure, 0.001))
+			" storm=", snappedf(WorldState.storm, 0.01), " rainbow=", snappedf(WorldState.rainbow, 0.01), " deck_wetness=", snappedf(WorldState.deck_wetness, 0.01), " biolum=", snappedf(WorldState.biolum, 0.01), " exposure=", snappedf(sky.exposure, 0.001))
 		_shot_i += 1
 		_shot_t = -1.0
 
