@@ -9,6 +9,8 @@ and screenshots and logs kept as evidence for each change.
 
 ![Living Sea hero](docs/hero.gif)
 
+Higher quality video: [docs/hero.mp4](docs/hero.mp4).
+
 ![Day](docs/screenshots/01_day.jpg)
 
 ## Gallery
