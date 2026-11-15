@@ -223,23 +223,69 @@ func _build_dolphins() -> void:
 		add_child(n)
 		_dolphins.append({"node": n, "ap": ap, "pos": Vector3.ZERO, "vel": Vector3.ZERO, "state": 0, "t": -1.0, "swim_for": 2.0, "left": 0, "delay": 0.0,
 			"lat": 0.0, "ahead": 0.0, "phase": randf() * 2.0})
-	var sm := SphereMesh.new(); sm.radius = 0.5; sm.height = 0.5; sm.radial_segments = 24; sm.rings = 8
-	var splash_mat := StandardMaterial3D.new()
-	splash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	splash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	splash_mat.albedo_color = Color(0.95, 0.98, 1.0, 0.5)
+	# Splashes: a pool of one-shot droplet bursts (small soft billboards that arc up, fall and fade), not flat discs.
+	var drop := QuadMesh.new(); drop.size = Vector2(0.22, 0.22)
+	var dm := StandardMaterial3D.new()
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	dm.vertex_color_use_as_albedo = true
+	dm.albedo_texture = _soft_dot()
+	dm.disable_fog = false
+	drop.material = dm
 	for i in 8:
-		var s := MeshInstance3D.new(); s.mesh = sm; s.material_override = splash_mat.duplicate(); s.visible = false
-		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(s)
-		_splashes.append({"node": s, "t": 9.0})
+		var g := GPUParticles3D.new()
+		g.amount = maxi(int(36 * Quality.particle_scale), 8)
+		g.lifetime = 1.0
+		g.one_shot = true
+		g.explosiveness = 0.95
+		g.emitting = false
+		g.local_coords = false
+		g.visibility_aabb = AABB(Vector3(-8, -2, -8), Vector3(16, 10, 16))
+		var pm := ParticleProcessMaterial.new()
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm.emission_sphere_radius = 0.5
+		pm.direction = Vector3(0, 1, 0)
+		pm.spread = 55.0
+		pm.initial_velocity_min = 2.0
+		pm.initial_velocity_max = 5.0
+		pm.gravity = Vector3(0, -9.8, 0)
+		pm.scale_min = 0.5
+		pm.scale_max = 1.3
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(1, 1, 1, 0.85))
+		ramp.set_color(1, Color(0.9, 0.96, 1.0, 0.0))
+		var rt := GradientTexture1D.new(); rt.gradient = ramp
+		pm.color_ramp = rt
+		g.process_material = pm
+		g.draw_pass_1 = drop
+		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(g)
+		_splashes.append({"node": g, "t": 9.0})
+
+## Radial soft white dot used as the droplet sprite.
+func _soft_dot() -> Texture2D:
+	var gr := Gradient.new()
+	gr.set_color(0, Color(1, 1, 1, 1))
+	gr.set_color(1, Color(1, 1, 1, 0))
+	var t := GradientTexture2D.new()
+	t.gradient = gr
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(1.0, 0.5)
+	t.width = 32
+	t.height = 32
+	return t
 
 func _splash(at: Vector3, big: float) -> void:
-	for s in _splashes:
-		if float(s["t"]) >= 1.0:
-			s["t"] = 0.0
-			s["big"] = big
-			(s["node"] as Node3D).global_position = Vector3(at.x, Waves.height_at(at.x, at.z), at.z)
+	for sp in _splashes:
+		if float(sp["t"]) >= 1.0:
+			sp["t"] = 0.0
+			var g: GPUParticles3D = sp["node"]
+			g.global_position = Vector3(at.x, Waves.height_at(at.x, at.z) + 0.1, at.z)
+			(g.process_material as ParticleProcessMaterial).initial_velocity_max = 3.5 + 2.0 * big
+			g.restart()
+			g.emitting = true
 			return
 
 func _start_dolphin_event() -> void:
@@ -351,17 +397,9 @@ func _tick_dolphins(dt: float) -> void:
 			ap.speed_scale = clampf(v.length() / 4.0, 0.5, 2.0) * (0.6 if state == 1 else 1.0)
 
 func _tick_splashes(dt: float) -> void:
-	for s in _splashes:
-		var t: float = s["t"]
-		if t >= 1.0:
-			continue
-		t += dt * 1.6
-		s["t"] = t
-		var n: MeshInstance3D = s["node"]
-		n.visible = t < 1.0
-		var k := float(s.get("big", 1.0))
-		n.scale = Vector3(1.0 + t * 1.8, 0.35 + t * 0.6, 1.0 + t * 1.8) * k
-		(n.material_override as StandardMaterial3D).albedo_color.a = 0.2 * (1.0 - t) * (1.0 - t)
+	for sp in _splashes:
+		if float(sp["t"]) < 1.0:
+			sp["t"] = float(sp["t"]) + dt / 1.3
 
 # ---------------------------------------------------------------- whale spout
 func _build_whale() -> void:
