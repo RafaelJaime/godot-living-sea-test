@@ -18,6 +18,12 @@ func _ready() -> void:
 			pr.set_script(load("res://scripts/cloth_probe.gd"))
 			add_child(pr)
 	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--tree-dump="): # test aid: sorted dump of the live node tree, see tree_dump.gd
+			var td := Node.new()
+			td.set_script(load("res://scripts/tree_dump.gd"))
+			td.secs = float(a.get_slice("=", 1))
+			add_child(td)
+	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--rebase-test="): # test aid: rebase every N meters
 			rebase_distance = float(a.get_slice("=", 1))
 			rebase_step = rebase_distance
