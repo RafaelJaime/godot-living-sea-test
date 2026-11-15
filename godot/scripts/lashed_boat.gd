@@ -7,7 +7,7 @@ extends Node3D
 @export var loader_path := NodePath("../Ship/Pivot/Model")
 @export var mesh_name := "geo_ship_boat"
 @export var boat_mass := 450.0
-@export var pos_freq := 1.3   ## Hz of the lashing (lower = more play)
+@export var pos_freq := 1.8   ## Hz of the lashing (lower = more play)
 @export var rot_freq := 1.6
 @export var pos_zeta := 0.35
 @export var rot_zeta := 0.45

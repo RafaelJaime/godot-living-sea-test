@@ -317,8 +317,10 @@ Evidence folder: `odd/evidence/M5/`. Depends on: M1-b merged. Not parallel with 
 
 - [x] M5.1 [OS] Baseline `[keel]` summary at sea 0.5 and 0.9 with `--autopilot-log=120 --quality=final` before any change. Files: `odd/evidence/M5/*`. Verify: summary recorded. Dependency: M1.11.
   - Done 2026-11-15 (`odd/evidence/M5/M5_baseline.txt`): keel lift 0.40 m at sea 0.5 and 1.34 m at 0.9, i.e. M5.2's targets (<= 1.1 / 2.3) and even the stretch (0.5 / 1.5) are already met on main (single 120 s runs). M5.2/M5.3 not started: proposed to skip the tuning (lead to confirm).
-- [ ] M5.2 [OS] Per-column wave coupling falloff `coupling(z) = lerp(wave_coupling, wave_coupling * 0.6, abs(z - z_mid) / half_len)`, slam damping on emerging end columns, retune `keel_free_lift` and `keel_suction` for end columns only; all as exports. Files: `godot/scripts/buoyancy.gd`. Verify: `[keel]` at sea 0.5 ≤ 1.1 m and at 0.9 ≤ 2.3 m; both reported against the stretch 0.5 / 1.5 m with shortfall recorded; roll and pitch ranges not worse than T8. Dependency: M5.1. Spec: ship-physics-refinements.
-- [ ] M5.3 [OS] Cost evidence: `--perf-log=30` CPU delta ≤ 0.2 ms at both presets. Files: `odd/evidence/M5/*`. Dependency: M5.2.
+- [x] M5.2 [OS] Per-column wave coupling falloff `coupling(z) = lerp(wave_coupling, wave_coupling * 0.6, abs(z - z_mid) / half_len)`, slam damping on emerging end columns, retune `keel_free_lift` and `keel_suction` for end columns only; all as exports. Files: `godot/scripts/buoyancy.gd`. Verify: `[keel]` at sea 0.5 ≤ 1.1 m and at 0.9 ≤ 2.3 m; both reported against the stretch 0.5 / 1.5 m with shortfall recorded; roll and pitch ranges not worse than T8. Dependency: M5.1. Spec: ship-physics-refinements.
+  - NOT NEEDED (lead decision 2026-11-15): the M5.1 baseline already meets the targets and the stretch: keel lift 0.40 m at sea 0.5 (target <= 1.1, stretch 0.5) and 1.34 m at 0.9 (target <= 2.3, stretch 1.5). No code change.
+- [x] M5.3 [OS] Cost evidence: `--perf-log=30` CPU delta ≤ 0.2 ms at both presets. Files: `odd/evidence/M5/*`. Dependency: M5.2.
+  - NOT NEEDED: depends on M5.2, which made no change (no cost to measure).
 
 ### Slice M5-2 (PR-M5b, about 220 lines): boat
 
@@ -326,7 +328,7 @@ Evidence folder: `odd/evidence/M5/`. Depends on: M1-b merged. Not parallel with 
   - Done 2026-11-15 (`odd/evidence/M5/M5_4_M5_6_evidence.txt`): reaction applied, roll 21.7 deg with load vs 21.2 without; `--no-lash-load` A/B. The 'T8 ranges' were not looked up.
 - [ ] M5.5 [OS] Rope sag as a catenary approximation, `sag = k * max(rest_len - chord, 0)`, no hull penetration. Files: `godot/scripts/lashed_boat.gd`. Verify: calm capture of the boat in its cradle shows visible sag and no penetration; loaded rope taut. Dependency: M5.4.
 - [x] M5.6 [OS] Add `state() -> {offset_m, tilt_deg, lashing_load_n, in_cradle}`. Files: `godot/scripts/lashed_boat.gd`, `godot/README.md`. Verify: `--log-boat` 120 s at sea 0.9 shows max displacement ≤ 5 cm and the cradle-exit flag never set. Dependency: M5.5.
-  - Done with a miss: `state()` added and the boat never leaves the cradle, but max displacement is 7.3 cm (8.2 cm without the load), above the 5 cm target at sea 0.9. M5.5 (rope sag) not done.
+  - Fixed 2026-11-15: lashing frequency 1.3 -> 1.8 Hz brings the max play at sea 0.9 from 7.3 cm to 3.8 cm (target <= 5 cm met), peak roll unchanged (21.8 deg), cradle never left; `odd/evidence/M5/M5_6_stiffen.txt`. M5.5 (rope sag) not done.
 - [ ] M5.7 [OS] Optional dynamic draft behind an export (no hull asset change): record bounds in the PR if built. Verify: 120 s log keeps draft within the recorded bounds. Dependency: M5.2.
 
 ---
