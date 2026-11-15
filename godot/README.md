@@ -124,6 +124,9 @@ off a field here: off in dev, on in final.
   `--sky-shots=name,phase,weather,shot[,wait[,ox,oy,oz]]+...` preset captures to `_shots/sky_<name>.png` (weather `storm_end` = storm then clear; shot `-1` = camera by the nearest island).
   Ambient: `--far-ship-test [--far-ship-angle=rad]` places the horizon ship 1.1 km ahead (its lanterns grow with distance so they read as lights).
 
+## Look-dev candidates (`--look=`)
+`scripts/look_dev.gd` (created by sky.gd only when `--look=` is present; inert otherwise) applies A/B candidates after sky.gd each frame. Comma separated tokens: `tm:filmic|aces|agx|reinhard|linear`, `white:N`, `exp:X`, `glow:int[:bloom[:thr[:strength]]]`, `sat:X`, `con:X`, `bri:X`, `lut[:strength]` (procedural 3D grade: warm highlights at golden hour, cool shadows, blue night, desaturated storm), `vfog[:density[:aniso[:length]]]`, `probe[:update_s]` (ReflectionProbe under Ship/Pivot), `matdump`, `hull_rough:X`, `tshadow:X`. SSIL: `--ao=both`. Evidence and A/B sheets: `odd/evidence/look-dev/`.
+
 ## Ambient life (R8)
 `scripts/ambient/ambient_life.gd` (node `AmbientLife`): dolphin pods at the bow (day, calm), distant whale spouts, a ship passing on the horizon (lanterns lit at night/storm),
 flotsam and seaweed on the swell (height + slope from `Waves.height_at`). `scripts/gulls.gd`: gull + albatross boids around the masts, drawn with three MultiMeshes; birds fly in from the horizon and leave towards it (never pop in or out) and their number follows day, storm and wind (calm: few, flapping; fresh: all, soaring; strong: fewer; storm: none).

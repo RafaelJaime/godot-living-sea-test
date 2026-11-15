@@ -85,6 +85,9 @@ func _ready() -> void:
 		probe.set("sky", self)
 		add_child(probe)
 
+	if _has_arg("--look"): # look-dev A/B candidates (scripts/look_dev.gd), inert without the flag
+		add_child((load("res://scripts/look_dev.gd") as GDScript).new())
+
 func _has_arg(prefix: String) -> bool:
 	for a in OS.get_cmdline_user_args():
 		if a == prefix or a.begins_with(prefix + "="):
