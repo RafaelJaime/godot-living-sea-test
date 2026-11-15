@@ -2,7 +2,7 @@ extends Node3D
 ## Example scene root: gives each agent a stick-figure puppet with the default animation and IK adapters, drives the example day/night through the
 ## blackboard and lets the NpcWorld run. Headless:
 ##   godot --headless --fixed-fps 60 --path <project> res://addons/npc_life/examples/workshop/workshop.tscn -- --npc-seed=1 --npc-minutes=3
-## Captures (needs a window): add `--workshop-shots=<dir>` (and `--workshop-want=a,b`, `--workshop-demo-social` for the social shots): saves reach.png (hand IK on the workbench), crossfade.png (a clip change mid-blend),
+## Screenshots (needs a window): add `--workshop-shots=<dir>` (and `--workshop-want=a,b`, `--workshop-demo-social` for the social shots): saves reach.png (hand IK on the workbench), crossfade.png (a clip change mid-blend),
 ## conversation.png (two agents facing each other) and audience.png (listeners in a ring around the fiddler), then quits.
 
 @onready var world: NpcWorld = $Raft/NpcWorld
@@ -34,7 +34,7 @@ func _ready() -> void:
 		world.kind_defs[kd.kind] = kd
 	_anim_set = NpcAnimSet.new()
 	_anim_set.library = NpcExamplePuppet.clips()
-	_anim_set.shared = {&"idle": &"shared/idle", &"walk": &"shared/walk", &"work": &"shared/work"}
+	_anim_set.shared = {&"idle": &"shared/idle", &"walk": &"shared/walk", &"work": &"shared/work", &"talk": &"shared/idle", &"listen": &"shared/idle"}
 	_anim_set.locomotion = {&"walk": &"walk", &"stairs": &"walk", &"ladder": &"walk", &"rope": &"walk"}
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--workshop-shots="):
