@@ -1,7 +1,8 @@
 # Pirate Ship Wallpaper (Godot 4.7)
 
-Infinite, animated living wallpaper: a galleon sails forever through procedural Gerstner waves with
-four crew members aboard and low-poly tropical islands drifting by. No gameplay.
+Infinite, animated living wallpaper: a pinnace (Poly Haven / Sketchfab "Pirate ship (Rigged)", see `../ATTRIBUTION.md`) sails forever through an FFT ocean
+(GodotOceanWaves, vendored in `addons/ocean_fft`) with four crew members aboard and low-poly tropical islands drifting by. No gameplay.
+The shipped wallpaper launch passes `--quality=final`; every run without the flag is the light `dev` preset (see Quality presets).
 
 ## Run
 ```
@@ -18,13 +19,13 @@ Screenshots + quit: `godot --path <project> -- --capture` writes `_shots/shot_01
 - Auto camera blends to the next shot every 20 s with drift and handheld noise.
 
 ## Where to drop final assets
-- Ship: `res://assets/ship/barco.glb`
+- Ship: `res://assets/ship/pinnace/barco_pinnace.glb` (`ShipLoader.model_path`; modelled in real metres, `ship_scale_override = 1`; `res://assets/ship/barco.glb` is the placeholder fallback)
 - Crew: `res://assets/characters/{papi_fuego,papi_diagnostica,el_salchipapa,don_omar}.glb`
 If the file exists it is used, otherwise `res://assets/placeholder/*.glb` (exported from the Blender blockout
 by `../export_placeholders.py`).
 
 Ship normalization (`scripts/ship_loader.gd`): AABB -> long axis -> bow detected as the narrower end -> rotated so the
-bow points to -Z -> scaled to `target_length` (22 m) -> waterline at 35% of an estimated hull depth.
+bow points to -Z -> scaled by `ship_scale_override` (1 = real metres; `target_length` 22 m is used only when it is 0) -> waterline at 35% of an estimated hull depth.
 Fix a wrong guess with `ship_yaw_offset_deg`, `force_bow_sign`, `ship_scale_override`, `waterline_offset`, `hull_depth_ratio`.
 Crew: height normalized per slot (`target_height`), first/"idle" animation looped with a random start.
 
@@ -32,7 +33,7 @@ Crew: height normalized per slot (`target_height`), first/"idle" animation loope
 - Crew markers: `Ship/Pivot/CrewMarkers/<name>`: `norm_u` (0 stern .. 1 bow), `norm_v` (-1 port .. 1 starboard),
   `deck_height_frac`, `snap_to_deck` (raycast, tolerance `snap_tolerance`), `facing_deg`, `target_height`,
   `final_model_yaw_deg` (model's native front), `barrel_height`.
-- Waves: ONE place, `scripts/waves.gd` (`wave_defs`, `sea_state`); pushed to the shader and mirrored on CPU (`height_at`).
+- Waves: the ocean is an FFT simulation (`scripts/ocean.gd` + `addons/ocean_fft`, three cascades, `Waves.sea_state` 0..1 sets wind/fetch/swell); `scripts/waves.gd` (autoload `Waves`) reads the displacement maps back so the CPU mirrors the surface (`Waves.height_at`).
 - Ship motion: `Ship` -> `speed`, `heave/pitch/roll gains`, `wind_heel_deg`, `yaw_wander_deg`.
 - Sky: `Sky` -> `sun_azimuth_deg`, `sun_elevation_deg`, `fog_density`, `day_cycle` (off by default).
 - Islands: `Islands` -> `island_count`, lateral/ahead distances, `seed_base`.
@@ -95,6 +96,9 @@ validates final visuals. `--uncap` removes the fps cap and vsync for benchmarkin
 | ocean rings / FFT / cascades | 6 / 128 / 2 | 11 / 512 / 3 |
 | wake field | 256^2 at 30 Hz | 1024^2 at 30 Hz |
 | cloth substeps+iterations | x0.5 | x1 |
+| ocean normal mips | 3 | 5 |
+| sky reflection cube (`sky_radiance`) | 64 | 256 |
+| SSAO / SSIL / SSR | off / off / off | on (q0) / off / off |
 | particles (rain, spray) | x0.25 | x1 |
 Other systems read `Quality.<field>` (ocean_levels, fft_size, ocean_cascades, wake_resolution, cloth_scale, particle_scale, shadows, glow,
 render_scale, msaa, max_fps, readback_hz); it loads before everything else, so `_ready()` code can use it directly. The environment and lights
@@ -123,6 +127,44 @@ off a field here: off in dev, on in final.
 flotsam and seaweed on the swell (height + slope from `Waves.height_at`). `scripts/gulls.gd`: gull + albatross boids around the masts (diurnal).
 `scripts/ambient/lighthouse_beam.gd`: rotating beam on island lighthouses (night/storm). All world-space and rebase-safe (group `rebase`).
 Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-birds`. Bioluminescence hook for the ocean: `WorldState.biolum` and the global shader parameter `sky_biolum` (0..1, night only).
+
+## Command-line flags (after `--`, e.g. `godot --path godot -- --quality=final --capture`)
+Presets: `--quality=dev|final`, `--uncap`, `--ssr` / `--no-ssr`, `--msaa=N`, `--fft-size=N`, `--normal-mips=N`, `--no-ao`.
+Captures and measurement: `--capture` (writes `_shots/shot_NN.png`), `--shots=i,j,k` (camera shot indices, one every 2.5 s), `--cam=x,y,z,lx,ly,lz[,fov]` (debug camera in ship space, appended as the LAST shot),
+`--cam-island[=height]` (debug camera at the nearest island shore), `--cam-sweep=N[,height]` (N shots turning through 360 degrees), `--plan=regression` (4 fixed presets x 3 shots -> `_shots/reg_*.png`),
+`--perf-log=<s>` (frame-time percentiles after a 5 s warm-up; `gpu_ms` reads 0.00 on the Apple GPU), `--autopilot-log=<s>` (motion summary, `[keel]` line), `--jitter-test`, `--rebase-test=<m>`, `--poll-sail-state`.
+World: `--start-phase=0..1`, `--no-day`, `--timescale=N`, `--weather=clear|cloudy|storm`, `--sea=0..1`, `--wind=<deg>|calm|light|moderate|fresh|strong|storm`, `--wind-ms=N`, `--wind-hold`, `--wind-seed=N`, `--wind-log`.
+Ocean and wake: `--water-debug=1..6`, `--horizon-mix=<0..1>`, `--hull-foam=<gain>`, `--caustics=`, `--caustics-emit=`, `--caustics-scale=`, `--caustics-wide=`, `--caustics-sharp=`, `--wake-log`, `--wake-far=<m>`,
+`--wake-test-speed=<k>`, `--wake-turb=<g>`, `--wake-ridge=<g>`, `--fx-log`, `--no-spray`, `--fx-test-speed=<k>`.
+Ship, rig and lights: `--hold-heading=<deg>`, `--tack-test`, `--rudder-test`, `--analytic-sails`, `--settle-log`, `--log-wobble`, `--furl-log`, `--request-furl=idx:t@sec`, `--maneuver-log`, `--log-boat`, `--no-lash-load`,
+`--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--ambient-now`. Test aids that scale an input (`--wake-test-speed`, `--fx-test-speed`) do not change the real ship speed.
+
+## Integration API (names, with kind)
+| Name | Kind | Notes |
+|---|---|---|
+| `Ship.roll`, `Ship.pitch`, `Ship.yaw` | property (rad) | roll is starboard-up positive |
+| `Ship.roll_rate`, `Ship.pitch_rate`, `Ship.yaw_rate` | property (rad/s) | |
+| `Ship.rudder`, `Ship.brace` | property | rudder -1..1 (+ starboard); yard brace angle |
+| `Ship.forward`, `Ship.current_speed` | property | heading as world (x, z) unit vector; speed in m/s |
+| `Ship.linear_velocity` | property | RigidBody3D velocity |
+| `Ship.settled` | property (bool) | false during the ~6 s start-up ramp |
+| `Ship.settled_changed(is_settled)`, `Ship.wobble(intensity, kind)` | signal | |
+| `WorldState.daylight`, `.night`, `.storm`, `.cloud`, `.sea_state`, `.wind_strength`, `.deck_wetness`, `.sun_elevation_deg` | property | |
+| `WorldState.wind_vector()`, `.wind_speed_ms()` | getter | |
+| `WorldState.thunder(delay_s, intensity)`, `.storm_cleared` | signal | |
+| `Waves.height_at(x, z)` | getter | CPU mirror of the FFT surface |
+| `PinnaceRig.sail_state()`, `.get_sail_forces()`, `.total_sail_force()`, `.sail_count()`, `.get_furl(idx)` | getter | |
+| `PinnaceRig.request_furl(idx, t)` | method | optional crew request |
+| `PinnaceRig.furl_changed(idx, value)`, `Autopilot.maneuver_started(kind, side)`, `Autopilot.maneuver_ended(kind)` | signal | |
+| `LashedBoat.state()` | getter | |
+| `ShipLights.get_lanterns()`, `.is_lit(id)` | getter | see the ship lights section |
+| `ShipLights.light(id)`, `.extinguish(id)` | method | |
+| `ShipLights.lighting_needed(ids)`, `.extinguish_suggested(ids)`, `.lantern_changed(id, lit)` | signal | |
+| Deck raycast | pattern | no API: `scripts/crew_manager.gd` builds temporary trimesh colliders of the deck/aft meshes and ray-casts downward (`--debug-deck` prints the heights) |
+
+## Changelog (ocean / ship track, newest first)
+- 2026-11-15: horizon blend of far water into the sky colour (`horizon_mix`), SSS 1.8, island caustics (soft additive pattern), sky radiance and SSR keys in Quality (SSR off in both presets: no visible effect on the opaque ocean shader, +1.5 ms), spray following relative speed squared, lashing reaction on the ship and a stiffer lashing, per-sail furl and maneuver signals, wake field hardening (64-bit origin, fixed 30 Hz, Froude/heel stamps, turbulence and ridge channels, ribbon wake removed), normal mip chain, real stern lamps and windows for `ShipLights`.
+- Earlier (see the sections above): FFT ocean on 11 clipmap rings with non-integer cascade tiles, physics ship with column hydrostatics and cloth sail forces, quality presets, regression/perf/jitter tooling, ocean shader split into includes.
 
 ### Ship hooks added by the roadmap (OS track)
 - `Ship.settled: bool` and signal `Ship.settled_changed(is_settled)`: false during the ~6 s start-up ramp, then true (log `[ship] settled`).
