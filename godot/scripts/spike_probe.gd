@@ -43,12 +43,19 @@ func _ready() -> void:
 		p.process_priority = PRIOS[i]
 		add_child(p)
 	set_physics_process(true)
+	for a in OS.get_cmdline_user_args():
+		if a == "--spike-nodes" or a.begins_with("--spike-nodes="):
+			if a.begins_with("--spike-nodes="):
+				_np_thr_ms = float(a.get_slice("=", 1))
+			install_node_probes.call_deferred(_np_thr_ms)
 
 func _physics_process(_d: float) -> void:
 	pass
 
 func stamp(i: int) -> void:
 	_stamps[i] = Time.get_ticks_usec()
+	if i == 0:
+		_np_frame_start_us = _stamps[0]
 	if i != PRIOS.size() - 1:
 		return
 	var now := _stamps[i]
@@ -97,3 +104,46 @@ func report() -> void:
 	print("[probe] mean rest (physics, render, wait): normal %.2f ms | slow %.2f ms" % [_rest_fast / maxf(_n_fast, 1), _rest_slow / maxf(_n_slow, 1)])
 	if iv.size() > 0:
 		print("[probe] slow-frame spacing: min %.2f s  p50 %.2f s  max %.2f s" % [iv[0], iv[iv.size() / 2], iv[iv.size() - 1]])
+
+# --- --spike-nodes[=ms]: node-level attribution inside the default-priority band --------------------------------------------------
+# Inserts a tiny probe node before every node under Main that processes (so tree order, hence processing order, is unchanged) and reports,
+# for any interval longer than the threshold, which node's _process (plus unprobed descendants) the time was spent in.
+class NodeProbe extends Node:
+	var label := ""
+	var owner_probe: Node
+	func _process(_d: float) -> void:
+		owner_probe.node_stamp(label)
+
+var _np_last_us := 0
+var _np_last_label := ""
+var _np_thr_ms := 8.0
+var _np_t := 0.0
+var _np_frame_start_us := 0
+
+func install_node_probes(thr_ms: float) -> int:
+	_np_thr_ms = thr_ms
+	var main := get_tree().root.get_node_or_null("Main")
+	if main == null:
+		return 0
+	var targets: Array[Node] = []
+	for n in main.find_children("*", "", true, false):
+		if n.get_script() != null and n.is_processing() and not (n is NodeProbe) and n.get_parent() != null:
+			targets.append(n)
+	for n in targets:
+		var p := NodeProbe.new()
+		p.label = String(n.get_path()).trim_prefix("/root/Main/")
+		p.owner_probe = self
+		var par := n.get_parent()
+		par.add_child(p)
+		par.move_child(p, n.get_index())
+	print("[nodeprobe] installed ", targets.size(), " probes")
+	return targets.size()
+
+func node_stamp(label: String) -> void:
+	var now := Time.get_ticks_usec()
+	if _np_last_label != "" and _t >= _warm:
+		var ms := float(now - _np_last_us) / 1000.0
+		if ms > _np_thr_ms and _np_last_us >= _np_frame_start_us:
+			print("[nodeprobe] t=%.2f %.1f ms in node(s) starting at '%s' (until '%s')" % [_t, ms, _np_last_label, label])
+	_np_last_us = now
+	_np_last_label = label

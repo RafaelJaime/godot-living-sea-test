@@ -82,7 +82,7 @@ func _ready() -> void:
 			_spike_log = true
 		elif a.begins_with('--spike-ms='):
 			_spike_thr_ms = float(a.get_slice('=', 1))
-		elif a == '--spike-probe' or a.begins_with('--spike-probe='):
+		elif a == '--spike-probe' or a.begins_with('--spike-probe=') or a == '--spike-nodes' or a.begins_with('--spike-nodes='):
 			var sp := Node.new()
 			sp.set_script(load('res://scripts/spike_probe.gd'))
 			sp.name = 'SpikeProbe'
