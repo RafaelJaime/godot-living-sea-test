@@ -47,6 +47,8 @@ func _init() -> void:
 			ssr = false
 		elif a == "--ssr":
 			ssr = true
+		elif a.begins_with("--fft-size="): # test aid / M2a.8 spike: override the FFT map size (power of two)
+			fft_size = int(a.get_slice("=", 1))
 		elif a.begins_with("--msaa="): # test aid: override the MSAA level (0 off .. 3 = 8x)
 			msaa = int(a.get_slice("=", 1))
 		elif a.begins_with("--normal-mips="): # test aid: 1 = no mips (A/B), otherwise the level count
