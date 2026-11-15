@@ -60,6 +60,7 @@ var cloud_scroll := Vector2.ZERO
 var rainbow := 0.0 ## 0..1, after a storm while the sun is low-ish and the rain has stopped
 var fog_bank := 0.0 ## 0..1, morning fog bank around sunrise on calm mornings
 var biolum := 0.0 ## 0..1, night bioluminescence amount (ocean agent hook; also the global shader parameter `sky_biolum`)
+var deck_wetness := 0.0 ## 0..1, ship deck: soaks within ~25 s of heavy rain, dries slowly (faster in daylight and wind). Drives deck_wet.gd.
 var wetness := 0.0 ## 0..1, decays ~2 min after the rain stops (wet decks, glossy sea)
 
 ## Emitted with every lightning strike: `delay_s` = seconds until the thunder should be heard (distance / 343), `intensity` 0..1.
@@ -285,6 +286,13 @@ func _update_wind(dt: float, n2: float) -> void:
 func _derive_atmosphere(dt: float) -> void:
 	var rain := smoothstep(0.35, 0.8, storm)
 	wetness = maxf(wetness - dt / 120.0, rain)
+	if rain > deck_wetness:
+		deck_wetness = minf(rain, deck_wetness + dt / 25.0)
+	else:
+		deck_wetness = maxf(0.0, deck_wetness - dt / 150.0 * (0.4 + 1.2 * daylight * (1.0 - 0.6 * cloud) + 0.8 * wind_strength))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--deck-wet="):
+			deck_wetness = float(a.get_slice("=", 1))
 	var stormy := storm > 0.6
 	if _was_stormy and storm < 0.45:
 		storm_cleared.emit()
