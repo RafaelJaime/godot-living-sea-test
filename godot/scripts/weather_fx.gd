@@ -41,6 +41,11 @@ func _ready() -> void:
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.albedo_color = Color(0.78, 0.84, 0.95, 0.26)
+	# Drops that pass within a few metres of the camera would be 0.75 m streaks several hundred pixels long (the "thick white diagonal
+	# line"): fade them out inside 2.5-8 m.
+	m.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	m.distance_fade_min_distance = 2.5
+	m.distance_fade_max_distance = 8.0
 	cap.material = m
 	_rain_mat = m
 	_rain.draw_pass_1 = cap
