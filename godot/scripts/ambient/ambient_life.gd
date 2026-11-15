@@ -6,6 +6,8 @@ extends Node3D
 ## Hooks for other systems: WorldState.biolum / global shader parameter `sky_biolum` (night bioluminescence for the ocean agent).
 
 @export var ship_path := NodePath("../Ship")
+## Half-width (m) of the strip along the ship's heading where flotsam never spawns.
+const CORRIDOR := 10.0
 
 var _ship: Node3D
 var _force := false
@@ -38,6 +40,13 @@ func _ready() -> void:
 	_force = "--ambient-now" in OS.get_cmdline_user_args()
 	add_to_group("rebase")
 	_build_flotsam()
+	if "--flotsam-test" in OS.get_cmdline_user_args(): # test aid: one plank dead ahead on the keel line, logged while it is pushed aside
+		var f0: Dictionary = _flot[0]
+		f0["test"] = true
+		f0["pos"] = _ship.global_position + _hull_fwd() * 55.0
+		f0["yaw"] = PI * 0.5
+		f0["spin"] = 0.0
+		set_meta("flotsam_test", f0)
 	_build_dolphins()
 	_build_whale()
 	if _force:
@@ -101,7 +110,8 @@ func _build_flotsam() -> void:
 				m.scale = Vector3.ONE * randf_range(0.7, 1.5)
 				n.add_child(m)
 		add_child(n)
-		_flot.append({"node": n, "pos": Vector3.ZERO, "spin": randf_range(-0.15, 0.15), "yaw": randf() * TAU, "kind": kind})
+		_flot.append({"node": n, "pos": Vector3.ZERO, "spin": randf_range(-0.15, 0.15), "yaw": randf() * TAU, "kind": kind,
+			"vel": Vector3.ZERO, "spinv": 0.0, "dip": 0.0, "radius": 1.2 if kind == 0 else (0.5 if kind == 1 else 1.6)})
 		_respawn_flot(_flot[i], true)
 
 func _respawn_flot(f: Dictionary, anywhere: bool) -> void:
@@ -112,8 +122,50 @@ func _respawn_flot(f: Dictionary, anywhere: bool) -> void:
 	var dir := fwd.rotated(Vector3.UP, ang)
 	if anywhere and randf() < 0.3:
 		dir = -dir
-	f["pos"] = sp + dir * dist
+	var p := sp + dir * dist
+	# Never spawn in the ship's path: keep CORRIDOR m clear of the heading line (the hull pushes the rest aside, see _hull_push).
+	var hf := _hull_fwd()
+	var side := (p - sp).dot(Vector3(-hf.z, 0.0, hf.x))
+	if absf(side) < CORRIDOR and (p - sp).dot(hf) > -20.0:
+		p += Vector3(-hf.z, 0.0, hf.x) * ((CORRIDOR + randf_range(0.0, 8.0)) * (1.0 if side >= 0.0 else -1.0) - side)
+	f["pos"] = p
 	f["yaw"] = randf() * TAU
+	f["vel"] = Vector3.ZERO
+
+## Hull heading from the model (the velocity-based `_ship_fwd` is for things that must lead the motion).
+func _hull_fwd() -> Vector3:
+	var f := -_ship.global_transform.basis.z
+	f.y = 0.0
+	return f.normalized()
+
+## The hull and its bow wave push floating objects aside: outside the hull ellipse (grown by the object radius and a bow-wave
+## margin) there is no effect; inside, the object gets an outward velocity proportional to the ship speed and how deep it is in
+## the zone, a yaw kick away from the keel line, and a short dip that the wave then lifts (bobbing).
+func _hull_push(f: Dictionary, p: Vector3, dt: float) -> void:
+	var hf := _hull_fwd()
+	var hr := Vector3(-hf.z, 0.0, hf.x)
+	var rel := p - _ship.global_position
+	var along := rel.dot(hf)
+	var side := rel.dot(hr)
+	var len_h: float = float(_ship.get("length")) * 0.5 if _ship.get("length") != null else 11.0
+	var beam_h: float = float(_ship.get("beam")) * 0.5 if _ship.get("beam") != null else 3.5
+	var r: float = f["radius"]
+	var lz := len_h + r + (4.0 if along > 0.0 else 1.0) # bow wave: wider and longer ahead of the stem
+	var bz := beam_h + r + (3.0 if along > -len_h * 0.3 else 1.5)
+	var d := sqrt((along / lz) * (along / lz) + (side / bz) * (side / bz))
+	if d >= 1.0:
+		return
+	var depth := 1.0 - d
+	var n := (hr * (side / (bz * bz)) + hf * (along / (lz * lz)))
+	if n.length() < 1e-5:
+		n = hr * (1.0 if randf() < 0.5 else -1.0)
+	n = n.normalized()
+	# More of the push goes sideways than ahead, so a plank on the keel line slides off the bow instead of riding it.
+	n = (n + hr * signf(side) * 0.6).normalized()
+	var spd := maxf(_ship_vel().length(), 1.5)
+	f["vel"] = (f["vel"] as Vector3) + n * spd * depth * 6.0 * dt
+	f["spinv"] = float(f["spinv"]) + signf(side) * depth * 2.2 * dt
+	f["dip"] = maxf(float(f["dip"]), depth)
 
 func _tick_flotsam(dt: float) -> void:
 	var sp := _ship.global_position
@@ -122,18 +174,24 @@ func _tick_flotsam(dt: float) -> void:
 	var drift := Vector3(wv.x, 0, wv.y)
 	for f in _flot:
 		var p: Vector3 = f["pos"]
-		p += drift * dt
+		_hull_push(f, p, dt)
+		var v: Vector3 = f["vel"]
+		v *= exp(-dt * 1.2) # water drag: the push dies out within a few seconds
+		f["vel"] = v
+		f["spinv"] = float(f["spinv"]) * exp(-dt * 1.0)
+		f["dip"] = float(f["dip"]) * exp(-dt * 1.5)
+		p += (drift + v) * dt
 		var rel := p - sp
-		if rel.length() > 260.0 or rel.dot(fwd) < -70.0:
+		if not f.get("test", false) and (rel.length() > 260.0 or rel.dot(fwd) < -70.0):
 			_respawn_flot(f, false)
 			p = f["pos"]
 		f["pos"] = p
-		f["yaw"] = float(f["yaw"]) + float(f["spin"]) * dt
+		f["yaw"] = float(f["yaw"]) + (float(f["spin"]) + float(f["spinv"])) * dt
 		var node: Node3D = f["node"]
 		var h := Waves.height_at(p.x, p.z)
 		var hx := Waves.height_at(p.x + 0.8, p.z) - h
 		var hz := Waves.height_at(p.x, p.z + 0.8) - h
-		node.global_position = Vector3(p.x, h + 0.03, p.z)
+		node.global_position = Vector3(p.x, h + 0.03 - 0.22 * float(f["dip"]), p.z)
 		node.rotation = Vector3(-hz * 0.8, float(f["yaw"]), hx * 0.8)
 
 # ---------------------------------------------------------------- dolphins
@@ -387,6 +445,12 @@ func _tick_far_ship(dt: float) -> void:
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.1)
 	_t += dt
+	if has_meta("flotsam_test") and int(_t * 2.0) != int((_t - dt) * 2.0):
+		var ft: Dictionary = get_meta("flotsam_test")
+		var rl: Vector3 = (ft["pos"] as Vector3) - _ship.global_position
+		var hf := _hull_fwd()
+		print("[flotsam-test] t=%.1f along=%.1f side=%.1f push_vel=%.2f dip=%.2f yaw=%.0f ship_speed=%.1f" % [_t, rl.dot(hf), rl.dot(Vector3(-hf.z, 0, hf.x)),
+			(ft["vel"] as Vector3).length(), ft["dip"], rad_to_deg(ft["yaw"]), _ship_vel().length()])
 	_tick_flotsam(dt)
 	_tick_dolphins(dt)
 	_tick_splashes(dt)
