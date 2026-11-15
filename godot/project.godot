@@ -69,3 +69,7 @@ num_cascades={
 "type": "uint",
 "value": 0
 }
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/npc_life/plugin.cfg")
