@@ -3,3 +3,11 @@ UAL1_Standard.glb
 UAL1_Standard.glb.import
 UAL1_Standard_Image*
 *.scn
+# second research round (2026-11-15): UAL 2 Standard (CC0, https://quaternius.itch.io/universal-animation-library-2) and KayKit Character Animations 1.1 (CC0, https://kaylousberg.itch.io/kaykit-character-animations)
+UAL2_Standard.glb
+UAL2_Standard.glb.import
+Rig_Medium_*.glb
+Rig_Medium_*.glb.import
+Mannequin_Medium.glb
+Mannequin_Medium.glb.import
+Mannequin_Medium_*
