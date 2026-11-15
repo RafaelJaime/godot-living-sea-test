@@ -12,6 +12,10 @@ const STATION_KINDS: Array[StringName] = [&"helm", &"spyglass_post", &"crows_nes
 	&"social_spot", &"fishing_rail", &"repair_spot", &"mop_zone", &"boat_check"]
 const NON_STATION_KINDS: Array[StringName] = [&"nav", &"reef_pin", &"stairs", &"door"]
 const REEF_SIDE_OFFSET := 1.6
+const GRAPH_PATH := "res://ship/crew_graph.tres"
+const GRAPH_ROOT := &"n_waist_b"      ## deck root node of the connectivity check
+const LINK_MAX := 4.0                 ## a station must lie within this distance (m) of a navigation node
+const RAY_LAYER := 1 << 18
 
 @export var ship_path := NodePath("../../..")
 @export var helm_path := NodePath("../../Helm")
@@ -22,6 +26,9 @@ var _by_id: Dictionary = {}              # StringName -> NpcStation
 var _sail_positions: Array[Vector3] = []  # test / fallback input when the ship has no sail_defs
 var _debug := OS.get_cmdline_user_args().has("--debug-stations")
 var _built := false
+var _graph: NpcWaypointGraph
+var _graph_report := {}
+var _bake := OS.get_cmdline_user_args().has("--bake-crew-graph")
 
 func _ready() -> void:
 	_root = get_parent() as Node3D
@@ -72,6 +79,8 @@ func rebuild() -> void:
 	_bind_ik()
 	_built = true
 	_late_refresh.call_deferred()
+	if _bake:
+		_bake_graph.call_deferred()
 	stations_changed.emit()
 	print("[crew] stations: ", _counts_text())
 	if _debug:
@@ -90,6 +99,8 @@ func _late_refresh() -> void:
 			if st.kind == &"lantern":
 				print("[crew] station ", id, " (after the deck rays) local=", st.position.snapped(Vector3.ONE * 0.01), " facing=", snappedf(st.facing_deg, 0.1))
 	stations_changed.emit()
+	if not _bake:
+		_log_graph() # after the lantern stances exist
 
 func _make_station(id: StringName, kind: StringName, pos: Vector3) -> NpcStation:
 	var st := NpcStation.new()
@@ -280,3 +291,131 @@ func _draw_debug() -> void:
 		lb.position = Vector3(0, 0.35, 0)
 		st.add_child(lb)
 		print("[crew] station ", st.station_id, " kind=", st.kind, " level=", level_of(st.position), " local=", st.position.snapped(Vector3.ONE * 0.01), " facing=", st.facing_deg, " must_staff=", st.must_staff)
+
+# ---- waypoint graph (H3) -----------------------------------------------------------------------------------------------------------------
+
+## Graph of the ship in pivot-local space: one node per navigation marker (`kind = nav`, edges from `edge_to`) and one per station (linked by a walk
+## edge to the nearest navigation node at about the same height). `snap` (optional) maps a pivot-local point to its deck height (bake only).
+## The report (`last_graph_report()`): counts per edge type, `unlinked` station ids (no navigation node within LINK_MAX), `root_unreachable`.
+func build_graph(snap: Callable = Callable()) -> NpcWaypointGraph:
+	var g := NpcWaypointGraph.new()
+	var index := {}
+	var nav: Array[Dictionary] = []
+	var snap_stats := {"snapped": 0, "missed": [] as Array[StringName], "max_dy": 0.0}
+	var markers := _root.get_node_or_null("Markers") if _root != null else null
+	if markers != null:
+		for m in markers.get_children():
+			if m is Marker3D and StringName(m.get_meta("kind", &"")) == &"nav":
+				var p := (m as Marker3D).position
+				if snap.is_valid() and p.y < 10.0:
+					var y: Variant = snap.call(p)
+					if y != null:
+						snap_stats["snapped"] += 1
+						snap_stats["max_dy"] = maxf(snap_stats["max_dy"], absf(float(y) - p.y))
+						p.y = float(y)
+					else:
+						snap_stats["missed"].append(StringName(m.name))
+				index[StringName(m.name)] = g.add_node(p, StringName(m.name))
+				nav.append({"name": StringName(m.name), "marker": m})
+	for n in nav:
+		var m: Marker3D = n["marker"]
+		var default_type := StringName(m.get_meta("edge_type", &"walk"))
+		for spec in String(m.get_meta("edge_to", "")).split(",", false):
+			var parts := spec.strip_edges().split(":")
+			var other := StringName(parts[0])
+			var etype := StringName(parts[1]) if parts.size() > 1 else default_type
+			if not index.has(other):
+				push_warning("[crew] graph: %s -> %s: unknown navigation node" % [n["name"], other])
+				continue
+			g.connect_nodes(index[n["name"]], index[other], etype)
+	var unlinked: Array[StringName] = []
+	for st in provide_stations():
+		var p := st.position
+		if snap.is_valid() and p.y < 10.0:
+			var y2: Variant = snap.call(p)
+			if y2 != null:
+				p.y = float(y2)
+		var sn := g.add_node(p, st.station_id)
+		var best := -1
+		var bd := INF
+		for n in nav:
+			var np := g.positions[index[n["name"]]]
+			var d := np.distance_to(p) + (6.0 if absf(np.y - p.y) > 1.0 else 0.0) # prefer the same level
+			if d < bd:
+				bd = d
+				best = index[n["name"]]
+		if best >= 0 and bd <= LINK_MAX:
+			g.connect_nodes(sn, best, &"walk")
+		else:
+			unlinked.append(st.station_id)
+	var counts := {}
+	for i in g.edge_count():
+		counts[g.edge_type(i)] = int(counts.get(g.edge_type(i), 0)) + 1
+	var root_i: int = g.node_tags.find(GRAPH_ROOT)
+	_graph_report = {"nodes": g.node_count(), "edges": g.edge_count(), "by_type": counts, "unlinked": unlinked, "validate": g.validate(), "snap": snap_stats,
+		"root_unreachable": g.check_connectivity(root_i) if root_i >= 0 else [-1]}
+	return g
+
+func last_graph_report() -> Dictionary:
+	return _graph_report
+
+## The baked graph (`ship/crew_graph.tres`), or null when it has not been baked yet.
+func graph() -> NpcWaypointGraph:
+	if _graph == null and ResourceLoader.exists(GRAPH_PATH):
+		_graph = load(GRAPH_PATH) as NpcWaypointGraph
+	return _graph
+
+func _log_graph() -> void:
+	var g := graph()
+	if g == null:
+		print("[crew] graph: none baked yet (run with --bake-crew-graph)")
+		return
+	var far := 0
+	for st in provide_stations():
+		var n := g.nearest_node(st.position)
+		if n < 0 or g.positions[n].distance_to(st.position) > 1.5:
+			far += 1
+	var root_i: int = g.node_tags.find(GRAPH_ROOT)
+	var unreachable: Array[int] = g.check_connectivity(root_i) if root_i >= 0 else [-1]
+	print("[crew] graph nodes=", g.node_count(), " edges=", g.edge_count(), " stations_without_node_within_1.5m=", far, " unreachable=", unreachable.size(), " problems=", g.validate().size())
+
+## `--bake-crew-graph`: temporary trimesh colliders of the deck, aft and interior meshes (same technique as crew_manager.gd, a private layer),
+## snap the navigation markers to the deck, build the graph, check connectivity from the deck root and save only when everything is reachable.
+func _bake_graph() -> void:
+	var model := get_node_or_null("../../Model")
+	var bodies: Array[StaticBody3D] = []
+	if model != null:
+		for n in model.find_children("*", "MeshInstance3D", true, false):
+			var mi := n as MeshInstance3D
+			var low := String(mi.name).to_lower()
+			if mi.mesh == null or not ("deck" in low or "aft" in low or "interior" in low):
+				continue
+			var b := StaticBody3D.new()
+			b.collision_layer = RAY_LAYER
+			var cs := CollisionShape3D.new()
+			cs.shape = mi.mesh.create_trimesh_shape()
+			b.add_child(cs)
+			_root.add_child(b)
+			b.global_transform = mi.global_transform
+			bodies.append(b)
+	for i in 4:
+		await get_tree().physics_frame
+	var space := _root.get_world_3d().direct_space_state
+	var pivot := _pivot()
+	var snap := func(p: Vector3) -> Variant:
+		var q := PhysicsRayQueryParameters3D.create(pivot.to_global(p + Vector3(0, 0.9, 0)), pivot.to_global(p + Vector3(0, -1.6, 0)))
+		q.collision_mask = RAY_LAYER
+		var hit := space.intersect_ray(q)
+		return pivot.to_local(hit["position"]).y if not hit.is_empty() else null
+	var g := build_graph(snap)
+	for b in bodies:
+		b.queue_free()
+	var rep := _graph_report
+	print("[crew] bake: snap=", rep["snap"], " nodes=", rep["nodes"], " edges=", rep["edges"], " by_type=", rep["by_type"], " unlinked=", rep["unlinked"], " validate=", rep["validate"])
+	if not (rep["root_unreachable"] as Array).is_empty() or not (rep["unlinked"] as Array).is_empty() or not (rep["validate"] as PackedStringArray).is_empty():
+		print("[crew] FAIL connectivity unreachable: ", rep["root_unreachable"], " unlinked: ", rep["unlinked"], " (graph NOT written)")
+	else:
+		print("[crew] unreachable: []")
+		var err := ResourceSaver.save(g, GRAPH_PATH)
+		print("[crew] graph written to ", GRAPH_PATH, " err=", err)
+	get_tree().quit()

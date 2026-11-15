@@ -138,7 +138,7 @@ World: `--start-phase=0..1`, `--no-day`, `--timescale=N`, `--weather=clear|cloud
 Ocean and wake: `--water-debug=1..7` (7 = cat's paw mask), `--catpaw=<gain>` (default 1.5, 0 = off), `--no-gust-tex`, `--gust-tex-test`, `--horizon-mix=<0..1>`, `--hull-foam=<gain>`, `--caustics=`, `--caustics-emit=`, `--caustics-scale=`, `--caustics-wide=`, `--caustics-sharp=`, `--wake-log`, `--wake-far=<m>`,
 `--wake-test-speed=<k>`, `--wake-turb=<g>`, `--wake-ridge=<g>`, `--fx-log`, `--no-spray`, `--fx-test-speed=<k>`.
 Ship, rig and lights: `--hold-heading=<deg>`, `--tack-test`, `--rudder-test`, `--analytic-sails`, `--settle-log`, `--log-wobble`, `--furl-log`, `--request-furl=idx:t@sec`, `--maneuver-log`, `--log-boat`, `--no-lash-load`,
-`--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--deck-survey`, `--debug-stations`, `--ambient-now`.
+`--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--deck-survey`, `--debug-stations`, `--bake-crew-graph`, `--ambient-now`.
 Cloth and wind diagnostics: `--cloth-probe=<s>` (per-frame sail/flag vertex motion log, `[probe]` CSV lines), `--cloth-demo=<name>` with `--wind-rel=<deg>` and `--soak-secs=<s>`, `--log-wind` (flag wind log), `--gust-amp=X` (the gust pulse test is `--cloth-demo=gust`).
 Other debug aids: `--debug-phys`, `--debug-pins`, `--debug-rig`, `--debug-wheel`, `--flat` (flat sea), `--no-canto`, `--no-pole`, `--cam-prof`, `--cam-verify`, `--island-verify`, `--beam-log`, `--ao-quality=0..3`, `--sc2-light-steps=N`, `--test-clip=<name>`. Test aids that scale an input (`--wake-test-speed`, `--fx-test-speed`) do not change the real ship speed.
 
@@ -210,6 +210,10 @@ Catalogue: `helm` (must_staff, hand_l/hand_r IK from `Helm`), `lantern_<id>` per
 Markers carry metadata `kind`, `slots`, `facing_deg`, `anim_tag`, `must_staff`; navigation nodes (`kind = nav`) carry `edge_to` ("name[:type],...") for the waypoint graph (H3). Positions come from
 `odd/evidence/npc-crew-jobs/H1/deck_survey.md`; `ship/gen_ship_stations.py` regenerates the scene. Test aid `--debug-stations` draws a labelled magenta marker on every station and logs each one.
 Limits: the crow's nest and ratline markers are placed from mast-mesh measurements (not checked against a render); the model has no cabin door (a `door` marker stands at the companionway); no extra geometry was added.
+Waypoint graph (H3): `ship/crew_graph.tres` is an `NpcWaypointGraph` in pivot-local space (nodes = navigation markers + one per station, typed edges walk / stairs / rope from the markers' `edge_to`),
+loaded by `ShipStations.graph()` and logged at start as `[crew] graph nodes=<n> edges=<m> stations_without_node_within_1.5m=0 unreachable=0 problems=0`. It is baked OFFLINE: re-bake after a hull change or after editing the markers
+with `godot --path godot -- --bake-crew-graph` (temporary deck colliders, navigation markers snapped to the deck with downward rays, connectivity checked from `n_waist_b`; it only writes the file when `unreachable` is empty,
+otherwise it logs `FAIL connectivity` and writes nothing). Connectivity check by hand: `NpcWaypointGraph.check_connectivity(node_index_of("n_waist_b"))` must return `[]`. `ShipStations.build_graph()` rebuilds it in memory without snapping (used by the tests).
 Changelog (H1): `ShipLights.get_lanterns()` gained `local_position` / `stand_local`; `ShipStations` is additive, nothing in the crew files changed.
 
 ### Ocean shader layout (godot/shaders/ocean/)
