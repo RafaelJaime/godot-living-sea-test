@@ -16,7 +16,7 @@ extends Node3D
 @export var pole_radius := 0.05 ## collision capsule of the staff (m)
 @export var tie_slack := 0.97 ## tie distance / flag height: the hoist edge bows a little between the ties
 @export var density := 0.30 ## kg/m2 (ensign bunting)
-@export var texture_path := "res://assets/ship/flag_pirat.png"
+@export var flag_color := Color(1, 1, 1) ## plain white ensign
 
 var _ship: Node
 var _pivot: Node3D
@@ -62,10 +62,7 @@ func _ready() -> void:
 	_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	_mi.extra_cull_margin = 20.0
 	var m := StandardMaterial3D.new()
-	if ResourceLoader.exists(texture_path):
-		m.albedo_texture = load(texture_path)
-		m.uv1_scale = Vector3(0.975, 0.97, 1.0) # crop the thin white margin of the supplied image
-		m.uv1_offset = Vector3(0.0125, 0.015, 0.0)
+	m.albedo_color = flag_color
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.alpha_scissor_threshold = 0.5
