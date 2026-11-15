@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/autopilot.gd" id="15_auto"]
 [ext_resource type="Script" path="res://scripts/helm.gd" id="16_helm"]
 [ext_resource type="Script" path="res://scripts/crew_rig.gd" id="17_rig"]
+[ext_resource type="Script" path="res://crew/crew_npc.gd" id="100_crewnpc"]
 [ext_resource type="Script" path="res://scripts/pinnace_rig.gd" id="18_pin"]
 [ext_resource type="Script" path="res://scripts/flag.gd" id="19_flag"]
 [ext_resource type="Script" path="res://scripts/ship_lights_builder.gd" id="99_lights"]
@@ -61,6 +62,9 @@ script = ExtResource("99_lights")
 
 [node name="CrewMarkers" type="Node3D" parent="Pivot"]
 script = ExtResource("5_crewmgr")
+
+[node name="CrewNpc" type="Node" parent="Pivot"]
+script = ExtResource("100_crewnpc")
 
 [node name="Papi_Fuego" type="Marker3D" parent="Pivot/CrewMarkers"]
 script = ExtResource("6_slot")

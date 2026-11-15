@@ -81,6 +81,8 @@ func _on_crew_ready() -> void:
 				mod.brace_gain = 0.5
 		sk.add_child(mod)
 		_ramp_in(mod)
+		if CrewNpc.is_npc():
+			continue # C1.4 ports helm IK and violin to the npc adapters
 		if slot.name == "Papi_Fuego":
 			_setup_helmsman(slot, sk)
 		elif slot.name == "Don_Omar":

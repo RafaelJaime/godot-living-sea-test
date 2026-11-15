@@ -24,7 +24,11 @@ func _initialize() -> void:
 		for a in d.signature_actions:
 			tags[a.anim_tag] = true
 	for t in tags:
-		anim.shared[t] = &"idle" if t != &"carry_crate" else &"walk"
+		anim.shared[t] = &"idle"
+	# the station-level tags of ShipStations (its markers carry them); all idle until the C4 clips exist, climbing uses the stairs clip
+	for t in [&"steer", &"chart", &"fish", &"inspect", &"listen", &"lookout", &"mop", &"repair", &"spyglass", &"violin", &"light", &"haul"]:
+		anim.shared[t] = &"idle"
+	anim.shared[&"climb"] = &"climb_stairs"
 	_save(anim, "crew_anim_set.tres")
 	# re-save defs so they point at the final resource files
 	var anim_res := load(OUT + "crew_anim_set.tres")
@@ -160,8 +164,8 @@ func _roster() -> NpcRoster:
 	var r := NpcRoster.new()
 	r.watches = [
 		_watch(&"helm_watch", &"helm", &"helm", ["papi_fuego", "don_omar", "papi_diagnostica"], 240.0, 40.0, true),
-		_watch(&"spyglass_watch", &"spyglass_post", &"spyglass_post", ["papi_fuego", "el_salchipapa"], 150.0, 30.0, false),
-		_watch(&"nest_watch", &"crows_nest", &"crows_nest", ["el_salchipapa", "papi_fuego"], 200.0, 30.0, false),
+		_watch(&"spyglass_watch", &"spyglass_post", &"spyglass_post", ["papi_fuego", "don_omar"], 150.0, 30.0, false),
+		_watch(&"nest_watch", &"crows_nest", &"crows_nest", ["el_salchipapa", "papi_diagnostica"], 200.0, 30.0, false),
 	]
 	return r
 
