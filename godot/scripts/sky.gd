@@ -18,6 +18,13 @@ var _sun: DirectionalLight3D
 var _moon: DirectionalLight3D
 var _sky_mat: ShaderMaterial
 var _cam_attr: CameraAttributesPractical
+## Deterministic exposure (M3.5): a pure function of sun elevation, cloud cover and storm; lightning never feeds it.
+var exposure := 1.0
+var sun_energy_now := 0.0
+const AO_MODE := "ssao" # SSIL costs ~1.1 ms more at 1080p on the M5 (odd/evidence/M3/perf_final_*.log): off by default, `--ao=both` turns it on
+const AO_QUALITY := 0
+## Quality-gated ambient occlusion state, for logs and the probe ("off", "ssao+ssil").
+var ao_state := "off"
 
 func _ready() -> void:
 	_sun = get_node(sun_path)
@@ -50,20 +57,22 @@ func _ready() -> void:
 	env.adjustment_saturation = 1.08
 	env.adjustment_contrast = 1.04
 	environment = env
-	# Auto exposure: gentle range so noon highlights are tamed but the night is never lifted (see _update).
+	# No auto exposure (it pumps on camera cuts and lightning and makes captures irreproducible): `exposure_multiplier` is
+	# computed from WorldState in _update() (see _exposure_for).
 	_cam_attr = CameraAttributesPractical.new()
-	_cam_attr.auto_exposure_enabled = not "--no-autoexp" in OS.get_cmdline_user_args()
-	_cam_attr.auto_exposure_scale = 0.4
-	_cam_attr.auto_exposure_speed = 0.6
+	_cam_attr.auto_exposure_enabled = false
 	camera_attributes = _cam_attr
-	# Ship shadows: two cascades so the 40 m hull gets ~2 cm texels near the camera, 4096 atlas, light blur.
-	_sun.shadow_enabled = true
-	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	_sun.directional_shadow_max_distance = 170.0
-	_sun.directional_shadow_split_1 = 0.3
+	# Ship shadows: four cascades over 160 m (about 1.5 cm texels on the deck, 4096 atlas), soft blur. Dev drops the
+	# shadows altogether (Quality.shadows) so the cascade layout only matters in final.
+	_sun.shadow_enabled = Quality.shadows and not _has_arg("--no-shadows") # --no-shadows: A/B cost runs
+	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	_sun.directional_shadow_max_distance = 160.0
+	_sun.directional_shadow_split_1 = 0.06
+	_sun.directional_shadow_split_2 = 0.18
+	_sun.directional_shadow_split_3 = 0.5
 	_sun.directional_shadow_blend_splits = true
 	_sun.directional_shadow_fade_start = 0.9
-	_sun.shadow_blur = 0.7
+	_sun.shadow_blur = 1.3
 	_sun.shadow_bias = 0.03
 	_sun.shadow_normal_bias = 1.2
 	_sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
@@ -72,6 +81,53 @@ func _ready() -> void:
 		_moon.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 		_moon.light_color = Color(0.62, 0.72, 1.0)
 	_update()
+	_apply_ao.call_deferred()
+	if _has_arg("--sky-log") or _has_arg("--sky-shots"):
+		var probe: Node = (load("res://scripts/sky_probe.gd") as GDScript).new()
+		probe.set("sky", self)
+		add_child(probe)
+
+func _has_arg(prefix: String) -> bool:
+	for a in OS.get_cmdline_user_args():
+		if a == prefix or a.begins_with(prefix + "="):
+			return true
+	return false
+
+## SSAO + SSIL: final only (half-res, the project default), off in dev. Quality patches the environment two frames after
+## start (and forces SSAO off), so this waits until after that. `--no-ao` is a test aid for A/B cost runs.
+func _apply_ao() -> void:
+	for _i in 4:
+		await get_tree().process_frame
+	var on := Quality.level == Quality.Level.FINAL and not _has_arg("--no-ao")
+	var env := environment
+	# Tuning aids: --ao=ssao|ssil|both (default AO_MODE), --ao-quality=0..3 (very low .. high, default AO_QUALITY).
+	var mode := AO_MODE
+	var quality := AO_QUALITY
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--ao="):
+			mode = a.get_slice("=", 1)
+		elif a.begins_with("--ao-quality="):
+			quality = int(a.get_slice("=", 1))
+	env.ssao_enabled = on and mode != "ssil"
+	env.ssil_enabled = on and mode != "ssao"
+	if on:
+		# Half-res, adaptive, one blur pass, faded out beyond 60-250 m: AO only matters on and around the ship.
+		RenderingServer.environment_set_ssao_quality(quality as RenderingServer.EnvironmentSSAOQuality, true, 0.5, 1, 60.0, 250.0)
+		RenderingServer.environment_set_ssil_quality(quality as RenderingServer.EnvironmentSSILQuality, true, 0.5, 4, 60.0, 250.0)
+		env.ssao_radius = 1.8
+		env.ssao_intensity = 1.6
+		env.ssao_power = 1.6
+		env.ssao_detail = 0.6
+		env.ssao_horizon = 0.06
+		env.ssao_sharpness = 0.9
+		env.ssao_light_affect = 0.35
+		env.ssil_radius = 6.0
+		env.ssil_intensity = 0.7
+		env.ssil_sharpness = 0.9
+		env.ssil_normal_rejection = 1.0
+	ao_state = (mode + " q" + str(quality)) if on else "off"
+	print("[sky] ", Quality.name_, ": SSAO/SSIL ", ("enabled (" + mode + ", quality " + str(quality) + ", half-res)") if on else "disabled", ", shadows=", _sun.shadow_enabled,
+		" splits=4 max_dist=", _sun.directional_shadow_max_distance)
 
 func _process(delta: float) -> void:
 	_update()
@@ -98,6 +154,12 @@ func _look_dir(light: Node3D, to_light: Vector3) -> void:
 	var d := -to_light.normalized()
 	var up := Vector3.UP if absf(d.y) < 0.99 else Vector3.RIGHT
 	light.transform = Transform3D(Basis.looking_at(d, up), Vector3.ZERO)
+
+## Deterministic exposure: tames noon highlights (clear sky, high sun), leaves dusk and night alone, and darkens storms.
+## Smooth in all three inputs, so a `--timescale` run cannot make it oscillate.
+static func _exposure_for(elev_deg: float, cloud: float, storm: float) -> float:
+	var bright := smoothstep(6.0, 40.0, elev_deg) * (1.0 - 0.45 * cloud) * (1.0 - storm)
+	return lerpf(1.0, 0.82, bright) * lerpf(1.0, 0.86, storm)
 
 func _update() -> void:
 	var w := WorldState
@@ -133,6 +195,7 @@ func _update() -> void:
 	_look_dir(_sun, w.sun_dir)
 	var sunk := smoothstep(-2.0, 10.0, elev)
 	_sun.light_energy = sun_energy * sunk * (1.0 - 0.62 * cloud - 0.25 * storm)
+	sun_energy_now = _sun.light_energy
 	_sun.light_color = Color(1.0, 0.55, 0.32).lerp(Color(1.0, 0.84, 0.66), smoothstep(0.0, 24.0, elev))
 	_sun.visible = _sun.light_energy > 0.01
 	if _moon:
@@ -143,14 +206,14 @@ func _update() -> void:
 	var env := environment
 	var bank: float = w.fog_bank
 	env.ambient_light_energy = lerpf(0.22, 0.9, k) * (1.0 - 0.3 * storm)
-	env.fog_density = base_fog_density * (1.0 + 0.9 * cloud + 4.0 * storm + 16.0 * bank)
+	env.fog_density = base_fog_density * (1.0 + 0.9 * cloud + 6.0 * storm + 16.0 * bank)
 	fog_color = hor.lerp(Color(0.5, 0.55, 0.65), 0.15).lerp(Color(0.86, 0.80, 0.74), 0.5 * bank) * (0.55 + 0.45 * k)
 	env.fog_light_color = fog_color
 	env.fog_light_energy = lerpf(0.5, 1.0, k)
-	# Auto exposure range: tames noon highlights, never lifts night or storm darkness.
-	var bright := k * (1.0 - storm)
-	_cam_attr.auto_exposure_max_sensitivity = 100.0 + 60.0 * bright
-	_cam_attr.auto_exposure_min_sensitivity = lerpf(100.0, 45.0, bright)
+	# Storms desaturate; exposure (below) darkens them.
+	env.adjustment_saturation = lerpf(1.08, 0.78, storm)
+	exposure = _exposure_for(elev, cloud, storm)
+	_cam_attr.exposure_multiplier = exposure
 	# Published to every shader (ocean agent: declare `global uniform vec3 sky_horizon_color;` etc.).
 	var sun_col := _sun.light_color * _sun.light_energy
 	RenderingServer.global_shader_parameter_set("sky_horizon_color", Vector3(hor.r, hor.g, hor.b))

@@ -44,6 +44,8 @@ func _ready() -> void:
 		_dol_next = 4.0
 		_whale_next = 3.0
 		_ship_next = 1.0
+	if "--far-ship-test" in OS.get_cmdline_user_args():
+		_ship_next = 1.0
 
 func rebase(shift: Vector3) -> void:
 	var s := Vector3(shift.x, 0.0, shift.z)
@@ -348,6 +350,14 @@ func _tick_far_ship(dt: float) -> void:
 			var sp := _ship.global_position
 			var ang := randf() * TAU
 			var dist := randf_range(1300.0, 2000.0)
+			if "--far-ship-test" in OS.get_cmdline_user_args(): # test aid: 1.1 km ahead, `--far-ship-angle=<rad>` off the heading
+				var ff := _ship_fwd()
+				var off := 0.45
+				for a in OS.get_cmdline_user_args():
+					if a.begins_with("--far-ship-angle="):
+						off = float(a.get_slice("=", 1))
+				ang = atan2(ff.z, ff.x) + off
+				dist = 1100.0
 			_far = _build_far_ship()
 			add_child(_far)
 			_far.position = Vector3(sp.x + cos(ang) * dist, 0.0, sp.z + sin(ang) * dist)
@@ -356,13 +366,19 @@ func _tick_far_ship(dt: float) -> void:
 			_far_vel = tang.rotated(Vector3.UP, randf_range(-0.4, 0.4)) * randf_range(4.0, 7.0)
 			_far.look_at(_far.position + _far_vel, Vector3.UP)
 			_far.rotate_object_local(Vector3.UP, PI) # bow (-Z of the model) points along the velocity
+			if "--far-ship-test" in OS.get_cmdline_user_args():
+				print("[ambient] far ship spawned at ", _far.position - sp, " dist=", snappedf(dist, 1.0), " ship_fwd=", _ship_fwd())
 	else:
 		_far.position += _far_vel * dt
 		var sp := _ship.global_position
 		_far.position.y = Waves.height_at(_far.position.x, _far.position.z) * 0.6 + sin(_t * 0.4) * 0.15
 		var lit := w.night > 0.15 or w.storm > 0.6
+		# Lanterns would be 1-2 px at 1-2 km: grow them with distance so the running lights read as points of light.
+		var dist := (_far.position - sp).length()
+		var ls := maxf(1.0, dist * 0.0035 / (1.2 * _far.scale.x))
 		for l in _far_lanterns:
 			l.visible = lit
+			l.scale = Vector3.ONE * ls
 		if (_far.position - sp).length() > 2800.0:
 			_far.queue_free()
 			_far = null

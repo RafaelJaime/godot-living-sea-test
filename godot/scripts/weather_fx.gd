@@ -8,10 +8,15 @@ var _pattern: Array = [] # [Vector2(delay, intensity)] queue
 var _pat_t := 0.0
 var _bolt: MeshInstance3D
 var _bolt_mat: StandardMaterial3D
+var _rain_mat: StandardMaterial3D
+
+## Rain particle budget per quality preset: RAIN_BASE x Quality.particle_scale (dev 1750, final 7000), logged at start.
+const RAIN_BASE := 7000
 
 func _ready() -> void:
 	_rain = GPUParticles3D.new()
-	_rain.amount = int(7000 * Quality.particle_scale)
+	_rain.amount = int(RAIN_BASE * Quality.particle_scale)
+	print("[weather] rain particles cap=", _rain.amount, " (", Quality.name_, ", particle_scale=", Quality.particle_scale, ")")
 	_rain.lifetime = 0.9
 	_rain.local_coords = false
 	_rain.amount_ratio = 0.0
@@ -37,6 +42,7 @@ func _ready() -> void:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.albedo_color = Color(0.78, 0.84, 0.95, 0.26)
 	cap.material = m
+	_rain_mat = m
 	_rain.draw_pass_1 = cap
 	_rain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_rain)
@@ -72,6 +78,9 @@ func _process(delta: float) -> void:
 	if "--lightning" in OS.get_cmdline_user_args():
 		_next_strike = minf(_next_strike, 2.5)
 	var amt := smoothstep(0.35, 0.8, w.storm)
+	# Rain streaks are unshaded: dim them with the light so they never glow at night or under a dark storm deck.
+	_rain_mat.albedo_color = Color(0.78, 0.84, 0.95, 0.26) * (0.28 + 0.72 * w.daylight)
+	_rain_mat.albedo_color.a = 0.26
 	_rain.amount_ratio = amt
 	_rain.emitting = amt > 0.02
 	# Lightning (storm only): rare double/triple flashes.

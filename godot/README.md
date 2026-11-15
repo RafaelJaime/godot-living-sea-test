@@ -102,8 +102,17 @@ off a field here: off in dev, on in final.
 - Global shader parameters (registered by WorldState, set every frame by sky.gd; ocean shaders may declare them as `global uniform`):
   `sky_horizon_color`, `sky_zenith_color`, `sky_fog_color` (vec3), `sky_sun_color` (vec3, colour x energy), `sky_sun_dir`, `sky_fog_density`,
   `sky_storminess`, `sky_night`, `sky_rain`, `sky_biolum` (float; night bioluminescence amount for the wake/ocean).
-- WorldState additions: `rainbow`, `fog_bank`, `biolum`, `wetness`, signals `thunder(delay_s, intensity)` and `storm_cleared`. Test aids: `--rainbow-test`, `--no-autoexp`.
+- WorldState additions: `rainbow`, `fog_bank`, `biolum`, `wetness`, signals `thunder(delay_s, intensity)` and `storm_cleared`. Test aids: `--rainbow-test`.
 - Clouds are gated by the quality preset: SC2 runs with `--quality=final` (or `--sc2` in dev); dev uses the sky shader fbm layer.
+- Exposure is deterministic (no auto-exposure): `Sky.exposure` = `Sky._exposure_for(sun_elevation, cloud, storm)` written to `CameraAttributesPractical.exposure_multiplier`
+  (0.82 at a clear noon, 1.0 at dusk/night, x0.86 in storms; lightning never feeds it), so captures reproduce and a `--timescale` run cannot pump.
+- SSAO + SSIL (half-res) are enabled by `sky.gd` in `final` only (dev: disabled, logged as `[sky] dev: SSAO/SSIL disabled`); ship shadows are 4 cascades over 160 m with blur 1.3
+  (dev has no shadows). Both are applied four frames after start, after `Quality` has patched the environment. A/B aids: `--no-ao`, `--no-shadows`.
+- Storms: fog density x7, saturation 1.08 -> 0.78, exposure x0.86, rain streaks dim with daylight; rain particles = 7000 x `Quality.particle_scale` (logged as `[weather] rain particles cap=`).
+- Probe (`scripts/sky_probe.gd`, created by `sky.gd` only with the flags): `--sky-log=<wall s> --timescale=N` logs exposure/ambient/fog/horizon and reports max rate of change, its ratio to the
+  99th percentile (a tint step shows as a large ratio) and exposure direction reversals; `--storm-end-test` (storm -> clear, state 60 game seconds later vs a clear reference);
+  `--sky-shots=name,phase,weather,shot[,wait[,ox,oy,oz]]+...` preset captures to `_shots/sky_<name>.png` (weather `storm_end` = storm then clear; shot `-1` = camera by the nearest island).
+  Ambient: `--far-ship-test [--far-ship-angle=rad]` places the horizon ship 1.1 km ahead (its lanterns grow with distance so they read as lights).
 
 ## Ambient life (R8)
 `scripts/ambient/ambient_life.gd` (node `AmbientLife`): dolphin pods at the bow (day, calm), distant whale spouts, a ship passing on the horizon (lanterns lit at night/storm),
