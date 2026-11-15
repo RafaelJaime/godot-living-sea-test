@@ -54,7 +54,7 @@ Ocean: `Waves.sea_state` (0 calm .. 1 storm); FFT pipeline vendored in `addons/o
 `WorldState` autoload runs day/night (720 s per day), weather (clear -> cloudy -> storm -> cloudy), wind drift and `sea_state`.
 The autopilot (`Ship/Autopilot`) sails between islands, tacks when the waypoint is upwind and drives `Ship.rudder_cmd`; `Ship.rudder` (-1..1) is the shared steering signal.
 Test args: `--timescale=N` (day/weather clocks only), `--start-phase=0..1` (0 midnight, .5 noon), `--weather=clear|cloudy|storm` (hold),
-`--sea=0..1`, `--wind=<deg>` (fixed wind direction), `--no-day`, `--engine-scale=N`, `--lightning`, `--plan=world|sky`, `--autopilot-log=<secs>`.
+`--sea=0..1`, `--wind=<deg>` (fixed wind direction) or `--wind=calm|light|moderate|fresh|strong|storm` (hold that wind regime), `--wind-ms=N` (exact mean speed, held), `--wind-seed=N`, `--wind-hold` (no regime changes), `--wind-log` (print regime changes), `--no-day`, `--engine-scale=N`, `--lightning`, `--plan=world|sky`, `--autopilot-log=<secs>`.
 
 ## Integration API for NPCs (ship lights)
 Autoload `ShipLights` (scripts/ship_lights.gd). Lights are anchored on the model's REAL parts, nothing is added to the hull but light and
@@ -73,7 +73,7 @@ Other hooks for NPC code: ship deck query = raycast against the ship meshes (see
 One wind model for everything that reacts to air.
 - `WindField` (autoload, `scripts/wind_field.gd`): `sample(pos, t) -> Vector3` true wind (world, m/s) = WorldState mean wind x
   boundary-layer profile x **travelling gusts** (noise field advected downwind at 0.8 x wind speed; survives world rebase) +
-  turbulence; `apparent(pos, point_velocity)`; `gust_factor(pos)`. Test: `--wind-ms=N` forces the mean speed, `--gust-amp=X`.
+  turbulence; `apparent(pos, point_velocity)`; `gust_factor(pos)`. Mean speed comes from `WorldState.wind_ms`: a regime machine (calm 0-2 m/s ~12 %, light 2-5 ~28 %, moderate 5-9 ~30 %, fresh 9-14 ~16 %, strong 14-20 ~6 %, storm from the weather plan ~7 %) with 60-120 s smooth transitions; it starts in fresh (~11 m/s, the sail calibration). Compare runs with `--wind-hold` or `--wind=fresh`. Test: `--wind-ms=N` forces the mean speed, `--gust-amp=X`.
 - `ClothSolver` (`scripts/cloth_solver.gd`): XPBD cloth (stretch / shear / bending constraints, hard + soft pins, capsule colliders,
   real gravity, two-sided per-triangle aerodynamics from the apparent wind, 2 substeps x 8 iterations). All cloths are stepped in
   parallel on the WorkerThreadPool by `WindField` (priority 100, after the owners wrote their pin targets). `--no-cloth` skips it.
