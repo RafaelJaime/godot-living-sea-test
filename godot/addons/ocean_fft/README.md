@@ -10,3 +10,6 @@ Local modifications:
 The rendering side (clipmap, water shader, wake, spray, shallows) lives in `res://scripts` / `res://shaders`.
 - push constants are sent with their exact size (Godot 4.7 rejects the 16-byte padded blocks)
 - separate descriptor set for the modulate pass (read-only spectrum image), required by Godot 4.7 validation
+- normal/foam map mip chain (local addition, M2a): `shaders/compute/normal_mips.glsl` (new; box-filter downsample, one dispatch per cascade and level after `fft_unpack`),
+  `render_context.gd` (`create_texture(..., mipmaps)` parameter) and `wave_generator.gd` (`normal_mips` property, `_create_mip_pipeline()`, mip pass at the end of `_update()`).
+  `scripts/ocean.gd` sets `normal_mips` from `Quality.normal_mips` (3 at dev, 5 at final; `--normal-mips=1` disables it for A/B). Same MIT licence as the rest of the addon.

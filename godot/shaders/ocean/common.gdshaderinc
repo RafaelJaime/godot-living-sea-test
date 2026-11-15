@@ -34,7 +34,7 @@ uniform vec2 cascade_shift[MAX_CASCADES]; // world offset (rebase shifts) modulo
 uniform vec4 map_scales[MAX_CASCADES]; // uv scale xy, displacement scale, normal scale
 global uniform uint num_cascades;
 global uniform sampler2DArray displacements;
-global uniform sampler2DArray normals : hint_normal;
+global uniform sampler2DArray normals : hint_normal, filter_linear_mipmap, repeat_enable;
 
 instance uniform float lod_bias = 0.0; // coarser rings sit slightly below finer ones (rings overlap, no holes -> no seam cracks)
 

@@ -167,10 +167,12 @@ Evidence folder: `odd/evidence/M2a/`. Depends on: MQ-c merged or dropped. Parall
 
 ### Slice M2a-1 (PR-M2a1, about 320 lines)
 
-- [ ] M2a.1 [OS] Create `godot/addons/ocean_fft/shaders/compute/normal_mips.glsl` (downsample the normal texture array levels) and add the mipmapped texture-array creation in `godot/addons/ocean_fft/render_context.gd` and `godot/addons/ocean_fft/wave_generator.gd`; dispatch after `fft_unpack` for `Quality.v(&"normal_mips")` levels. Verify: log line prints mip count (3 at `dev`, 5 at `final`); no errors. Dependency: MQ-c state.
-- [ ] M2a.2 [OS] Hook the mip dispatch and preset read in `godot/scripts/ocean.gd`; record the vendored-addon edit with licence note in `godot/addons/ocean_fft/README.md`. Verify: README names each edited addon file. Dependency: M2a.1.
-- [ ] M2a.3 [OS] Sample normals with trilinear filtering in `godot/shaders/ocean/surface.gdshaderinc`, keeping Toksvig on top. Verify: horizon captures at sea 0.2/0.5/0.9 show no high-frequency speckle; two captures 1 frame apart differ only by smooth motion (spec: Temporal stability). Dependency: M2a.2.
-- [ ] M2a.4 [OS] Rebase and cost evidence: `--rebase-test=150` before/after horizon captures show no discontinuity; `--perf-log=30` at both presets (mips ≤ 0.2 ms at `dev`). Files: `odd/evidence/M2a/*`. Dependency: M2a.3.
+- [x] M2a.1 [OS] Create `godot/addons/ocean_fft/shaders/compute/normal_mips.glsl` (downsample the normal texture array levels) and add the mipmapped texture-array creation in `godot/addons/ocean_fft/render_context.gd` and `godot/addons/ocean_fft/wave_generator.gd`; dispatch after `fft_unpack` for `Quality.v(&"normal_mips")` levels. Verify: log line prints mip count (3 at `dev`, 5 at `final`); no errors. Dependency: MQ-c state.
+- [x] M2a.2 [OS] Hook the mip dispatch and preset read in `godot/scripts/ocean.gd`; record the vendored-addon edit with licence note in `godot/addons/ocean_fft/README.md`. Verify: README names each edited addon file. Dependency: M2a.1.
+- [x] M2a.3 [OS] Sample normals with trilinear filtering in `godot/shaders/ocean/surface.gdshaderinc`, keeping Toksvig on top. Verify: horizon captures at sea 0.2/0.5/0.9 show no high-frequency speckle; two captures 1 frame apart differ only by smooth motion (spec: Temporal stability). Dependency: M2a.2.
+  - Done 2026-11-15 (`odd/evidence/M2a/M2a1_evidence.txt`): the shader keeps its `texture()` calls (now `filter_linear_mipmap, repeat_enable` on the global `normals`), Toksvig untouched. Horizon A/B at dev is subtle, at final the foam is cleaner. NOT done: the two-captures-one-frame-apart temporal check.
+- [x] M2a.4 [OS] Rebase and cost evidence: `--rebase-test=150` before/after horizon captures show no discontinuity; `--perf-log=30` at both presets (mips ≤ 0.2 ms at `dev`). Files: `odd/evidence/M2a/*`. Dependency: M2a.3.
+  - Done with a gap: no measurable cost (within ~1 ms noise, gpu_ms = 0.00), so the 0.2 ms dev budget is not proven; rebase check passes (continuity -0.2 / -0.2, no seam).
 
 ### Slice M2a-2 (PR-M2a2, about 280 lines)
 

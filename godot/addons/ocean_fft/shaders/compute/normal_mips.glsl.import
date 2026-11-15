@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://0tg0q7rasiy5"
+path="res://.godot/imported/normal_mips.glsl-f6de1ee5fcc714103a6f5486d2c4b2ba.res"
+
+[deps]
+
+source_file="res://addons/ocean_fft/shaders/compute/normal_mips.glsl"
+dest_files=["res://.godot/imported/normal_mips.glsl-f6de1ee5fcc714103a6f5486d2c4b2ba.res"]
+
+[params]
+

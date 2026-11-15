@@ -6,6 +6,8 @@ const G := 9.81
 const DEPTH := 20.0
 
 var map_size : int
+var normal_mips := 1 ## number of mip levels of the normal/foam map (1 = no mips); set before init_gpu()
+var _mip_sets : Array = [] ## [cascade][level-1] descriptor sets (src = level-1, dst = level)
 var context : RenderingContext
 var pipelines : Dictionary
 var descriptors : Dictionary
@@ -32,7 +34,7 @@ func init_gpu(num_cascades : int) -> void:
 	descriptors[&'butterfly_factors'] = context.create_storage_buffer(num_fft_stages*map_size * 4 * 4)         # Size: (#FFT stages * map size * sizeof(vec4))
 	descriptors[&'fft_buffer'] = context.create_storage_buffer(num_cascades * map_size*map_size * 4*2 * 2 * 4) # Size: (map size^2 * 4 FFTs * 2 temp buffers (for Stockham FFT) * sizeof(vec2))
 	descriptors[&'displacement_map'] = context.create_texture(dims, RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT, num_cascades)
-	descriptors[&'normal_map'] = context.create_texture(dims, RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT, num_cascades)
+	descriptors[&'normal_map'] = context.create_texture(dims, RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT, num_cascades, RDTextureView.new(), [], normal_mips)
 
 	var spectrum_set := context.create_descriptor_set([descriptors[&'spectrum']], spectrum_compute_shader, 0)
 	var spectrum_modulate_set := context.create_descriptor_set([descriptors[&'spectrum']], spectrum_modulate_shader, 0) # separate set: shader declares the image read-only
@@ -49,10 +51,30 @@ func init_gpu(num_cascades : int) -> void:
 	pipelines[&'transpose'] = context.create_pipeline([map_size/32, map_size/32, 4], [fft_compute_set], transpose_shader)
 	pipelines[&'fft_unpack'] = context.create_pipeline([map_size/16, map_size/16, 1], [unpack_set, fft_buffer_set], fft_unpack_shader)
 
+	if normal_mips > 1:
+		_create_mip_pipeline(num_cascades)
+
 	# We only need to generate butterfly factors once for each map_size.
 	var compute_list := context.compute_list_begin()
 	pipelines[&'fft_butterfly'].call(context, compute_list)
 	context.compute_list_end()
+
+func _create_mip_pipeline(num_cascades : int) -> void:
+	var shader := context.load_shader('res://addons/ocean_fft/shaders/compute/normal_mips.glsl')
+	var normal_rid : RID = descriptors[&'normal_map'].rid
+	_mip_sets.clear()
+	for c in num_cascades:
+		var slices : Array[RenderingContext.Descriptor] = []
+		for m in normal_mips: # one image2D view per (layer, mip): the array slice type is not available in every Godot version
+			var rid := context.deletion_queue.push(context.device.texture_create_shared_from_slice(RDTextureView.new(), normal_rid, c, m, 1, RenderingDevice.TEXTURE_SLICE_2D))
+			slices.append(RenderingContext.Descriptor.new(rid, RenderingDevice.UNIFORM_TYPE_IMAGE))
+		var row : Array[RID] = []
+		for m in range(1, normal_mips):
+			row.append(context.create_descriptor_set([slices[m - 1], slices[m]], shader, 0))
+		_mip_sets.append(row)
+	var side := maxi(1, (map_size >> 1) / 8)
+	pipelines[&'normal_mips'] = context.create_pipeline([side, side, 1], [_mip_sets[0][0]], shader)
+	print("[ocean] normal mips: ", normal_mips, " levels (", map_size, " down to ", map_size >> (normal_mips - 1), ")")
 
 func _process(delta: float) -> void:
 	# Update one cascade each frame for load balancing.
@@ -84,6 +106,12 @@ func _update(compute_list : int, cascade_index : int, parameters : Array[WaveCas
 
 	## --- DISPLACEMENT/NORMAL MAP UPDATE ---
 	pipelines[&'fft_unpack'].call(context, compute_list, RenderingContext.create_push_constant([cascade_index, params.whitecap, params.foam_grow_rate, params.foam_decay_rate]))
+
+	## --- NORMAL/FOAM MIP CHAIN (local addition) ---
+	if normal_mips > 1:
+		for m in range(1, normal_mips):
+			context.compute_list_add_barrier(compute_list) # level m-1 must be complete before it is read
+			pipelines[&'normal_mips'].call(context, compute_list, PackedByteArray(), [_mip_sets[cascade_index][m - 1]], RID(), 0)
 
 ## Begins updating wave cascades based on the provided parameters. To balance stutter,
 ## the generator will schedule one cascade update per frame. All cascades from the

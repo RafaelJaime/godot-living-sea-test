@@ -104,6 +104,7 @@ func _make_parameters() -> void:
 func _setup_generator() -> void:
 	wave_generator = WaveGenerator.new()
 	wave_generator.map_size = map_size
+	wave_generator.normal_mips = Quality.normal_mips
 	wave_generator.init_gpu(maxi(2, parameters.size()))
 	add_child(wave_generator)
 	displacement_maps.texture_rd_rid = wave_generator.descriptors[&"displacement_map"].rid

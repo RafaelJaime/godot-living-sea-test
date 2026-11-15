@@ -16,6 +16,7 @@ var name_: String = "dev"
 var ocean_levels := 11
 var fft_size := 512
 var ocean_cascades := 3
+var normal_mips := 5                   ## mip levels of the ocean normal/foam map (3 at dev: the 128 px map has only 3 useful levels)
 var wake_resolution := 1024
 var wake_updates_per_second := 0.0     ## 0 = every frame
 var cloth_scale := 1.0                 ## multiplies cloth substeps / iterations
@@ -38,6 +39,9 @@ func _init() -> void:
 		if a.begins_with("--quality="):
 			want = a.get_slice("=", 1)
 	set_level(want)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--normal-mips="): # test aid: 1 = no mips (A/B), otherwise the level count
+			normal_mips = maxi(1, int(a.get_slice("=", 1)))
 
 func set_level(n: String) -> void:
 	if n != "dev" and n != "final":
@@ -49,6 +53,7 @@ func set_level(n: String) -> void:
 		ocean_levels = 6
 		fft_size = 128
 		ocean_cascades = 2
+		normal_mips = 3
 		wake_resolution = 256
 		wake_updates_per_second = 20.0
 		cloth_scale = 0.5
@@ -68,6 +73,7 @@ func set_level(n: String) -> void:
 		ocean_levels = 11
 		fft_size = 512
 		ocean_cascades = 3
+		normal_mips = 5
 		wake_resolution = 1024
 		wake_updates_per_second = 0.0
 		cloth_scale = 1.0

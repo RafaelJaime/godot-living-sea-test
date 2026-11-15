@@ -73,13 +73,14 @@ func create_uniform_buffer(size : int, data : PackedByteArray=[]) -> Descriptor:
 		data += padding
 	return Descriptor.new(deletion_queue.push(device.uniform_buffer_create(max(size, len(data)), data)), RenderingDevice.UNIFORM_TYPE_UNIFORM_BUFFER)
 
-func create_texture(dimensions : Vector2i, format : RenderingDevice.DataFormat, usage:=0x18B, num_layers:=0, view:=RDTextureView.new(), data : PackedByteArray=[]) -> Descriptor:
+func create_texture(dimensions : Vector2i, format : RenderingDevice.DataFormat, usage:=0x18B, num_layers:=0, view:=RDTextureView.new(), data : PackedByteArray=[], mipmaps:=1) -> Descriptor:
 	assert(num_layers >= 1)
 	var texture_format := RDTextureFormat.new()
 	texture_format.array_layers = 1 if num_layers == 0 else num_layers
 	texture_format.format = format
 	texture_format.width = dimensions.x
 	texture_format.height = dimensions.y
+	texture_format.mipmaps = mipmaps
 	texture_format.texture_type = RenderingDevice.TEXTURE_TYPE_2D if num_layers == 0 else RenderingDevice.TEXTURE_TYPE_2D_ARRAY
 	texture_format.usage_bits = usage # Default: RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_COLOR_ATTACHMENT_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 	return Descriptor.new(deletion_queue.push(device.texture_create(texture_format, view, data)), RenderingDevice.UNIFORM_TYPE_IMAGE)
