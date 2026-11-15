@@ -16,6 +16,8 @@ const DEF_DIR := "res://crew/defs/"
 var world: NpcWorld
 var bridge: CrewWorldBridge
 var agents: Dictionary = {} # slot node name -> NpcAgent
+var _trace := OS.get_cmdline_user_args().has("--crew-trace") ## test aid: one status line per agent every 2 s (logical time)
+var _trace_next := 2.0
 var _slots: Dictionary = {} # slot node name -> Node3D
 
 ## `--crew=legacy|npc` (user args). Unknown values warn and fall back to legacy.
@@ -63,7 +65,15 @@ func _on_crew_ready() -> void:
 	for slot in get_node(crew_path).get_children():
 		if slot is Marker3D: # the barrels are siblings too
 			_spawn(slot as Node3D, pivot)
-	print("[crew] npc mode: %d agents, graph %d nodes, roster %d watches" % [agents.size(), world.graph.node_count(), sched.roster.watches.size()])
+	if OS.get_cmdline_user_args().has("--crew-demo-violin"): # test aid until the free-time source (C2) posts these jobs: Omar plays at once
+		var j := NpcJob.new()
+		j.id = &"demo:violin"
+		j.kind = &"violin_seat"
+		j.station_id = &"violin_seat"
+		j.priority = 1.0
+		j.ttl_s = 0.0
+		world.board.post(j, world.now())
+	print("[crew] npc mode:%d agents, graph %d nodes, roster %d watches" % [agents.size(), world.graph.node_count(), sched.roster.watches.size()])
 
 func _spawn(slot: Node3D, pivot: Node3D) -> void:
 	var visual := slot.get("visual") as Node3D
@@ -87,10 +97,23 @@ func _spawn(slot: Node3D, pivot: Node3D) -> void:
 	ad.rig_profile = def.rig_profile as NpcRigProfile
 	ad.bind(agent, visual)
 	agent.anim = ad
+	var sks := visual.find_children("*", "Skeleton3D", true, false)
+	if not sks.is_empty():
+		var ik := CrewIkAdapter.new()
+		ik.rig = pivot.get_node_or_null("CrewRig")
+		if ik.bind(agent, sks[0] as Skeleton3D, def.rig_profile as NpcRigProfile):
+			agent.ik = ik
 	agents[slot.name] = agent
 	_slots[slot.name] = slot
 
 func _process(_delta: float) -> void:
+	if _trace and world != null and world.now() >= _trace_next:
+		_trace_next += 2.0
+		for n in agents:
+			var a := agents[n] as NpcAgent
+			var ik := a.ik as CrewIkAdapter
+			print("[crew-trace] t=%.1f %s phase=%s job=%s action=%s pos=%s violin=%s hand_l=%.2f hand_r=%.2f" % [world.now(), a.agent_id, a.phase(), a.current_job_id(), a.last_action_id(),
+				a.position.snapped(Vector3.ONE * 0.1), ik.violin_active() if ik else false, ik.weight_of(&"hand_l") if ik else 0.0, ik.weight_of(&"hand_r") if ik else 0.0])
 	for n in agents:
 		var a := agents[n] as NpcAgent
 		var s := _slots[n] as Node3D

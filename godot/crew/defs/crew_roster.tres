@@ -18,7 +18,7 @@ script = ExtResource("2_30ldb")
 watch_id = &"spyglass_watch"
 station_id = &"spyglass_post"
 job_kind = &"spyglass_post"
-eligible = PackedStringArray("papi_fuego", "don_omar")
+eligible = PackedStringArray("papi_fuego", "papi_diagnostica")
 shift_s = 150.0
 shift_jitter_s = 30.0
 

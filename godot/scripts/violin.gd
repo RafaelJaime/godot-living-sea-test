@@ -10,11 +10,16 @@ var _bow_target: Node3D
 var _pole_l: Node3D
 var _pole_r: Node3D
 var _t := 0.0
+var _ik: TwoBoneIK3D
+var _on_demand := false ## npc crew: the violin only exists while Omar plays (set_playing), instead of always on
+var _play := 0.0 ## 0..1 blend of the violin pose
+var _play_goal := 0.0
 @export var bow_speed := 1.9
 @export var bow_amplitude := 10.0
 
-func setup(sk: Skeleton3D, rig: Node) -> void:
+func setup(sk: Skeleton3D, rig: Node, on_demand := false) -> void:
 	_sk = sk
+	_on_demand = on_demand
 	_violin = _build_violin()
 	_violin.top_level = true # positioned every frame in the character frame (see _place)
 	add_child(_violin)
@@ -35,9 +40,13 @@ func setup(sk: Skeleton3D, rig: Node) -> void:
 	var ik := TwoBoneIK3D.new()
 	ik.name = "ViolinIK"
 	ik.influence = 0.0
-	rig._ramp_in(ik)
+	_ik = ik
+	if not on_demand:
+		rig._ramp_in(ik)
 	ik.setting_count = 2
 	sk.add_child(ik)
+	if on_demand:
+		_violin.visible = false
 	var sides := [["Left", rig.make_clamped_target(sk, "Left", hold), _pole_l], ["Right", rig.make_clamped_target(sk, "Right", _bow_target), _pole_r]]
 	for i in 2:
 		var side: String = sides[i][0]
@@ -147,9 +156,22 @@ func _place() -> void:
 	_pole_l.global_position = chest + b * (Vector3(42.0, -26.0, -6.0) * s)
 	_pole_r.global_position = chest + b * (Vector3(-42.0, -22.0, -10.0) * s)
 
+## On-demand mode only: raises (true) or lowers (false) the violin pose; the blend takes about a second.
+func set_playing(on: bool) -> void:
+	_play_goal = 1.0 if on else 0.0
+
+func is_playing() -> bool:
+	return _play > 0.01
+
 func _process(delta: float) -> void:
 	if _bow_target == null:
 		return
+	if _on_demand:
+		_play = move_toward(_play, _play_goal, delta / 1.2)
+		_ik.influence = smoothstep(0.0, 1.0, _play)
+		_violin.visible = _play > 0.01
+		if _play <= 0.01:
+			return
 	_place()
 	_t += delta
 	# Bow strokes: down-bow / up-bow along the violin's X, with slight changes of position and pressure.

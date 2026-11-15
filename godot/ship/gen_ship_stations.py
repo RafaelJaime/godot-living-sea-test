@@ -6,7 +6,7 @@ Run:  python3 godot/ship/gen_ship_stations.py > godot/ship/ship_stations.tscn   
 
 # (name, kind, (x, y, z), facing_deg, slots, anim_tag, must_staff)
 STATIONS = [
-    ("helm", "helm", (0.0, 6.85, 17.6), 0.0, 1, "steer", True),
+    ("helm", "helm", (0.0, 6.85, 17.0), 0.0, 1, "steer", True),
     ("spyglass_post", "spyglass_post", (0.0, 3.9, -9.6), 0.0, 1, "spyglass", False),
     ("crows_nest", "crows_nest", (0.0, 23.4, 2.8), 0.0, 1, "lookout", False),
     ("ratline_port", "ratline_path", (-2.1, 1.9, 0.5), -90.0, 1, "climb", False),

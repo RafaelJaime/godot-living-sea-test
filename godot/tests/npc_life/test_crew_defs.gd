@@ -146,3 +146,15 @@ func test_roster_validates_against_ship_stations_and_the_crew() -> void:
 	if helm:
 		assert_true(helm.eligible.has("papi_fuego"), "Fuego is eligible at the helm")
 		assert_gte(helm.eligible.size(), 2, "someone can relieve the helm")
+
+func test_every_tag_resolves_to_a_clip_the_player_will_have() -> void:
+	## The adapter installs the library under `library_name`, so a clip is addressed "<library_name>/<clip>"; a bare name never plays (found in the game).
+	var set := load(ANIM_SET) as NpcAnimSet
+	assert_not_null(set.library, "the set carries its library")
+	for tag in set.tags():
+		var clip := String(set.resolve(StringName(tag)))
+		assert_true(clip.begins_with("%s/" % set.library_name), "tag %s -> '%s' carries the library prefix" % [tag, clip])
+		var bare := clip.get_slice("/", 1)
+		assert_true(set.library.has_animation(bare), "tag %s -> clip '%s' exists in the library" % [tag, bare])
+	for edge in [&"walk", &"stairs", &"ladder", &"rope"]:
+		assert_true(set.tags().has(String(set.locomotion_tag(edge))), "locomotion for %s maps to a known tag" % edge)

@@ -82,7 +82,8 @@ func _on_crew_ready() -> void:
 		sk.add_child(mod)
 		_ramp_in(mod)
 		if CrewNpc.is_npc():
-			continue # C1.4 ports helm IK and violin to the npc adapters
+			mod.neutral_active = false # CrewIkAdapter turns it on while IK or the violin holds the arms
+			continue # helm IK and violin are driven by CrewIkAdapter (agent.ik)
 		if slot.name == "Papi_Fuego":
 			_setup_helmsman(slot, sk)
 		elif slot.name == "Don_Omar":

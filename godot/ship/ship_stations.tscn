@@ -7,7 +7,7 @@
 [node name="Markers" type="Node3D" parent="."]
 
 [node name="helm" type="Marker3D" parent="Markers"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.85, 17.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.85, 17.0)
 metadata/kind = &"helm"
 metadata/slots = 1
 metadata/facing_deg = 0

@@ -15,6 +15,8 @@ var head_max := 0.44      ## max head yaw (rad) relative to the body (about 25 d
 ## Bones forced back to the rest pose every frame BEFORE the layers below (so the imported idle cannot drive them,
 ## e.g. the head looking back, and nothing accumulates). IK arms then start from a stable pose.
 var neutral_bones: PackedStringArray = PackedStringArray()
+## False lets the imported animation drive the neutral bones (the npc crew only needs them neutral while IK holds the arms).
+var neutral_active := true
 var _neutral_idx: Array[int] = []
 var _hips := -1
 var _head := -1
@@ -49,8 +51,9 @@ func _process_modification() -> void:
 	var sk := get_skeleton()
 	if sk == null or ship == null or pivot == null or _hips < 0:
 		return
-	for i in _neutral_idx:
-		sk.set_bone_pose(i, sk.get_bone_rest(i))
+	if neutral_active:
+		for i in _neutral_idx:
+			sk.set_bone_pose(i, sk.get_bone_rest(i))
 	var roll: float = ship.get("roll")
 	var pitch: float = ship.get("pitch")
 	var roll_rate: float = ship.get("roll_rate") if ship.get("roll_rate") != null else 0.0
