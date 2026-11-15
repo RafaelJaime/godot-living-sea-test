@@ -11,7 +11,7 @@ extends Node
 ##
 ## API:  sample(pos, t) -> Vector3 true wind;  apparent(pos, point_velocity, t) -> true wind - point velocity;
 ##       gust_factor(pos) -> scalar gust multiplier (1 = mean wind), for logs / HUD.
-## Test aids (user args): --wind-ms=N forces the mean speed (0 = dead calm), --gust-test schedules a strong gust pulse
+## Test aids (user args): --wind-ms=N forces the mean speed (0 = dead calm), `--cloth-demo=gust` schedules a strong gust pulse
 ## that crosses the ship downwind (see add_gust_pulse), --gust-amp=X scales random gusts.
 
 const GUST_SPEED_RATIO := 0.8 ## gust fronts travel at this fraction of the mean wind speed

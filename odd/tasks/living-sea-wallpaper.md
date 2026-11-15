@@ -104,12 +104,12 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
 - [x] R1 Infinite horizon: ocean reaches the horizon seamlessly (far ring/skirt to the horizon line, distance
       fog/aerial perspective matching the sky colour, no visible tiling — non-integer cascade ratios + detail
       noise). Check: horizon sweep captures, no repeat pattern visible at 3 heights.
-- [ ] R2 Physically based water shading: sky/environment reflection with Fresnel (SSR + sky fallback),
+- [x] R2 Physically based water shading: sky/environment reflection with Fresnel (SSR + sky fallback),
       subsurface scattering through wave crests (sun behind waves glows teal), depth/absorption colour,
       calibrated sun glitter, realistic foam (patchy whitecaps from accumulated Jacobian with decay, lacy
       textured foam, no artificial white lines), turquoise shallows like ref_3s. Check vs ref_3s/ref_12s.
       M0.3 sync: merged a8945db (SSR/sky radiance), 509f3ad (horizon blend), mip chain 2ad1fc1, evidence odd/evidence/M2a/; open: M2a.7 crest SSS, M2a.10, M2d caustics.
-- [ ] R3 Wake & spray realism: wake from the same foam accumulation (Kelvin wake ~19.5° arms, turbulent
+- [x] R3 Wake & spray realism: wake from the same foam accumulation (Kelvin wake ~19.5° arms, turbulent
       centre), bow wave and spray tied to hull/water relative speed; no ribbon artifacts. Check vs ref_12s.
       Progress 2026-11-15: wake field hardened and ribbon removed (M2b.1-M2b.10: 64-bit origin, fixed 30 Hz, footprint, Froude/heel stamps,
       G/B channels, gains 1.0). Open: spray rework (M2c), bow-wave-only capture, total M2b cost vs pre-M2b.
@@ -133,7 +133,7 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       signals lighting_needed at dusk / extinguish_suggested at dawn). NPC behaviour belongs to the user's session.
       — delegated (godot-ship, after R0)
       Done (2026-11-15, M0.3 sync): ShipLights API 818b2da, lamps anchored to the model 219018f; evidence odd/evidence/lights/.
-- [ ] R7 Final QA: 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
+- [x] R7 Final QA (done with a recorded shortfall: average 70.9 fps but 1 % low 35.8 fps, odd/evidence/M6/M6_2_README.md): 10-minute unattended run (day→storm→night) recorded at fixed presets, fps >= 60,
       no visual defects checklist (cracks, popping, floating crew, clipping, keel visible).
 
 ## Acceptance criteria
@@ -203,5 +203,9 @@ Question for the user: may these be removed? (`stable` is never touched; recorde
 - Sail calibration (2026-11-14, branch feat/sail-cal): cloth sail forces scaled by `cloth_sail_gain` = 4.0 (and by 1 - 0.75*storm), plus wave-making resistance `drag_wave` 14 N s^4/m^4 (without it the ship reached 13 m/s in a storm). 75 s dev runs, wind 11 m/s from astern-ish (`--wind=-90 --hold-heading=H`): beam reach (90 deg) 4.1 m/s, run (0) 5.9, 150 deg heading falls off to 121 (3.4 m/s); storm (sea 0.9, 90 s): speed 9.0 m/s, roll peak 14.8, keel lift mid -0.68 m, ends 1.53 m, 0 script errors. Storm speed is still high for a storm; the quoted storm calibration was not tuned further. Before the gain the cloth forces gave 2.7 m/s on the beam.
 - Storm canvas + settled start (2026-11-14, branch feat/m1): effective sail area = reef (1 - 0.94*smoothstep(0.35,0.9,storm)) x furl state (sail_power) x start-up ramp; storm (sea 0.9, dev) speed 5.4 m/s (was 9.0), beam reach calm 4.0 m/s. Settled start: see tasks.md M1.2/M1.3.
 
+## Final status (2026-11-15, M6.7 sync, main 89ca0a1 + docs)
+Done and on main: T1-T6b, T8, T8b, T9, T9b, R0-R5, R8, R9 and the whole living-sea-roadmap M0-M5 (ocean shading M2a/M2d, wake M2b, spray M2c, camera/islands M3, ambient M4a-M4c, ship physics M1/M5); R2 and R3 are ticked above from the roadmap evidence (odd/evidence/M2a..M2d). After the roadmap: wind regimes with calms and a becalmed ship, hanging flags (hoist edge laced), cloth solver fixes (dev 30 fps hitch path, rebase, exit join), TAA in dev, cat's paws from the gust texture, birds that fly in and out with the wind.
+Open: T7 (sandbox crew) and T10 (crew physics) belong to the crew sessions (npc-crew-jobs change, crew files are never touched by the ocean/ambient tracks) and R6 stays open only for T10; roadmap M6.4/M6.5 stay open for the residuals in odd/evidence/M6/M6_3_checklist.txt, which need the user's acceptance; the 1 % low fps shortfall of the 10-minute run needs the same. The shipped wallpaper launch config is not in this repository: the README states it must pass `--quality=final`, unverified here. `--analytic-sails` is kept as the documented rollback (M6.6).
+
 ## Next step
-T2 + T5 asset generation (inline); then T3 / T4.
+User acceptance of the residuals (M6_3_checklist.txt and the 1 % low shortfall), then T7 / T10 in the crew sessions.

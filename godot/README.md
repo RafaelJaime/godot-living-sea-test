@@ -125,20 +125,22 @@ off a field here: off in dev, on in final.
 
 ## Ambient life (R8)
 `scripts/ambient/ambient_life.gd` (node `AmbientLife`): dolphin pods at the bow (day, calm), distant whale spouts, a ship passing on the horizon (lanterns lit at night/storm),
-flotsam and seaweed on the swell (height + slope from `Waves.height_at`). `scripts/gulls.gd`: gull + albatross boids around the masts (diurnal).
+flotsam and seaweed on the swell (height + slope from `Waves.height_at`). `scripts/gulls.gd`: gull + albatross boids around the masts, drawn with three MultiMeshes; birds fly in from the horizon and leave towards it (never pop in or out) and their number follows day, storm and wind (calm: few, flapping; fresh: all, soaring; strong: fewer; storm: none).
 `scripts/ambient/lighthouse_beam.gd`: rotating beam on island lighthouses (night/storm). All world-space and rebase-safe (group `rebase`).
-Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-birds`. Bioluminescence hook for the ocean: `WorldState.biolum` and the global shader parameter `sky_biolum` (0..1, night only).
+Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-birds`, `--birds-log` (presence changes), `--birds-now` (every bird active from the first frame), `--ambient-log=<s>`, `--dolphin-min-speed=<m/s>`, `--flotsam-test`, `--no-passing`, `--passing-style=mixed|hull|flat`, `--passing-test=<style>,<count>,<dist>[,<spread_deg>]`, `--passing-cross=<speed>`, `--passing-log`. Bioluminescence hook for the ocean: `WorldState.biolum` and the global shader parameter `sky_biolum` (0..1, night only).
 
 ## Command-line flags (after `--`, e.g. `godot --path godot -- --quality=final --capture`)
 Presets: `--quality=dev|final`, `--uncap`, `--ssr` / `--no-ssr`, `--msaa=N`, `--fft-size=N`, `--normal-mips=N`, `--no-ao`.
 Captures and measurement: `--capture` (writes `_shots/shot_NN.png`), `--shots=i,j,k` (camera shot indices, one every 2.5 s), `--cam=x,y,z,lx,ly,lz[,fov]` (debug camera in ship space, appended as the LAST shot),
-`--cam-island[=height]` (debug camera at the nearest island shore), `--cam-sweep=N[,height]` (N shots turning through 360 degrees), `--plan=regression` (4 fixed presets x 3 shots -> `_shots/reg_*.png`),
+`--cam-island[=height]` (debug camera at the nearest island shore), `--cam-sweep=N[,height]` (N shots turning through 360 degrees), `--plan=regression` (4 fixed presets x 3 shots -> `_shots/reg_*.png`), `--plan=world|crew|foam|ship|lights|boat|sky|windcal|catpaw` (fixed capture lists; windcal waits 70 s so a becalmed ship has stopped, catpaw takes two views 5 s apart),
 `--perf-log=<s>` (frame-time percentiles after a 5 s warm-up; `gpu_ms` reads 0.00 on the Apple GPU), `--autopilot-log=<s>` (motion summary, `[keel]` line), `--jitter-test`, `--rebase-test=<m>`, `--poll-sail-state`, `--spike-probe[=ms]` (per-priority-band frame split for CPU spikes), `--spike-nodes[=ms]` (names the node behind a slow `_process`), `--spike-log`, `--spike-ms=<ms>`, `--sync-readback` (old synchronous CPU-surface readback, for A/B), `--frame-seq=N[,height[,speed]]` (N consecutive frames `_shots/seq_NNN.png` for popping tests; use `--fixed-fps 30`).
 World: `--start-phase=0..1`, `--no-day`, `--timescale=N`, `--weather=clear|cloudy|storm`, `--sea=0..1`, `--wind=<deg>|calm|light|moderate|fresh|strong|storm`, `--wind-ms=N`, `--wind-hold`, `--wind-seed=N`, `--wind-log`.
-Ocean and wake: `--water-debug=1..6`, `--horizon-mix=<0..1>`, `--hull-foam=<gain>`, `--caustics=`, `--caustics-emit=`, `--caustics-scale=`, `--caustics-wide=`, `--caustics-sharp=`, `--wake-log`, `--wake-far=<m>`,
+Ocean and wake: `--water-debug=1..7` (7 = cat's paw mask), `--catpaw=<gain>` (default 1.5, 0 = off), `--no-gust-tex`, `--gust-tex-test`, `--horizon-mix=<0..1>`, `--hull-foam=<gain>`, `--caustics=`, `--caustics-emit=`, `--caustics-scale=`, `--caustics-wide=`, `--caustics-sharp=`, `--wake-log`, `--wake-far=<m>`,
 `--wake-test-speed=<k>`, `--wake-turb=<g>`, `--wake-ridge=<g>`, `--fx-log`, `--no-spray`, `--fx-test-speed=<k>`.
 Ship, rig and lights: `--hold-heading=<deg>`, `--tack-test`, `--rudder-test`, `--analytic-sails`, `--settle-log`, `--log-wobble`, `--furl-log`, `--request-furl=idx:t@sec`, `--maneuver-log`, `--log-boat`, `--no-lash-load`,
-`--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--deck-survey`, `--ambient-now`. Test aids that scale an input (`--wake-test-speed`, `--fx-test-speed`) do not change the real ship speed.
+`--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--deck-survey`, `--ambient-now`.
+Cloth and wind diagnostics: `--cloth-probe=<s>` (per-frame sail/flag vertex motion log, `[probe]` CSV lines), `--cloth-demo=<name>` with `--wind-rel=<deg>` and `--soak-secs=<s>`, `--log-wind` (flag wind log), `--gust-amp=X` (the gust pulse test is `--cloth-demo=gust`).
+Other debug aids: `--debug-phys`, `--debug-pins`, `--debug-rig`, `--debug-wheel`, `--flat` (flat sea), `--no-canto`, `--no-pole`, `--cam-prof`, `--cam-verify`, `--island-verify`, `--beam-log`, `--ao-quality=0..3`, `--sc2-light-steps=N`, `--test-clip=<name>`. Test aids that scale an input (`--wake-test-speed`, `--fx-test-speed`) do not change the real ship speed.
 
 ## Integration API (names, with kind)
 | Name | Kind | Notes |
@@ -164,13 +166,14 @@ Ship, rig and lights: `--hold-heading=<deg>`, `--tack-test`, `--rudder-test`, `-
 | Deck raycast | pattern | no API: `scripts/crew_manager.gd` builds temporary trimesh colliders of the deck/aft meshes and ray-casts downward (`--debug-deck` prints the heights) |
 
 ## Changelog (ocean / ship track, newest first)
+- 2026-11-15 (wind, cloth, ambient): wind regimes (calm / light / moderate / fresh / strong from `WorldState.wind_ms`, storm from the weather plan, 30 min weather plan with one storm) and `--wind=<regime>`; becalmed ship stops (extra hull drag below 5 m/s, autopilot centres the rudder under 0.8 m/s); flags laced along the whole hoist edge so they hang in a calm; cloth fixes (30 fps no longer treated as a hitch, sails keep the full solve in dev via `min_quality`, rebase re-primes the cached frames, `ClothSolver.sync()` in `WindField._exit_tree`); dev preset uses TAA (sub-pixel rigging no longer breaks into dots); gust texture + cat's paws on the water; birds fly in and out with the wind and day; `--cloth-probe`.
 - 2026-11-15: horizon blend of far water into the sky colour (`horizon_mix`), SSS 1.8, island caustics (soft additive pattern), sky radiance and SSR keys in Quality (SSR off in both presets: no visible effect on the opaque ocean shader, +1.5 ms), spray following relative speed squared, lashing reaction on the ship and a stiffer lashing, per-sail furl and maneuver signals, wake field hardening (64-bit origin, fixed 30 Hz, Froude/heel stamps, turbulence and ridge channels, ribbon wake removed), normal mip chain, real stern lamps and windows for `ShipLights`.
 - Earlier (see the sections above): FFT ocean on 11 clipmap rings with non-integer cascade tiles, physics ship with column hydrostatics and cloth sail forces, quality presets, regression/perf/jitter tooling, ocean shader split into includes.
 
 ### Ship hooks added by the roadmap (OS track)
 - `Ship.settled: bool` and signal `Ship.settled_changed(is_settled)`: false during the ~6 s start-up ramp, then true (log `[ship] settled`).
 - signal `Ship.wobble(intensity: float, kind: String)`, kind `roll` | `pitch` | `slam`, at most every 0.5 s, only when settled and the hull moves noticeably (calm sea: none; sea_state 0.9: several per minute). `--log-wobble` prints each emission.
-- `--analytic-sails` uses the analytic flat-plate model fed by `WindField.sample` at each sail's centre; the log prints `[ship] sail path: analytic (WindField per sail)` or `cloth forces` once.
+- `--analytic-sails` is kept as the documented rollback of the cloth-force sail model (decision M6.6): it uses the analytic flat-plate model fed by `WindField.sample` at each sail's centre; the log prints `[ship] sail path: analytic (WindField per sail)` or `cloth forces` once.
 - `--settle-log` prints roll, pitch, heave and keel lift each second for the first 12 s.
 - `PinnaceRig.sail_state()` -> `{furl, brace_deg, mean_pressure_pa, luffing, backed, gust}` per sail group (read-only, M1.7); `--poll-sail-state` logs it each `--autopilot-log` period.
 - Changelog (M1): `settled`/`settled_changed`, `wobble`, `sail_state()` and the heel-aware hull foam were added on top of the physics ship without changing any existing Ship property or signal.
