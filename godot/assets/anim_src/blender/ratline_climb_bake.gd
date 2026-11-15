@@ -2,9 +2,10 @@ extends SceneTree
 ## Turns ratline_climb.json (GLOBAL bone rotations authored in Blender, Z-up) into an Animation for the Meshy skeleton (glTF axes).
 ## Godot poses are absolute: local = (Dp*Rp)^-1 * (Db*Rb), Rb/Rp the Godot global rests of the bone and its parent, so no bone orientation convention is assumed.
 ## Blender (x, y, z) -> glTF (x, z, -y). Output: ratline_climb.res (tracks "Armature/Skeleton3D:<bone>", LOOP_LINEAR, in place).
+## Generic: `-- <clip name>` bakes <name>.json into <name>.res (default ratline_climb); the file name is historical, it serves every authored clip.
 const TARGET := "res://assets/characters/papi_fuego.glb"
-const JSON_PATH := "res://assets/anim_src/blender/ratline_climb.json"
-const OUT := "res://assets/anim_src/blender/ratline_climb.res"
+var JSON_PATH := "res://assets/anim_src/blender/ratline_climb.json"
+var OUT := "res://assets/anim_src/blender/ratline_climb.res"
 
 func _init() -> void:
 	_run.call_deferred()
@@ -14,6 +15,10 @@ func _q(a: Array) -> Quaternion:
 	return Quaternion(a[1], a[3], -a[2], a[0]).normalized()
 
 func _run() -> void:
+	var ua := OS.get_cmdline_user_args()
+	if ua.size() > 0:
+		JSON_PATH = "res://assets/anim_src/blender/%s.json" % ua[0]
+		OUT = "res://assets/anim_src/blender/%s.res" % ua[0]
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(JSON_PATH))
 	var inst := (load(TARGET) as PackedScene).instantiate()
 	root.add_child(inst)

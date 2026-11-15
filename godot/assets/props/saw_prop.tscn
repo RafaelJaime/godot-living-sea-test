@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://assets/props/hand_prop.gd" id="1_ec4rh"]
+[ext_resource type="PackedScene" path="res://assets/props/saw/handsaw_wood/handsaw_wood.gltf" id="2_ccljg"]
+
+[node name="Saw" type="Node3D" unique_id=1372207080]
+script = ExtResource("1_ec4rh")
+scale_m = 0.9952934396572083
+grip_model = Vector3(-0.000118572265, -0.001669988, -0.03610845)
+grip_rotation = Basis(-0.36668152, -0.9017217, 0.22900374, 0.24950755, 0.14181784, 0.957932, -0.8962649, 0.4083941, 0.17298438)
+palm_cm = Vector3(-0.122107506, 4.741177, -0.079557)
+
+[node name="Model" parent="." unique_id=1590551037 instance=ExtResource("2_ccljg")]

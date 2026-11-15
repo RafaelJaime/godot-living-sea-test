@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://assets/props/hand_prop.gd" id="1_jvpll"]
+[ext_resource type="PackedScene" path="res://assets/props/fishing_rod/rod_q1.glb" id="2_6agjp"]
+
+[node name="FishingRod" type="Node3D" unique_id=5437288]
+script = ExtResource("1_jvpll")
+scale_m = 0.3155635670423537
+grip_model = Vector3(-0.122170895, -0.6272739, -0.108188644)
+grip_rotation = Basis(0.76841617, -0.26061797, -0.5844782, -0.28698874, 0.6759913, -0.67872906, 0.57199115, 0.68928504, 0.44464833)
+palm_cm = Vector3(-0.122107506, 4.741177, -0.079557)
+
+[node name="Model" parent="." unique_id=486267025 instance=ExtResource("2_6agjp")]

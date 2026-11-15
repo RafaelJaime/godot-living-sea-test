@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://assets/props/hand_prop.gd" id="1_rn15v"]
+[ext_resource type="PackedScene" path="res://assets/props/hammer/wooden_hammer_01/wooden_hammer_01.gltf" id="2_ssv75"]
+
+[node name="Hammer" type="Node3D" unique_id=94020474]
+script = ExtResource("1_rn15v")
+scale_m = 1.0030434258088252
+grip_model = Vector3(0.0018605553, -0.08207223, 0)
+grip_rotation = Basis(-0.22900374, -0.5975732, -0.7684162, -0.95793194, -0.0019358993, 0.2869888, -0.1729844, 0.801812, -0.57199115)
+palm_cm = Vector3(-0.122107506, 4.741177, -0.079557)
+
+[node name="Model" parent="." unique_id=128552610 instance=ExtResource("2_ssv75")]

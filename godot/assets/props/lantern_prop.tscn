@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://assets/props/hand_prop.gd" id="1_eqri3"]
+[ext_resource type="PackedScene" path="res://assets/props/lantern/wooden_lantern_01/wooden_lantern_01.gltf" id="2_5kseb"]
+
+[node name="Lantern" type="Node3D" unique_id=1885238528]
+script = ExtResource("1_eqri3")
+scale_m = 0.6602072178143638
+grip_model = Vector3(6.996095e-06, 0.50285745, 0.0068183914)
+grip_rotation = Basis(-0.7684162, -0.22900374, -0.5975732, 0.2869888, -0.957932, -0.0019358849, -0.57199115, -0.17298438, 0.801812)
+palm_cm = Vector3(-0.122107506, 4.741177, -0.079557)
+upright = true
+
+[node name="Model" parent="." unique_id=703684673 instance=ExtResource("2_5kseb")]

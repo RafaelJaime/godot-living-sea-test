@@ -9,3 +9,6 @@
   Converted FBX -> glTF with `export_dolphin.py` (bubble cubes removed, material rebuilt from 1k textures, swim loop kept); scaled to about 2.5 m in `godot/scripts/ambient/ambient_life.gd`.
 - **Sunshine Clouds 2** by David House, MIT — vendored in `godot/addons/SunshineClouds2` (see its LICENSE). Local patch: sky pixels keep the sky shader colour (`SunshineCloudsPostCompute.comp`).
 - **Dark Wooden Planks** texture by Amal Kumar (Poly Haven), CC0 — https://polyhaven.com/a/dark_wooden_planks (1k diffuse, normal and roughness in `godot/assets/ambient/flotsam/`), used by the flotsam planks and barrel.
+- **Fishing Rod** (`rod_q1`) by Quaternius, CC0 1.0 — https://poly.pizza/m/0YAR0Lg58p (`godot/assets/props/fishing_rod/`), hand prop.
+- **Wooden Hammer 01**, **Handsaw Wood** and **Wooden Lantern 01** by Poly Haven, CC0 — https://polyhaven.com/a/wooden_hammer_01, https://polyhaven.com/a/handsaw_wood, https://polyhaven.com/a/wooden_lantern_01 (1k glTF in `godot/assets/props/`), hand props.
+- Spyglass, swab and the ratline climb / spyglass look / deck swab animations are generated in this repo (CC0).

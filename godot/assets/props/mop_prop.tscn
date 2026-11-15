@@ -1,0 +1,54 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://assets/props/hand_prop.gd" id="1_uqye6"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gx7c3"]
+albedo_color = Color(0.5, 0.35, 0.2, 1)
+roughness = 0.45
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_fk31i"]
+top_radius = 0.012
+bottom_radius = 0.012
+height = 1.1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_63q2p"]
+albedo_color = Color(0.3, 0.3, 0.3, 1)
+metallic = 0.3
+roughness = 0.45
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_w7411"]
+top_radius = 0.018
+bottom_radius = 0.018
+height = 0.04
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vg255"]
+albedo_color = Color(0.82, 0.78, 0.66, 1)
+roughness = 0.45
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_p700g"]
+top_radius = 0.02
+bottom_radius = 0.09
+height = 0.2
+
+[node name="Mop" type="Node3D" unique_id=1717628242]
+script = ExtResource("1_uqye6")
+grip_model = Vector3(0, 1.04, 0)
+grip_rotation = Basis(0.22900374, 0.5975732, -0.7684162, 0.95793194, 0.0019358993, 0.2869888, 0.1729844, -0.801812, -0.57199115)
+palm_cm = Vector3(-0.122107506, 4.741177, -0.079557)
+
+[node name="Model" type="Node3D" parent="." unique_id=153187980]
+
+[node name="Pole" type="MeshInstance3D" parent="Model" unique_id=2053928742]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+material_override = SubResource("StandardMaterial3D_gx7c3")
+mesh = SubResource("CylinderMesh_fk31i")
+
+[node name="Band" type="MeshInstance3D" parent="Model" unique_id=1973367861]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
+material_override = SubResource("StandardMaterial3D_63q2p")
+mesh = SubResource("CylinderMesh_w7411")
+
+[node name="RopeHead" type="MeshInstance3D" parent="Model" unique_id=1609945208]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+material_override = SubResource("StandardMaterial3D_vg255")
+mesh = SubResource("CylinderMesh_p700g")
