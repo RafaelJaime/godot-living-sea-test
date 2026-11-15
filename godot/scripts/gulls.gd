@@ -16,6 +16,9 @@ func _ready() -> void:
 		return
 	_ship = get_node(ship_path)
 	add_to_group("rebase")
+	add_to_group("ambient_system")
+	gull_count = maxi(3, int(round(gull_count * Quality.ambient_scale)))
+	albatross_count = maxi(1, int(round(albatross_count * Quality.ambient_scale)))
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.95, 0.95, 0.93)
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -134,3 +137,9 @@ func _process(delta: float) -> void:
 func rebase(shift: Vector3) -> void:
 	for b in _birds:
 		b["p"] = (b["p"] as Vector3) - Vector3(shift.x, 0.0, shift.z)
+
+func ambient_pools() -> Dictionary:
+	return {"birds": _birds.size()}
+
+func ambient_stats() -> Dictionary:
+	return {"birds": _birds.size() if visible else 0}

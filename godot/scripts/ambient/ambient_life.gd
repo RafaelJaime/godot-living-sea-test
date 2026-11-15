@@ -38,7 +38,11 @@ func _ready() -> void:
 		return
 	_ship = get_node(ship_path)
 	_force = "--ambient-now" in OS.get_cmdline_user_args()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--dolphin-min-speed="):
+			dolphin_min_speed = float(a.get_slice("=", 1))
 	add_to_group("rebase")
+	add_to_group("ambient_system")
 	_build_flotsam()
 	if "--flotsam-test" in OS.get_cmdline_user_args(): # test aid: one plank dead ahead on the keel line, logged while it is pushed aside
 		var f0: Dictionary = _flot[0]
@@ -96,7 +100,7 @@ func _build_flotsam() -> void:
 	var weed_mesh := SphereMesh.new(); weed_mesh.radius = 0.5; weed_mesh.height = 0.2; weed_mesh.radial_segments = 8; weed_mesh.rings = 3
 	var wood := _mat(Color(0.32, 0.22, 0.13))
 	var weed := _mat(Color(0.12, 0.2, 0.08))
-	for i in 16:
+	for i in _flot_count():
 		var n := Node3D.new()
 		var kind := i % 4
 		if kind == 0:
@@ -200,10 +204,13 @@ func _tick_flotsam(dt: float) -> void:
 const DOLPHIN_GLB := "res://assets/ambient/dolphin/dolphin.glb"
 const DOLPHIN_SCALE := 0.8
 const POD_MAX := 5
+const FLOTSAM_BASE := 16
+## Pods only pace the bow above this ship speed (m/s); `--dolphin-min-speed=<m/s>` overrides it for tests.
+var dolphin_min_speed := 3.0
 
 func _build_dolphins() -> void:
 	var packed := load(DOLPHIN_GLB) as PackedScene
-	for i in POD_MAX:
+	for i in _pod_max():
 		var n := Node3D.new()
 		var model: Node3D = packed.instantiate()
 		model.rotation.y = PI # the model's nose is +Z, look_at points -Z along the velocity
@@ -291,7 +298,7 @@ func _splash(at: Vector3, big: float) -> void:
 func _start_dolphin_event() -> void:
 	# A pod of 2-5 riding the bow wave: they swim just ahead of the stem on both sides, alternate swimming and leaps, then peel off.
 	var fwd := _ship_fwd()
-	var count := randi_range(2, POD_MAX)
+	var count := randi_range(mini(2, _dolphins.size()), _dolphins.size())
 	print("[ambient] dolphin pod of ", count, " at t=", snappedf(_t, 0.1))
 	for i in _dolphins.size():
 		var d: Dictionary = _dolphins[i]
@@ -565,8 +572,30 @@ func _process(delta: float) -> void:
 	var w := WorldState
 	_dol_next -= dt
 	if _dol_next <= 0.0:
-		if w.daylight > 0.45 and w.storm < 0.5:
+		if w.daylight > 0.45 and w.storm < 0.5 and _ship_vel().length() >= dolphin_min_speed:
 			_start_dolphin_event()
 			_dol_next = randf_range(40.0, 100.0) if not _force else 12.0
 		else:
 			_dol_next = 8.0
+
+
+# ---------------------------------------------------------------- director hooks (see ambient_director.gd)
+func _flot_count() -> int:
+	return maxi(4, int(round(FLOTSAM_BASE * Quality.ambient_scale)))
+
+func _pod_max() -> int:
+	return maxi(2, int(round(POD_MAX * Quality.ambient_scale)))
+
+func ambient_pools() -> Dictionary:
+	return {"flotsam": _flot.size(), "dolphins": _dolphins.size(), "splashes": _splashes.size(), "whale_spout": 1, "passing_ships": 1}
+
+func ambient_stats() -> Dictionary:
+	var dol := 0
+	for d in _dolphins:
+		if (d["node"] as Node3D).visible:
+			dol += 1
+	var splash := 0
+	for sp in _splashes:
+		if float(sp["t"]) < 1.0:
+			splash += 1
+	return {"flotsam": _flot.size(), "dolphins": dol, "splashes": splash, "whale_spout": 1 if _whale_left > 0 else 0, "passing_ships": 1 if _far != null else 0}

@@ -20,6 +20,7 @@ var normal_mips := 5                   ## mip levels of the ocean normal/foam ma
 var wake_resolution := 1024
 var wake_updates_per_second := 30.0    ## fixed wake update rate (accumulator), independent of the frame rate
 var cloth_scale := 1.0                 ## multiplies cloth substeps / iterations
+var ambient_scale := 1.0               ## multiplies the ambient pools (birds, flotsam, dolphin pod size)
 var particle_scale := 1.0              ## multiplies rain / spray / mist particle counts
 var shadows := true
 var ssao := false                      ## screen-space AO (applied by sky.gd, which owns the Environment)
@@ -54,6 +55,10 @@ func _init() -> void:
 		elif a.begins_with("--normal-mips="): # test aid: 1 = no mips (A/B), otherwise the level count
 			normal_mips = maxi(1, int(a.get_slice("=", 1)))
 
+## Generic accessor so systems can ask for a preset value by key: `Quality.v(&"ambient_scale")`.
+func v(key: StringName) -> Variant:
+	return get(key)
+
 func set_level(n: String) -> void:
 	if n != "dev" and n != "final":
 		push_warning("[quality] unknown preset '" + n + "', falling back to dev")
@@ -69,6 +74,7 @@ func set_level(n: String) -> void:
 		wake_updates_per_second = 30.0
 		cloth_scale = 0.5
 		particle_scale = 0.25
+		ambient_scale = 0.6
 		shadows = false
 		ssao = false
 		ssil = false
@@ -91,6 +97,7 @@ func set_level(n: String) -> void:
 		wake_updates_per_second = 30.0
 		cloth_scale = 1.0
 		particle_scale = 1.0
+		ambient_scale = 1.0
 		shadows = true
 		ssao = true
 		ssao_quality = 0

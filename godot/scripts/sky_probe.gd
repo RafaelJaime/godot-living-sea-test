@@ -82,6 +82,10 @@ func _shots_step(delta: float) -> void:
 		var d := get_tree().get_first_node_in_group("camera_director")
 		if d and int(it["shot"]) == -1:
 			it["shot"] = _island_shot(d)
+		elif d and int(it["shot"]) == -3: # camera on deck looking at the whale spout (follow handled per frame)
+			d.shots.append({"name": "whale", "pos": Vector3(0, 6, 0), "look": Vector3(0, 6, -50), "fov": 30.0})
+			it["shot"] = d.shots.size() - 1
+			it["follow"] = 2
 		elif d and int(it["shot"]) == -2: # camera off the starboard bow, looking at the dolphin pod's zone (ship frame)
 			d.shots.append({"name": "pod", "pos": Vector3(11.0, 1.8, -12.0), "look": Vector3(4.0, 0.2, -21.0), "fov": 65.0})
 			it["shot"] = d.shots.size() - 1
@@ -94,6 +98,8 @@ func _shots_step(delta: float) -> void:
 	_shot_t += delta
 	_follow = int(_shots[_shot_i].get("follow", 0)) == 1
 	_follow_dolphin()
+	if int(_shots[_shot_i].get("follow", 0)) == 2:
+		_follow_whale()
 	if String(it["weather"]) == "storm_end" and not _shot_flipped and _shot_t >= 2.0:
 		_shot_flipped = true
 		WorldState.set_weather("clear")
@@ -108,6 +114,18 @@ func _shots_step(delta: float) -> void:
 			" storm=", snappedf(WorldState.storm, 0.01), " rainbow=", snappedf(WorldState.rainbow, 0.01), " exposure=", snappedf(sky.exposure, 0.001))
 		_shot_i += 1
 		_shot_t = -1.0
+
+## Shot -3: the camera stays at the ship and looks at the whale (or its last position), narrow fov.
+func _follow_whale() -> void:
+	var life := get_node_or_null("../../AmbientLife")
+	var cam := get_viewport().get_camera_3d()
+	var ship := get_node_or_null("../../Ship") as Node3D
+	if life == null or cam == null or ship == null:
+		return
+	var wp: Vector3 = life.get("_whale_pos")
+	cam.global_position = ship.global_position + Vector3(0, 8, 0)
+	cam.look_at(wp + Vector3(0, 2.5, 0), Vector3.UP)
+	cam.fov = 18.0
 
 ## Shot -2: the camera itself follows the highest visible dolphin (7 m abeam, 3 m aft, 1.5 m up) and looks at it. Runs after the director.
 func _follow_dolphin() -> void:

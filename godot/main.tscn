@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -23,6 +23,7 @@
 [ext_resource type="Script" path="res://scripts/wake_field.gd" id="99_wakefield"]
 [ext_resource type="Script" path="res://scripts/ambient/sc2_clouds.gd" id="97_sc2"]
 [ext_resource type="Script" path="res://scripts/ambient/ambient_life.gd" id="96_amb"]
+[ext_resource type="Script" path="res://scripts/ambient/ambient_director.gd" id="95_dir"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -162,6 +163,9 @@ script = ExtResource("9_gulls")
 
 [node name="AmbientLife" type="Node3D" parent="."]
 script = ExtResource("96_amb")
+
+[node name="Ambient" type="Node" parent="."]
+script = ExtResource("95_dir")
 
 [node name="Camera" type="Camera3D" parent="."]
 current = true

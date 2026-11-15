@@ -37,6 +37,7 @@ func _ready() -> void:
 	_beam.extra_cull_margin = length
 	add_child(_beam)
 	rotation.y = randf() * TAU
+	add_to_group("lighthouse_beam")
 
 func _process(delta: float) -> void:
 	var w := WorldState
@@ -44,3 +45,10 @@ func _process(delta: float) -> void:
 	_beam.visible = on > 0.05
 	_mat.albedo_color = Color(1, 1, 1, clampf(on, 0.0, 1.0))
 	rotation.y += delta * TAU * rpm / 60.0
+
+func is_on() -> bool:
+	return _beam != null and _beam.visible
+
+## Beam heading in degrees (for the angular-rate check: rpm * 6 degrees per second).
+func beam_yaw_deg() -> float:
+	return fposmod(rad_to_deg(global_rotation.y), 360.0)
