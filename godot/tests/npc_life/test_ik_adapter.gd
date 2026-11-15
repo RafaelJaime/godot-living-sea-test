@@ -150,3 +150,14 @@ func test_base_adapter_is_inert() -> void:
 	base.set_look_at(null)
 	base.process(0.1)
 	assert_true(true, "no errors")
+
+func test_proxy_rides_with_the_skeleton_between_process_and_solve() -> void:
+	## A moving platform: the agent (and so the skeleton) is carried after the adapter's per-frame update and before the skeleton solves. The proxy
+	## must travel with the skeleton, otherwise the hand lags one frame of platform motion behind the grip (seen on the moving ship).
+	ad.bind(agent, sk, NpcRigProfile.new())
+	var shoulder := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("RightUpperArm")).origin
+	ad.set_target(&"hand_r", _target(shoulder + Vector3(0.05, -0.2, 0.2)))
+	ad.process(0.016)
+	var before := ad.proxy_of(&"hand_r").global_position
+	agent.position += Vector3(5.0, 0.0, 0.0)
+	assert_true(ad.proxy_of(&"hand_r").global_position.is_equal_approx(before + Vector3(5.0, 0.0, 0.0)), "the proxy moved with the carried skeleton")

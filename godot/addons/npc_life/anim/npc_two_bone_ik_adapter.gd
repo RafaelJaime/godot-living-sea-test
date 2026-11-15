@@ -55,8 +55,7 @@ func bind(agent: Node3D, skeleton: Skeleton3D, profile: NpcRigProfile) -> bool:
 		c.length = (a.distance_to(b) + b.distance_to(h)) * scale
 		c.proxy = Node3D.new()
 		c.proxy.name = "%sReachTarget" % cname
-		c.proxy.top_level = true
-		skeleton.add_child(c.proxy)
+		skeleton.add_child(c.proxy) # a child, not top level: it is carried with the skeleton, so a moving platform cannot leave the hand a frame behind
 		c.pole = Marker3D.new()
 		c.pole.name = "%sPole" % cname
 		c.pole.position = profile.pole_offsets.get(cname, Vector3(0, 1.0, 0.25))
@@ -71,7 +70,7 @@ func bind(agent: Node3D, skeleton: Skeleton3D, profile: NpcRigProfile) -> bool:
 		c.ik.set_target_node(0, c.ik.get_path_to(c.proxy))
 		c.ik.set_pole_node(0, c.ik.get_path_to(c.pole))
 		c.ik.influence = 0.0
-		c.proxy.global_position = skeleton.global_transform * skeleton.get_bone_global_pose(ids[2]).origin
+		c.proxy.position = skeleton.get_bone_global_pose(ids[2]).origin
 		_chains[cname] = c
 	if _chains.is_empty():
 		return false
@@ -140,9 +139,11 @@ func process(delta: float) -> void:
 		return
 	for c: Chain in _chains.values():
 		if c.source != null and is_instance_valid(c.source):
-			var shoulder := _sk.global_transform * _sk.get_bone_global_pose(c.shoulder_bone).origin
-			var d := c.source.global_position - shoulder
-			c.proxy.global_position = shoulder + d.limit_length(c.length * REACH_CLAMP)
+			# Skeleton space: the proxy is a child of the skeleton, so it keeps its place relative to the body whatever moves the platform before the solve.
+			var shoulder := _sk.get_bone_global_pose(c.shoulder_bone).origin
+			var d := _sk.to_local(c.source.global_position) - shoulder
+			var skel_scale := maxf(_sk.global_transform.basis.get_scale().x, 1e-6)
+			c.proxy.position = shoulder + d.limit_length(c.length * REACH_CLAMP / skel_scale)
 		c.elapsed = minf(c.elapsed + delta, c.dur)
 		c.weight = lerpf(c.from, c.goal, smoothstep(0.0, 1.0, c.elapsed / c.dur))
 		if c.goal == 0.0 and c.elapsed >= c.dur:
