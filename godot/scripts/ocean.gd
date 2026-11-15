@@ -77,6 +77,8 @@ func _ready() -> void:
 			_mat.set_shader_parameter("wake_turb_gain", float(a.get_slice("=", 1)))
 		elif a.begins_with("--wake-ridge="): # M2b.8 candidates: gain of the ridge channel (0 = off)
 			_mat.set_shader_parameter("wake_ridge_gain", float(a.get_slice("=", 1)))
+		elif a.begins_with("--catpaw="): # M4c1.2 candidates: cat's paws gain (0 = off, default)
+			_mat.set_shader_parameter("cat_paw_gain", float(a.get_slice("=", 1)))
 		elif a.begins_with("--water-debug="):
 			_mat.set_shader_parameter("debug_mode", float(a.get_slice("=", 1)))
 	_islands.resize(MAX_ISLANDS)

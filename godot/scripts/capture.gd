@@ -98,6 +98,7 @@ func _ready() -> void:
 					'lights': PLAN = [[3.0, 3], [5.0, 14], [18.0, 3], [20.0, 14], [22.0, 1]]
 					'boat': PLAN = [[3.0, 4], [6.0, 4], [9.0, 2]]
 					'windcal': PLAN = [[70.0, 15], [72.0, 16], [74.0, 1], [76.0, 0], [78.0, 2]] # long settle: a becalmed ship needs ~60 s to stop
+					'catpaw': PLAN = [[20.0, 2], [25.0, 2], [30.0, 1], [35.0, 1]] # two captures 5 s apart per view (M4c1)
 					'sky': PLAN = [[3.0, 5], [6.0, 6], [9.0, 2], [12.0, 3], [15.0, 0], [18.0, 5]]
 		for a in OS.get_cmdline_user_args():
 			if a.begins_with('--shots='):

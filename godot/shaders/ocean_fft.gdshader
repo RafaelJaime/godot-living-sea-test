@@ -30,13 +30,14 @@ void fragment() {
 	}
 	float map_size = float(textureSize(normals, 0).x);
 
+	float cp = cat_paw_gain > 0.0 ? gust_patch(world_pos.xz, dist) * cat_paw_gain : 0.0; // cat's paws: gust patches (M4c1)
 	vec3 gradient = vec3(0.0);
 	for (uint i = 0U; i < num_cascades; ++i) {
 		vec4 scales = map_scales[i];
 		vec3 coords = vec3((UV + cascade_shift[i]) * scales.xy, float(i));
 		float ppm = map_size * min(scales.x, scales.y);
 		// The 20 m detail cascade has no mips: fade it with distance so it cannot alias into sparkle.
-		float fade = (i == 2U) ? (1.0 - smoothstep(25.0, 110.0, dist)) : 1.0;
+		float fade = (i == 2U) ? (1.0 - smoothstep(25.0, 110.0, dist)) * (1.0 + 3.0 * cp) : 1.0;
 		gradient += mix(texture_bicubic(normals, coords), texture(normals, coords), min(1.0, ppm * 0.1)).xyw * vec3(scales.ww * fade, 1.0);
 	}
 	// Wake channels: ridge slope tilts the normal, turbulence roughens the centre line (both off unless the gains are set).
@@ -76,11 +77,12 @@ void fragment() {
 	float caus = island_caustics(rest_xz, TIME, caus_w);
 	shallow_tint *= 1.0 + caustics_gain * caus;
 	vec3 base = mix(body, shallow_tint, sh * 0.85);
-	ALBEDO = mix(base, foam_color.rgb, foam_factor);
+	ALBEDO = mix(base, foam_color.rgb, foam_factor) * (1.0 - 0.3 * cp);
 	float hz = horizon_mix * smoothstep(120.0, 3000.0, dist) * (1.0 - sky_night); // no blend at night: the horizon colour is a lighting colour there, the displayed sky is far darker
 	ALBEDO *= (1.0 - hz);
 	EMISSION = sky_horizon_color * hz + vec3(1.0, 0.95, 0.8) * caustics_emit * caus * 0.35;
 	if (debug_mode > 0.5 && debug_mode < 1.5) { ALBEDO = vec3(whitecap, hull_foam, shallow); }
+	if (debug_mode > 6.5 && debug_mode < 7.5) { ALBEDO = vec3(0.0); EMISSION = vec3(cp); } // M4c1: cat's paw mask
 	if (debug_mode > 2.5 && debug_mode < 6.5) { ALBEDO = vec3(0.0); EMISSION = wake_debug(rest_xz, debug_mode); }
 
 	gradient *= mix(0.015, normal_strength, exp(-dist * 0.0175));
@@ -88,6 +90,6 @@ void fragment() {
 
 	fresnel = mix(pow(1.0 - dot(VIEW, NORMAL), 5.0 * exp(-2.69 * roughness)) / (1.0 + 22.7 * pow(roughness, 1.5)), 1.0, REFLECTANCE);
 	if (masked_dbg) { ALBEDO = vec3(1.0, 0.0, 1.0); EMISSION = vec3(1.0, 0.0, 1.0); }
-	ROUGHNESS = clamp(sqrt(roughness * roughness + 1.0 * min(slope_var, 0.2)) + foam_factor * 0.25 + wk.z * wake_turb_gain * 0.3, 0.08, 0.9);
+	ROUGHNESS = clamp(sqrt(roughness * roughness + 1.0 * min(slope_var, 0.2)) + foam_factor * 0.25 + wk.z * wake_turb_gain * 0.3, 0.08, 0.9) * (1.0 - 0.5 * cp);
 }
 
