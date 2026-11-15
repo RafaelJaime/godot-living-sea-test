@@ -54,3 +54,17 @@ float wake_term(vec2 rxz, vec3 gradient) {
 	}
 	return wake;
 }
+
+// Debug (debug_mode 3 = R foam, G turbulence, B ridge as colour; 4 = R only; 5 = G only; 6 = B only; B maps +-0.5 m to 0..1).
+vec3 wake_debug(vec2 rxz, float mode) {
+	vec2 wuv = (rxz - wake_origin) / wake_size;
+	vec3 w = vec3(0.0, 0.0, 0.0);
+	if (wuv.x > 0.0 && wuv.x < 1.0 && wuv.y > 0.0 && wuv.y < 1.0) {
+		w = texture(wake_tex, wuv).rgb;
+	}
+	float ridge = w.b + 0.5;
+	if (mode > 5.5) { return vec3(ridge); }
+	if (mode > 4.5) { return vec3(w.g); }
+	if (mode > 3.5) { return vec3(w.r); }
+	return vec3(w.r, w.g, ridge);
+}

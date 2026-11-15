@@ -17,9 +17,11 @@ var _ox := INF
 var _oy := INF
 var _time := 0.0
 var _accum := 0.0
+var _test_speed := 1.0   ## test aid --wake-test-speed=<k>: scale the relative speed fed to the stamps (Froude check, stopped ship)
 var _far := 0.0          ## test aid --wake-far=<m>: pretend the world origin is this far away (both axes)
 var _log := false
 var _log_t := 0.0
+var _log_now := false
 var _max_off_grid := 0.0 ## largest distance of a window step from a whole 8-texel multiple, in texels
 var _steps := 0
 var _half_len := 18.3
@@ -33,6 +35,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--wake-far="):
 			_far = float(a.get_slice("=", 1))
+		elif a.begins_with("--wake-test-speed="):
+			_test_speed = float(a.get_slice("=", 1))
 		elif a == "--wake-log":
 			_log = true
 	var sh := load("res://shaders/wake_update.gdshader") as Shader
@@ -86,8 +90,10 @@ func _process(delta: float) -> void:
 		for v in [(nx - _ox) / grid, (ny - _oy) / grid]:
 			_max_off_grid = maxf(_max_off_grid, absf(v - roundf(v)) * 8.0)
 		_log_t += delta
+		_log_now = false
 		if _log_t >= 5.0:
 			_log_t = 0.0
+			_log_now = true
 			print("[wake] origin=(", snappedf(nx, 0.01), ", ", snappedf(ny, 0.01), ") steps=", _steps, " max off-grid step=", snappedf(_max_off_grid, 0.0001), " texels")
 	var prev_i := _cur
 	var next_i := 1 - _cur
@@ -99,8 +105,24 @@ func _process(delta: float) -> void:
 	m.set_shader_parameter("ship_uv", Vector2((ship_wx - nx) / size, (ship_wy - ny) / size))
 	var fwd: Vector2 = _ship.get("forward") if _ship.get("forward") != null else Vector2(0, -1)
 	m.set_shader_parameter("fwd", fwd)
-	var spd: float = _ship.get("current_speed") if _ship.get("current_speed") != null else 6.0
-	m.set_shader_parameter("speed", spd)
+	# Velocity relative to the water (no current in this world: the water is at rest apart from the waves).
+	var vel := Vector2.ZERO
+	if "linear_velocity" in _ship:
+		vel = Vector2(_ship.linear_velocity.x, _ship.linear_velocity.z)
+	elif _ship.get("current_speed") != null:
+		vel = fwd * float(_ship.get("current_speed"))
+	var surge := maxf(vel.dot(fwd), 0.0) * _test_speed
+	var sway := vel.dot(Vector2(-fwd.y, fwd.x))
+	var vdir := vel.normalized() if vel.length() > 0.8 else fwd
+	var froude := surge / sqrt(9.81 * maxf(_half_len * 2.0 / 0.92, 1.0)) # hull length ~ footprint / 0.46
+	var roll: float = _ship.get("roll") if _ship.get("roll") != null else 0.0
+	var heel := clampf(-roll / deg_to_rad(15.0), -1.0, 1.0)             # roll is starboard-up positive
+	m.set_shader_parameter("speed", surge)
+	m.set_shader_parameter("vdir", vdir)
+	m.set_shader_parameter("froude", froude)
+	m.set_shader_parameter("heel", heel)
+	if _log_now:
+		print("[wake] relative speed surge=", snappedf(surge, 0.01), " sway=", snappedf(sway, 0.01), " m/s froude=", snappedf(froude, 0.001), " heel=", snappedf(heel, 0.01))
 	m.set_shader_parameter("half_len", _half_len)
 	m.set_shader_parameter("half_beam", _half_beam)
 	m.set_shader_parameter("seed_t", _time)

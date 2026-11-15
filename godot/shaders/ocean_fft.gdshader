@@ -70,6 +70,7 @@ void fragment() {
 	vec3 base = mix(body, shallow_tint, sh * 0.85);
 	ALBEDO = mix(base, foam_color.rgb, foam_factor);
 	if (debug_mode > 0.5 && debug_mode < 1.5) { ALBEDO = vec3(whitecap, hull_foam, shallow); }
+	if (debug_mode > 2.5 && debug_mode < 6.5) { ALBEDO = vec3(0.0); EMISSION = wake_debug(rest_xz, debug_mode); }
 
 	gradient *= mix(0.015, normal_strength, exp(-dist * 0.0175));
 	NORMAL = (VIEW_MATRIX * vec4(normalize(vec3(-gradient.x, 1.0, -gradient.y)), 0.0)).xyz;
