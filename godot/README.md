@@ -132,6 +132,15 @@ Test aids: `--ambient-now` (events every few seconds), `--no-ambient`, `--no-bir
 - `PinnaceRig.sail_state()` -> `{furl, brace_deg, mean_pressure_pa, luffing, backed, gust}` per sail group (read-only, M1.7); `--poll-sail-state` logs it each `--autopilot-log` period.
 - Changelog (M1): `settled`/`settled_changed`, `wobble`, `sail_state()` and the heel-aware hull foam were added on top of the physics ship without changing any existing Ship property or signal.
 
+### Crew hooks on the rig and autopilot (H2)
+- `PinnaceRig.sail_count()`, `get_furl(idx)`, `request_furl(idx, t)` (t clamped to 0..1, invalid index = one warning), signal `furl_changed(idx, value)`; one furl value per sail,
+  `sail_power` uses the mean. A requested sail is never overridden; `request_furl(idx, 0.0)` sets it again. Storm fallback: when `storm > furl_storm` (0.86) and a sail got no request
+  for `furl_grace_s` (20 s) it is furled automatically (`[rig] auto-furl fallback sail <i> furl_source=auto`); auto-furl releases when the storm subsides. Test aids: `--furl-log`, `--request-furl=idx:t@sec`.
+  `sail_state()` gains `furl_per_sail`. Furled-bundle meshes still show only when the mean furl is above 0.9 (per-sail bundles are not mapped).
+- `Autopilot` signals `maneuver_started(kind, side)` (`&"tack"` when the tack side flips, `&"beat"` when beating starts; side = +1/-1) and `maneuver_ended(kind)` (rudder settled, `|rudder| < 0.1` for 3 s, or 90 s timeout).
+  Never nested; `maneuver_lead_s` (default 0) delays the flip to give consumers lead time. Logged with `--autopilot-log` or `--maneuver-log`.
+- Changelog (H2): per-sail furl and maneuver signals are additive; existing Ship/Autopilot properties and logs are unchanged.
+
 ### Ocean shader layout (godot/shaders/ocean/)
 `ocean_fft.gdshader` is a shell: header, four includes and `fragment()`. Owners: `common.gdshaderinc` = all (defines, uniforms, varyings, island_distance);
 `surface.gdshaderinc` = M2a/M2b (vertex displacement, bicubic normal sampling); `foam.gdshaderinc` = M2b/M1.9 (`hull_foam_term` heel-aware via `hull_inv`

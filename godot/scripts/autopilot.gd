@@ -10,6 +10,18 @@ extends Node
 @export var tack_angle_deg := 78.0
 @export var tack_corridor := 110.0
 
+## Emitted when the crew should expect sail/helm work. kind: &"tack" (the tack side flips) or &"beat" (the ship starts beating to
+## windward); side = sign of the new tack side (+1 / -1, the autopilot's own `_tack_side`). Never nested: a started maneuver is ended
+## (maneuver_ended) before another one starts. Purely additive: nothing in the steering depends on listeners.
+signal maneuver_started(kind: StringName, side: int)
+## Emitted when the rudder has settled (|rudder| < settle_rudder for settle_s) or after maneuver_timeout_s.
+signal maneuver_ended(kind: StringName)
+## Seconds the autopilot waits between announcing a tack and flipping its side (0 = flip immediately, the old behaviour).
+@export var maneuver_lead_s := 0.0
+@export var settle_rudder := 0.1
+@export var settle_s := 3.0
+@export var maneuver_timeout_s := 90.0
+
 var target := Vector2.ZERO
 var has_target := false
 var tacking := false
@@ -21,6 +33,12 @@ var _islands: Node
 var _hold_yaw := 9999.0
 var _tack_test := false
 var _rudder_test := OS.get_cmdline_user_args().has("--rudder-test")
+var _maneuver := &""        ## active maneuver kind ("" = none)
+var _maneuver_t := 0.0      ## time since it started
+var _settled_t := 0.0       ## time the rudder has been quiet
+var _was_tacking := false
+var _flip_in := -1.0        ## pending side flip countdown (only with maneuver_lead_s > 0)
+var _log_maneuvers := false
 
 func _ready() -> void:
 	add_to_group("rebase")
@@ -31,6 +49,8 @@ func _ready() -> void:
 			_hold_yaw = deg_to_rad(float(a.get_slice('=', 1)))
 		elif a == '--tack-test':
 			_tack_test = true
+		elif a.begins_with('--autopilot-log=') or a == '--maneuver-log':
+			_log_maneuvers = true
 
 func rebase(shift: Vector3) -> void:
 	var s := Vector2(shift.x, shift.z)
@@ -73,9 +93,48 @@ func _pick_target(pos: Vector2, fwd: Vector2) -> void:
 	has_target = true
 	_leg_start = pos
 
+func _flip_tack_side() -> void:
+	if _flip_in >= 0.0:
+		return # a flip is already announced
+	_begin_maneuver(&"tack", -_tack_side)
+	if maneuver_lead_s > 0.0:
+		_flip_in = maneuver_lead_s
+	else:
+		_tack_side = -_tack_side
+
+func _begin_maneuver(kind: StringName, side: float) -> void:
+	if _maneuver != &"":
+		_end_maneuver() # never two maneuvers at once
+	_maneuver = kind
+	_maneuver_t = 0.0
+	_settled_t = 0.0
+	if _log_maneuvers:
+		print("[autopilot] maneuver_started ", kind, " side=", int(side), " t=", snappedf(Time.get_ticks_msec() / 1000.0, 0.1))
+	maneuver_started.emit(kind, int(side))
+
+func _end_maneuver() -> void:
+	var k := _maneuver
+	_maneuver = &""
+	if _log_maneuvers:
+		print("[autopilot] maneuver_ended ", k, " t=", snappedf(Time.get_ticks_msec() / 1000.0, 0.1))
+	maneuver_ended.emit(k)
+
+func _track_maneuver(delta: float) -> void:
+	if _maneuver == &"":
+		return
+	_maneuver_t += delta
+	_settled_t = _settled_t + delta if absf(float(_ship.get("rudder"))) < settle_rudder else 0.0
+	if _settled_t >= settle_s or _maneuver_t >= maneuver_timeout_s:
+		_end_maneuver()
+
 func _process(_delta: float) -> void:
 	if not _ship.active:
 		return
+	_track_maneuver(_delta)
+	if _flip_in >= 0.0:
+		_flip_in -= _delta
+		if _flip_in < 0.0:
+			_tack_side = -_tack_side
 	var pos := Vector2(_ship.global_position.x, _ship.global_position.z)
 	var fwd: Vector2 = _ship.forward
 	if _tack_test and not has_target:
@@ -90,13 +149,16 @@ func _process(_delta: float) -> void:
 	var tack_rad := deg_to_rad(tack_angle_deg)
 	var desired := want
 	tacking = angle_to_wind < tack_rad
+	if tacking and not _was_tacking:
+		_begin_maneuver(&"beat", _tack_side)
+	_was_tacking = tacking
 	if tacking:
 		# Beat to windward: sail at +-tack_angle from the wind, tack when we stray from the leg line.
 		var leg := (target - _leg_start)
 		var leg_dir := leg.normalized() if leg.length() > 1.0 else want
 		var cross := (pos - _leg_start).cross(leg_dir) # signed lateral offset
 		if absf(cross) > tack_corridor and signf(cross) * _tack_side < 0.0:
-			_tack_side = -_tack_side
+			_flip_tack_side()
 		elif absf(cross) < tack_corridor * 0.25 and randf() < 0.0:
 			pass
 		var up_ang := atan2(upwind.y, upwind.x)
@@ -104,7 +166,7 @@ func _process(_delta: float) -> void:
 		desired = Vector2(cos(h), sin(h))
 		# Prefer the tack that already points toward the waypoint's side.
 		if _tack_side * want.cross(upwind) > 0.0 and absf(cross) < tack_corridor * 0.5:
-			_tack_side = -_tack_side
+			_flip_tack_side()
 	# Avoid islands: steer away when too close and heading toward one.
 	for t in _islands.targets():
 		var rel: Vector2 = t["pos"] - pos

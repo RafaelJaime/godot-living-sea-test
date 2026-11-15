@@ -9,6 +9,9 @@ extends Node
 @export var pivot_path := NodePath("..")
 @export var furl_storm := 0.86 ## storminess above which the sails are furled
 @export var furl_speed := 0.07 ## 1/s
+@export var furl_grace_s := 20.0 ## storm fallback: a sail nobody asked to furl is furled automatically this long after the storm crosses furl_storm
+
+signal furl_changed(idx: int, value: float)
 @export var sail_density := 0.45 ## kg/m2 (canvas)
 
 var _sails: Array[SailCloth] = []
@@ -21,8 +24,19 @@ var _mast_ship: Array = []   # per sail: brace axis position (ship/pivot space)
 var _last_brace := 0.0
 var _rudder_bone := -1
 var _rudder_rest := Quaternion.IDENTITY
-var _furl := 0.0
+var _furl := 0.0 ## mean furl of all sails (what sail_power and the furled bundles use)
+var _furls := PackedFloat32Array()      ## furl 0..1 per sail
+var _req_t := PackedFloat32Array()      ## crew-requested target per sail
+var _req_on: Array[bool] = []           ## a crew request is active for this sail (never overridden by the storm fallback)
+var _req_time := PackedFloat32Array()   ## time of the last request per sail (-1e9 = never)
+var _auto_on: Array[bool] = []          ## storm fallback is furling this sail
+var _emitted := PackedFloat32Array()    ## last furl value signalled per sail
+var _done_logged: Array[bool] = []
+var _storm_since := -1.0                ## time storm went above furl_storm (-1 = below)
 var _time := 0.0
+var _furl_log := false
+var _log_t := 0.0
+var _test_req: Array = []               ## --request-furl=idx:t@sec test aid
 
 func _ready() -> void:
 	add_to_group("rebase")
@@ -30,6 +44,13 @@ func _ready() -> void:
 	_ship = get_node(ship_path)
 	_pivot = get_node(pivot_path)
 	get_node(loader_path).ship_ready.connect(_on_ship_ready)
+	for a in OS.get_cmdline_user_args():
+		if a == "--furl-log":
+			_furl_log = true
+		elif a.begins_with("--request-furl="): # idx:t@sec, e.g. --request-furl=0:1.0@10
+			var parts := a.get_slice("=", 1).split("@")
+			var it := parts[0].split(":")
+			_test_req.append({"idx": int(it[0]), "t": float(it[1]), "at": float(parts[1]) if parts.size() > 1 else 0.0, "done": false})
 
 func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 	var model := get_node(loader_path)
@@ -70,6 +91,7 @@ func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 	var tot := 0.0
 	if "sail_defs" in _ship:
 		for d in _ship.sail_defs: tot += float(d["area"])
+	_init_furl_state()
 	print("[sails] total area m2=", snappedf(tot, 1.0), " cloth=", cloth, " hidden furled/duplicate=", hidden, " rudder_bone=", _rudder_bone)
 
 func _has_down(model: Node, nm: String) -> bool:
@@ -145,7 +167,7 @@ func sail_state() -> Dictionary:
 		backed = backed or str(i["state"]) == "backed"
 		gust = maxf(gust, float(i["gust"]))
 		br = float(i["brace_deg"])
-	return {"furl": _furl, "brace_deg": br, "mean_pressure_pa": psum / area if area > 0.0 else 0.0, "luffing": luff, "backed": backed, "gust": gust}
+	return {"furl": _furl, "furl_per_sail": _furls, "brace_deg": br, "mean_pressure_pa": psum / area if area > 0.0 else 0.0, "luffing": luff, "backed": backed, "gust": gust}
 
 ## Sum of all sail forces (ship space, N) and the force-weighted centre of effort (ship space, m).
 func total_sail_force() -> Dictionary:
@@ -161,11 +183,92 @@ func total_sail_force() -> Dictionary:
 		w += m
 	return {"force": f, "point": (pw / w) if w > 1.0 else Vector3.ZERO}
 
+func _init_furl_state() -> void:
+	var n := _sails.size()
+	_furls.resize(n)
+	_req_t.resize(n)
+	_req_time.resize(n)
+	_emitted.resize(n)
+	_req_on.resize(n)
+	_auto_on.resize(n)
+	_done_logged.resize(n)
+	for i in n:
+		_furls[i] = 0.0
+		_req_t[i] = 0.0
+		_req_time[i] = -1e9
+		_emitted[i] = 0.0
+		_req_on[i] = false
+		_auto_on[i] = false
+		_done_logged[i] = true
+
+func sail_count() -> int:
+	return _sails.size()
+
+func get_furl(idx: int) -> float:
+	return _furls[idx] if idx >= 0 and idx < _furls.size() else 0.0
+
+## Ask for sail `idx` to be furled to t (0 = fully set, 1 = fully furled; clamped). Optional: the ship works without any caller.
+## A requested sail is never overridden by the storm fallback; request_furl(idx, 0.0) sets it again.
+func request_furl(idx: int, t: float) -> void:
+	if idx < 0 or idx >= _sails.size():
+		push_warning("[rig] request_furl: invalid sail index %d (sail_count=%d)" % [idx, _sails.size()])
+		return
+	t = clampf(t, 0.0, 1.0)
+	_req_t[idx] = t
+	_req_on[idx] = true
+	_req_time[idx] = _time
+	_auto_on[idx] = false
+	_done_logged[idx] = false
+	print("[rig] furl_request idx=", idx, " t=", snappedf(t, 0.01), " furl_source=crew")
+
+func _update_furls(delta: float, furl_t: float) -> void:
+	var storm: float = WorldState.storm
+	if storm > furl_storm:
+		if _storm_since < 0.0:
+			_storm_since = _time
+	elif storm < furl_storm - 0.1:
+		_storm_since = -1.0
+	for i in _furls.size():
+		var target := 0.0
+		if _req_on[i]:
+			target = _req_t[i]
+		else:
+			if _storm_since >= 0.0 and not _auto_on[i] and _time - maxf(_storm_since, _req_time[i]) >= furl_grace_s:
+				_auto_on[i] = true
+				_done_logged[i] = false
+				print("[rig] auto-furl fallback sail ", i, " furl_source=auto")
+			if _auto_on[i]:
+				target = furl_t
+				if furl_t < 0.01 and storm < furl_storm - 0.1:
+					_auto_on[i] = false # storm over: auto-furl released
+		_furls[i] = move_toward(_furls[i], target, furl_speed * delta)
+		if not _done_logged[i] and absf(_furls[i] - target) < 0.005:
+			_done_logged[i] = true
+			print("[rig] furl_done idx=", i, " furl=", snappedf(_furls[i], 0.01))
+		if absf(_furls[i] - _emitted[i]) >= 0.02 or (absf(_furls[i] - target) < 0.005 and _furls[i] != _emitted[i]):
+			_emitted[i] = _furls[i]
+			furl_changed.emit(i, _furls[i])
+	var m := 0.0
+	for v in _furls:
+		m += v
+	_furl = m / float(maxi(_furls.size(), 1))
+
 func _process(delta: float) -> void:
 	_time += delta
 	var w := WorldState
 	var furl_t := smoothstep(furl_storm - 0.06, furl_storm + 0.06, w.storm)
-	_furl = move_toward(_furl, furl_t, furl_speed * delta)
+	for r in _test_req:
+		if not r["done"] and _time >= r["at"]:
+			r["done"] = true
+			request_furl(int(r["idx"]), float(r["t"]))
+	_update_furls(delta, furl_t)
+	_log_t += delta
+	if _furl_log and _log_t >= 5.0:
+		_log_t = 0.0
+		var row := "[rig] furls t=%d sail_count=%d storm=%.2f power=%.2f :" % [int(_time), _sails.size(), w.storm, _ship.sail_power if "sail_power" in _ship else -1.0]
+		for v in _furls:
+			row += " %.2f" % v
+		print(row)
 	if "sail_power" in _ship:
 		_ship.sail_power = 1.0 - 0.75 * _furl # storm canvas: furled sails keep a little drive
 	# Yard bracing (physical ship): the yard bones are rotated about the mast; the cloth pins follow (sail_cloth.gd).
@@ -173,9 +276,10 @@ func _process(delta: float) -> void:
 	if _skel != null and absf(br - _last_brace) > 0.003:
 		_last_brace = br
 		_apply_brace(br)
-	for s in _sails:
-		s.set_furl(_furl, _time)
-		s.update_anchors(_furl, br) # pin targets for this frame; the parallel cloth step is launched last in the frame
+	for si in _sails.size():
+		var fv: float = _furls[si] if si < _furls.size() else 0.0
+		_sails[si].set_furl(fv, _time)
+		_sails[si].update_anchors(fv, br) # pin targets for this frame; the parallel cloth step is launched last in the frame
 	# Furled bundles appear only once the sails are mostly up.
 	for f in _furled:
 		f.visible = _furl > 0.9
