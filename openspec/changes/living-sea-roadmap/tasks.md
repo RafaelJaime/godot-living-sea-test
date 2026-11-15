@@ -315,7 +315,8 @@ Evidence folder: `odd/evidence/M5/`. Depends on: M1-b merged. Not parallel with 
 
 ### Slice M5-1 (PR-M5a, about 160 lines): keel ends
 
-- [ ] M5.1 [OS] Baseline `[keel]` summary at sea 0.5 and 0.9 with `--autopilot-log=120 --quality=final` before any change. Files: `odd/evidence/M5/*`. Verify: summary recorded. Dependency: M1.11.
+- [x] M5.1 [OS] Baseline `[keel]` summary at sea 0.5 and 0.9 with `--autopilot-log=120 --quality=final` before any change. Files: `odd/evidence/M5/*`. Verify: summary recorded. Dependency: M1.11.
+  - Done 2026-11-15 (`odd/evidence/M5/M5_baseline.txt`): keel lift 0.40 m at sea 0.5 and 1.34 m at 0.9, i.e. M5.2's targets (<= 1.1 / 2.3) and even the stretch (0.5 / 1.5) are already met on main (single 120 s runs). M5.2/M5.3 not started: proposed to skip the tuning (lead to confirm).
 - [ ] M5.2 [OS] Per-column wave coupling falloff `coupling(z) = lerp(wave_coupling, wave_coupling * 0.6, abs(z - z_mid) / half_len)`, slam damping on emerging end columns, retune `keel_free_lift` and `keel_suction` for end columns only; all as exports. Files: `godot/scripts/buoyancy.gd`. Verify: `[keel]` at sea 0.5 ≤ 1.1 m and at 0.9 ≤ 2.3 m; both reported against the stretch 0.5 / 1.5 m with shortfall recorded; roll and pitch ranges not worse than T8. Dependency: M5.1. Spec: ship-physics-refinements.
 - [ ] M5.3 [OS] Cost evidence: `--perf-log=30` CPU delta ≤ 0.2 ms at both presets. Files: `odd/evidence/M5/*`. Dependency: M5.2.
 
