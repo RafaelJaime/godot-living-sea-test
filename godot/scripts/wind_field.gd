@@ -31,6 +31,28 @@ var _gust := FastNoiseLite.new()
 var _turb := FastNoiseLite.new()
 var _off := Vector2.ZERO
 
+## --- Gust texture for the ocean shader (cat's paws, M4c1) ---------------------------------------------------------------
+## The SAME `_gust` noise the sails and flags feel, rasterised natively (Noise.get_image) around the ship every 0.25 s, so the
+## darker ripple patches on the water are the gusts that hit the sails. Texel value = (n + 1) / 2 with n the raw noise of
+## gust_factor(): the shader rebuilds the factor with the skew and gust_amp() below. Exposed as the global shader parameters
+## `gust_tex` (sampler2D), `gust_win` (vec4: origin x, origin z, size x, size z, LOCAL metres, rebase-safe) and `gust_amp`.
+const GUST_TEX_W_FULL := 128 ## final: 128 x 232 texels over ~1 km (8 m per texel in x)
+const GUST_TEX_H_FULL := 232
+const GUST_REFRESH := 0.25 ## s
+const GUST_STRETCH := 1.8
+
+var GUST_TEX_W := GUST_TEX_W_FULL
+var GUST_TEX_H := GUST_TEX_H_FULL
+var GUST_CELL := 8.0 ## m per texel in x (z texel is GUST_CELL / 1.8: the z stretch of the noise); dev uses half the texels over the same window
+var _gust_adv_b := Vector2.ZERO ## advect value the texture was built with
+var _gust_org := Vector2.ZERO ## window origin (local) at build time
+var gust_refresh_us := 0.0 ## cost of the last refresh (microseconds), for the perf logs
+var _gust_img := FastNoiseLite.new()
+var _gust_tex: ImageTexture
+var _gust_win := Vector4.ZERO
+var _gust_t := 1.0e9
+var _gust_enabled := true
+
 func _ready() -> void:
 	process_priority = -1000 # first: joins last frame's cloth step before anyone touches cloth data
 	var launcher := Node.new()
@@ -42,6 +64,15 @@ func _ready() -> void:
 	_gust.frequency = 1.0
 	_gust.fractal_type = FastNoiseLite.FRACTAL_FBM
 	_gust.fractal_octaves = 2
+	_gust_img.seed = _gust.seed
+	_gust_img.noise_type = _gust.noise_type
+	_gust_img.fractal_type = _gust.fractal_type
+	_gust_img.fractal_octaves = _gust.fractal_octaves
+	if Quality.level == Quality.Level.DEV:
+		GUST_TEX_W = GUST_TEX_W_FULL / 2
+		GUST_TEX_H = GUST_TEX_H_FULL / 2
+		GUST_CELL = 16.0
+	_gust_img.frequency = GUST_CELL / GUST_LENGTH
 	_turb.seed = 99
 	_turb.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_turb.frequency = 1.0
@@ -49,9 +80,12 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--wind-ms="):
 			speed_override = float(a.get_slice("=", 1))
+		elif a == "--no-gust-tex":
+			_gust_enabled = false
 		elif a.begins_with("--gust-amp="):
 			gust_scale = float(a.get_slice("=", 1))
 	_refresh(0.0)
+	_refresh_gust_texture() # creates the global shader parameters before any ocean shader compiles
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--cloth-demo"):
 			var d := (load("res://scripts/cloth_demo.gd") as GDScript).new() as Node
@@ -66,10 +100,85 @@ func _refresh(delta: float) -> void:
 	_off = Vector2(Waves.offset_x, Waves.offset_z)
 	_advect += Vector2(wv.x, wv.y) * (_speed * GUST_SPEED_RATIO * delta)
 
+var _tt := 0.0
+var _tt_step := 0
+
+## `--gust-tex-test`: at 2 s and 7 s checks the texels against gust_factor()'s noise and dumps the texture to res://_shots.
+func _gust_test(delta: float) -> void:
+	_tt += delta
+	var times := [2.0, 7.0]
+	if _tt_step >= times.size() or _tt < times[_tt_step]:
+		return
+	var img := _gust_tex.get_image()
+	var w := _gust_win
+	var err := 0.0
+	var mx := 0.0
+	var cz := w.w / float(GUST_TEX_H)
+	var cx := w.z / float(GUST_TEX_W)
+	for k in 40:
+		var i := (k * 37) % GUST_TEX_W
+		var j := (k * 91) % GUST_TEX_H
+		var wx := w.x + (float(i) + 0.0) * cx + _off.x # absolute
+		var wz := w.y + (float(j) + 0.0) * cz + _off.y
+		var n := _gust.get_noise_2d((wx - _advect.x) / GUST_LENGTH, (wz - _advect.y) / GUST_LENGTH * GUST_STRETCH)
+		var tex := img.get_pixel(i, j).r * 2.0 - 1.0
+		err = maxf(err, absf(n - tex))
+		mx = maxf(mx, absf(n))
+	print("[gust-tex] t=", snappedf(_tt, 0.1), " win=", w, " advect=", _advect.snapped(Vector2.ONE * 0.1), " max|n-texel|=", snappedf(err, 0.0001), " (max|n| ", snappedf(mx, 0.01), ") refresh_us=", snappedf(gust_refresh_us, 1.0), " mean_speed=", snappedf(_speed, 0.1))
+	img.save_png(ProjectSettings.globalize_path("res://_shots/gust_t%d.png" % int(times[_tt_step])))
+	_tt_step += 1
+
 func _process(delta: float) -> void:
 	ClothSolver.sync()
+	if "--gust-tex-test" in OS.get_cmdline_user_args() and _gust_tex != null:
+		_gust_test(delta)
 	time += delta
 	_refresh(delta)
+	_gust_t += delta
+	if _gust_enabled and _gust_t >= GUST_REFRESH:
+		_gust_t = 0.0
+		_refresh_gust_texture()
+	elif _gust_tex != null:
+		# Between refreshes the pattern keeps travelling downwind: slide the window instead of rebuilding the texture.
+		var d := _advect - _gust_adv_b
+		_gust_win = Vector4(_gust_org.x + d.x, _gust_org.y + d.y, _gust_win.z, _gust_win.w)
+		RenderingServer.global_shader_parameter_set(&"gust_win", _gust_win)
+
+## Window origin (local metres) and size (m) of the gust texture: x, z origin, x, z extent.
+func gust_window() -> Vector4:
+	return _gust_win
+
+func gust_texture() -> ImageTexture:
+	return _gust_tex
+
+## Same amplitude gust_factor() uses (so the shader reproduces the factor from the texel).
+func gust_amp() -> float:
+	return (0.22 + 0.55 * WorldState.wind_strength + 0.25 * WorldState.storm) * gust_scale
+
+func _refresh_gust_texture() -> void:
+	var t0 := Time.get_ticks_usec()
+	var ship := get_node_or_null("/root/Main/Ship") as Node3D
+	var c := Vector2(ship.global_position.x, ship.global_position.z) if ship != null else Vector2.ZERO
+	var cell_z := GUST_CELL / GUST_STRETCH
+	var span := Vector2(float(GUST_TEX_W) * GUST_CELL, float(GUST_TEX_H) * cell_z)
+	# Absolute coordinates, snapped to whole texels so the pattern never shimmers when the window follows the ship.
+	var o_abs := Vector2(snappedf(c.x + _off.x - span.x * 0.5, GUST_CELL), snappedf(c.y + _off.y - span.y * 0.5, cell_z))
+	# Noise input for texel (i, j) is ((o_abs - advect) * f + (i, j) * step), with step = GUST_CELL * f (z stretch in the offset).
+	_gust_img.offset = Vector3((o_abs.x - _advect.x) / GUST_CELL, (o_abs.y - _advect.y) * GUST_STRETCH / GUST_CELL, 0.0)
+	var img := _gust_img.get_image(GUST_TEX_W, GUST_TEX_H, false, false, false)
+	if _gust_tex == null:
+		_gust_tex = ImageTexture.create_from_image(img)
+		RenderingServer.global_shader_parameter_add(&"gust_tex", RenderingServer.GLOBAL_VAR_TYPE_SAMPLER2D, _gust_tex)
+		RenderingServer.global_shader_parameter_add(&"gust_win", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
+		RenderingServer.global_shader_parameter_add(&"gust_amp", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)
+	else:
+		_gust_tex.update(img)
+	_gust_adv_b = _advect
+	_gust_org = Vector2(o_abs.x - _off.x, o_abs.y - _off.y)
+	_gust_win = Vector4(_gust_org.x, _gust_org.y, span.x, span.y)
+	RenderingServer.global_shader_parameter_set(&"gust_win", _gust_win)
+	RenderingServer.global_shader_parameter_set(&"gust_amp", gust_amp())
+	gust_refresh_us = lerpf(gust_refresh_us, float(Time.get_ticks_usec() - t0), 0.2) if gust_refresh_us > 0.0 else float(Time.get_ticks_usec() - t0)
 
 ## Mean wind speed (m/s) and unit direction (world x, z) this frame.
 func mean_speed() -> float:
