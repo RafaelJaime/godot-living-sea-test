@@ -55,13 +55,32 @@ float wake_term(vec2 rxz, vec3 gradient) {
 	return wake;
 }
 
-// Night bioluminescence (M4b2.2): the wake's turbulence (G) glows cold cyan-green, scaled by `sky_biolum` (0 by day, in storms and
-// under thick cloud). Returns an emission colour; zero outside the wake window.
-vec3 wake_biolum(vec2 rxz) {
+// Night bioluminescence (M4b2.2): faint cyan-green sparks scattered over the whole wake (foam R and turbulence G, so hull foam, Kelvin
+// arms and the centre line), each cell twinkling on its own clock, plus a very low base glow so the spark field has a body.
+// Scaled by `sky_biolum` (0 by day, in storms and under thick cloud). Returns an emission colour; zero outside the wake window.
+float bl_hash(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+
+vec3 wake_biolum(vec2 rxz, float dist) {
 	vec2 wuv = (rxz - wake_origin) / wake_size;
 	if (sky_biolum <= 0.001 || wuv.x < 0.02 || wuv.x > 0.98 || wuv.y < 0.02 || wuv.y > 0.98) { return vec3(0.0); }
-	float g = texture(wake_tex, wuv).g;
-	return vec3(0.03, 0.62, 0.55) * smoothstep(0.08, 0.7, g) * sky_biolum * biolum_gain;
+	vec3 w = texture(wake_tex, wuv).rgb;
+	float amount = clamp(max(w.r * 0.9, w.g), 0.0, 1.0);
+	if (amount < 0.05) { return vec3(0.0); }
+	float cell = 0.16 + dist * 0.0035; // cells grow with distance so sparks stay about 2-4 px
+	vec2 g = rxz / cell;
+	vec2 id = floor(g);
+	vec2 f = fract(g) - 0.5;
+	float h = bl_hash(id);
+	vec2 jitter = (vec2(bl_hash(id + 7.7), bl_hash(id + 3.3)) - 0.5) * 0.5;
+	float dot_m = smoothstep(0.32, 0.0, length(f - jitter));
+	float tw = 0.5 + 0.5 * sin(TIME * (2.0 + h * 6.0) + h * 40.0);
+	float spark = step(0.7, h) * dot_m * tw * tw * tw;
+	vec3 col = vec3(0.05, 0.55, 0.62);
+	return col * (spark * amount * 1.5 + 0.035 * amount) * sky_biolum * biolum_gain;
 }
 
 // Debug (debug_mode 3 = R foam, G turbulence, B ridge as colour; 4 = R only; 5 = G only; 6 = B only; B maps +-0.5 m to 0..1).

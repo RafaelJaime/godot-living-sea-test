@@ -80,7 +80,7 @@ void fragment() {
 	ALBEDO = mix(base, foam_color.rgb, foam_factor) * (1.0 - 0.3 * cp);
 	float hz = horizon_mix * smoothstep(120.0, 3000.0, dist) * (1.0 - sky_night); // no blend at night: the horizon colour is a lighting colour there, the displayed sky is far darker
 	ALBEDO *= (1.0 - hz);
-	EMISSION = sky_horizon_color * hz + vec3(1.0, 0.95, 0.8) * caustics_emit * caus * 0.35 + wake_biolum(rest_xz);
+	EMISSION = sky_horizon_color * hz + vec3(1.0, 0.95, 0.8) * caustics_emit * caus * 0.35 + wake_biolum(rest_xz, dist);
 	if (debug_mode > 0.5 && debug_mode < 1.5) { ALBEDO = vec3(whitecap, hull_foam, shallow); }
 	if (debug_mode > 6.5 && debug_mode < 7.5) { ALBEDO = vec3(0.0); EMISSION = vec3(cp); } // M4c1: cat's paw mask
 	if (debug_mode > 2.5 && debug_mode < 6.5) { ALBEDO = vec3(0.0); EMISSION = wake_debug(rest_xz, debug_mode); }
