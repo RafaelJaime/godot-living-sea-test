@@ -17,6 +17,7 @@ var override := &"" ## "" | must_staff | emergency | all_hands
 var action: Resource ## NpcActionDef, null = the kind's default
 var payload := {} ## source-private data (lantern id, sail index, ...)
 var claimed_by: Array[StringName] = []
+var end_reason := &"" ## set by the board when it removes the job: cleared | expired
 var posted_at := 0.0 ## logical seconds, stamped by the board on first post
 
 func deadline() -> float:

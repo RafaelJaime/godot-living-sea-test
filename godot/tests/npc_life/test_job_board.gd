@@ -150,3 +150,13 @@ func test_source_decoupling_no_agent_reference() -> void:
 	assert_false(src.poll_if_due(null, 0.1), "not due again before 1 / poll_hz")
 	assert_true(src.poll_if_due(null, 0.6))
 	assert_eq(board.open_jobs().size(), 1, "re-posting the same id updates in place")
+
+func test_order_is_alphabetical_not_by_pointer() -> void:
+	# StringName `<` compares internal pointers: names created in descending order would sort descending, and the order would differ between
+	# processes. Ids created in reverse alphabetical order must still iterate alphabetically.
+	for i in range(60, 0, -1):
+		board.post(_job(StringName("order_%03d" % i)), 0.0)
+	var ids := board.open_jobs().map(func(j: NpcJob) -> String: return String(j.id))
+	var sorted_ids := ids.duplicate()
+	sorted_ids.sort()
+	assert_eq(ids, sorted_ids)

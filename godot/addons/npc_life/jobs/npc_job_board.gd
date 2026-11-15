@@ -38,7 +38,7 @@ func clear(id: StringName) -> bool:
 	var j: NpcJob = _jobs.get(id)
 	if j == null:
 		return false
-	_remove(j)
+	_remove(j, &"cleared")
 	job_cleared.emit(j)
 	return true
 
@@ -54,7 +54,7 @@ func clear_source(source_id: StringName) -> int:
 ## Every posted job, sorted by id.
 func open_jobs() -> Array[NpcJob]:
 	var ids := _jobs.keys()
-	ids.sort()
+	ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b)) # never StringName `<`: it compares pointers, so the order would change between runs
 	var out: Array[NpcJob] = []
 	for id in ids:
 		out.append(_jobs[id])
@@ -98,7 +98,7 @@ func expire(now: float) -> Array[NpcJob]:
 		if now >= j.deadline():
 			gone.append(j)
 	for j in gone:
-		_remove(j)
+		_remove(j, &"expired")
 		job_expired.emit(j)
 	return gone
 
@@ -109,7 +109,8 @@ func urgency_of(job: NpcJob, now: float) -> float:
 		elapsed = minf(elapsed, job.ttl_s)
 	return job.urgency + job.urgency_rate * elapsed
 
-func _remove(j: NpcJob) -> void:
+func _remove(j: NpcJob, reason: StringName) -> void:
+	j.end_reason = reason
 	for a in j.claimed_by.duplicate():
 		_agent_job.erase(a)
 		j.claimed_by.erase(a)
