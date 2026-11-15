@@ -131,6 +131,13 @@ func _island_params(counter: int) -> Dictionary:
 	var lateral := maxf(r.randf_range(min_lateral, max_lateral), radius + 170.0)
 	return {"seed": seed_i, "radius": radius, "peak": peak, "lateral": lateral}
 
+## A pending prefetch must not outlive the node: quitting with a worker task alive aborted the process (std::system_error from a recursive_mutex during macOS
+## shutdown notifications, M6 crash investigation). Wait for it (it is short: tens of milliseconds) before the node leaves the tree.
+func _exit_tree() -> void:
+	if _prefetch.has("task"):
+		WorkerThreadPool.wait_for_task_completion(_prefetch["task"])
+		_prefetch = {}
+
 ## Starts generating the data of the NEXT island on a worker (the next spawn is far from happening: islands recycle every 15-20 s).
 func _prefetch_next() -> void:
 	if _prefetch.has("task"):
