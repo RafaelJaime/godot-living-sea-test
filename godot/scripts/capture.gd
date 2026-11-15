@@ -9,6 +9,8 @@ var PLAN: Array = [[3.0, 11, 0.2], [6.0, 14, 0.2], [9.0, 2, 0.2], [13.0, 11, 0.9
 var _active := false
 var _t := 0.0
 var _step := 0
+var _sweep_n := 0
+var _sweep_h := 40.0
 var _jumped := false
 
 ## Fixed regression presets (design Decision 13): name, day_phase, weather, sea_state, wind direction (deg).
@@ -103,6 +105,13 @@ func _ready() -> void:
 				for i in a.get_slice('=', 1).split(','):
 					PLAN.append([3.0 + 2.5 * k, int(i)])
 					k += 1
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with('--cam-sweep='): # M6.1: N shots turning the debug camera through 360 deg (needs a --cam to create the shot)
+				_sweep_n = int(a.get_slice('=', 1).get_slice(',', 0))
+				_sweep_h = float(a.get_slice('=', 1).get_slice(',', 1)) if ',' in a else 40.0
+				PLAN = []
+				for k in _sweep_n:
+					PLAN.append([3.0 + 2.5 * k, -1])
 		print('[capture] active')
 		get_tree().create_timer(0.1).timeout.connect(func() -> void: pass)
 
@@ -140,6 +149,9 @@ func _process(delta: float) -> void:
 		return
 	var when: float = PLAN[_step][0]
 	var cam_idx: int = PLAN[_step][1]
+	if cam_idx < 0:
+		var dd0 := get_tree().get_first_node_in_group('camera_director')
+		cam_idx = dd0.shots.size() - 1 if dd0 else 0
 	if _step < PLAN.size() and PLAN[_step].size() > 2:
 		WorldState.override_sea = float(PLAN[_step][2])
 	if not _jumped and _t >= when - 0.8:
@@ -149,6 +161,12 @@ func _process(delta: float) -> void:
 			for ca in OS.get_cmdline_user_args():
 				if ca == '--cam-island' or ca.begins_with('--cam-island='):
 					_aim_debug_cam_at_shore(d, cam_idx, float(ca.get_slice('=', 1)) if '=' in ca else 5.0)
+			if _sweep_n > 0:
+				var yaw := TAU * float(_step) / float(_sweep_n)
+				var dirv := Vector3(sin(yaw), 0.0, -cos(yaw))
+				d.shots[cam_idx]["pos"] = Vector3(0.0, _sweep_h, 0.0)
+				d.shots[cam_idx]["look"] = Vector3(0.0, _sweep_h - 3.0, 0.0) + dirv * 300.0
+				d.shots[cam_idx]["fov"] = 70.0
 			d.jump_to(cam_idx, true)
 	if '--lightning' in OS.get_cmdline_user_args() and _step == 2 and _t >= when - 0.08:
 		if WorldState.flash < 0.5:
