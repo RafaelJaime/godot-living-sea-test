@@ -127,7 +127,9 @@ static func launch(delta: float) -> void:
 	_group = WorkerThreadPool.add_group_task(_run.bind(_live, d), _live.size(), -1, true, "cloth")
 
 ## First thing in the next frame: joins the workers and lets every owner consume the fresh results (post_step).
-static func sync() -> void:
+## `finish = false` only joins the workers and drops their results: used at exit, when the owners (flags, sails) have already left
+## the tree and their post_step callbacks would touch nodes that are no longer inside it.
+static func sync(finish := true) -> void:
 	if _group == -1:
 		return
 	var t0 := Time.get_ticks_usec()
@@ -136,6 +138,8 @@ static func sync() -> void:
 	var t1 := Time.get_ticks_usec()
 	stall_ms = lerpf(stall_ms, (t1 - t0) / 1000.0, 0.05)
 	step_ms = lerpf(step_ms, (t1 - _t_launch) / 1000.0, 0.05)
+	if not finish:
+		return
 	for c in _live:
 		c._finish()
 

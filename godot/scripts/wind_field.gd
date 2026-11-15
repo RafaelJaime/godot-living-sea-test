@@ -131,7 +131,7 @@ func _gust_test(delta: float) -> void:
 ## The cloth step of the last frame is still running on the worker threads when the tree is torn down: join it first, so no
 ## worker touches cloth data (or the engine) while it is being dismantled. WindField is an autoload, so it exits after the owners.
 func _exit_tree() -> void:
-	ClothSolver.sync()
+	ClothSolver.sync(false) # join only: the owners have already left the tree, so no post_step callbacks
 
 func _process(delta: float) -> void:
 	ClothSolver.sync()
