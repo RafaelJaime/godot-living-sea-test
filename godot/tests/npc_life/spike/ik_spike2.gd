@@ -54,6 +54,8 @@ func _initialize() -> void:
 			sk2.rotation = Vector3(0, 0.5, 0)
 		get_root().add_child(sk2)
 		var m: Node = ClassDB.instantiate(cn)
+		if cn == "TwoBoneIK3D" and OS.get_cmdline_user_args().has("--count-first"):
+			m.setting_count = 1 # the production crew rig sets the count BEFORE adding the modifier to the skeleton
 		sk2.add_child(m)
 		var n := {"n": 0, "mp": 0, "end": Vector3.ZERO}
 		sk2.skeleton_updated.connect(func() -> void: n["n"] += 1)
@@ -64,7 +66,14 @@ func _initialize() -> void:
 			m.bone_name = "mid"
 			m.set_target_node(m.get_path_to(tgt))
 		elif cn == "TwoBoneIK3D":
-			m.setting_count = 1
+			if not OS.get_cmdline_user_args().has("--count-first"):
+				m.setting_count = 1
+			if OS.get_cmdline_user_args().has("--pole-node"):
+				var pn := Node3D.new()
+				pn.name = "PoleN"
+				get_root().add_child(pn)
+				pn.global_position = Vector3(0.0, 1.0, 1.5)
+				m.set_pole_node(0, m.get_path_to(pn))
 			m.set_root_bone_name(0, "root"); m.set_middle_bone_name(0, "mid"); m.set_end_bone_name(0, "end")
 			m.set_target_node(0, sk2.get_path_to(tgt) if OS.get_cmdline_user_args().has("--skpath") else m.get_path_to(tgt))
 			if OS.get_cmdline_user_args().has("--virt"):

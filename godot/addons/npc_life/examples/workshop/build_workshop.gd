@@ -51,6 +51,7 @@ func _initialize() -> void:
 	var raft := Node3D.new()
 	raft.name = "Raft"
 	raft.set_script(load(DIR + "raft_motion.gd"))
+	raft.set("drift_radius", 3.0)
 	root.add_child(raft)
 	var deck := MeshInstance3D.new()
 	deck.name = "Deck"
@@ -77,6 +78,12 @@ func _initialize() -> void:
 		s.facing_deg = st[3]
 		s.approach_offset = Vector3(0, 0, 0)
 		raft.add_child(s)
+		# IK markers in the station's local space (the agent stands on the station anchor facing `facing_deg`)
+		if st[0] == "workbench":
+			_marker(s, "hand_r", Vector3(-0.4, 1.05, -0.2))
+			_marker(s, "look_at", Vector3(-1.0, 1.3, 0.0))
+		elif st[0] == "net_rack":
+			_marker(s, "look_at", Vector3(0.0, 1.4, -1.0))
 	var starts := [Vector3(-5, 0, 0.4), Vector3(-5, 0, -0.4), Vector3(-4.2, 0, 0)]
 	for i in 3:
 		var a := NpcAgent.new()
@@ -84,14 +91,7 @@ func _initialize() -> void:
 		a.def = load(DIR + "defs/%s.tres" % String(defs[i][0]).to_lower())
 		a.position = starts[i]
 		raft.add_child(a)
-		var cap := MeshInstance3D.new()
-		cap.name = "Puppet"
-		var cm := CapsuleMesh.new()
-		cm.radius = 0.25
-		cm.height = 1.7
-		cap.mesh = cm
-		cap.position.y = 0.85
-		a.add_child(cap)
+		# (the puppet with its skeleton is added at run time by workshop.gd)
 	var cam := Camera3D.new()
 	cam.name = "Camera"
 	cam.position = Vector3(0, 12, 14)
@@ -106,6 +106,23 @@ func _initialize() -> void:
 	ResourceSaver.save(ps, DIR + "workshop.tscn")
 	print("[build_workshop] saved ", DIR)
 	quit(0)
+
+func _marker(station: NpcStation, key: String, pos: Vector3) -> void:
+	var m := Marker3D.new()
+	m.name = key
+	m.position = pos
+	station.add_child(m)
+	var dot := MeshInstance3D.new() # a small visible target so captures show what the hand reaches for
+	dot.name = "Dot"
+	var sm := SphereMesh.new()
+	sm.radius = 0.04
+	sm.height = 0.08
+	dot.mesh = sm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.15, 0.15) if key == "hand_r" else Color(1.0, 0.85, 0.1)
+	dot.material_override = mat
+	m.add_child(dot)
+	station.ik_targets[StringName(key)] = NodePath(key)
 
 func _own(n: Node, owner_node: Node) -> void:
 	for c in n.get_children():

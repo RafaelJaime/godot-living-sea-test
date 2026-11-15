@@ -22,6 +22,9 @@ var _work_done := 0.0
 var _effect_fired := false
 var _yaw_target := 0.0
 var _align_t := 0.0
+var _active_chains: Array[StringName] = []
+var _look_set := false
+var _props: Array[Node3D] = []
 
 func _init(owner_agent: NpcAgent = null) -> void:
 	agent = owner_agent
@@ -57,6 +60,8 @@ func start(job: NpcJob, station: NpcStation, work_s: float, action: NpcActionDef
 	types.append(&"walk")
 	navigator.ground_probe = world.ground_probe
 	navigator.set_path(pts, types)
+	if agent.anim:
+		agent.anim.set_locomotion(&"walk", agent.def.walk_speed if agent.def else 1.2)
 	_set_phase(&"move")
 	return true
 
@@ -88,6 +93,7 @@ func _effect_at() -> float:
 
 ## Drops the current job without finishing it (the agent releases the claims).
 func reset() -> void:
+	_release_adapters()
 	navigator.set_path(PackedVector3Array(), [] as Array[StringName])
 	_job = null
 	_action = null
@@ -96,4 +102,70 @@ func reset() -> void:
 
 func _set_phase(p: StringName) -> void:
 	phase = p
+	match p:
+		&"align":
+			_engage_ik()
+		&"work":
+			_start_work_animation()
+		&"leave":
+			_release_adapters()
 	phase_changed.emit(p)
+
+## Reach and gaze from the station's IK targets (or the action's mapping chain -> station key). The live marker nodes are passed, never copies,
+## so a station on a moving parent is re-read every frame by the adapter.
+func _engage_ik() -> void:
+	if agent.ik == null or _station == null:
+		return
+	var chains := {}
+	if _action and not _action.ik.is_empty():
+		for ch in _action.ik:
+			chains[ch] = _action.ik[ch]
+	else:
+		for key in _station.ik_targets:
+			if key != &"look_at":
+				chains[key] = key
+	for ch in chains:
+		var t := _station.ik_target(chains[ch])
+		if t != null:
+			agent.ik.set_target(ch, t)
+			_active_chains.append(ch)
+	var look_key: StringName = _action.look_at if (_action and _action.look_at != &"") else (&"look_at" if _station.ik_targets.has(&"look_at") else &"")
+	if look_key != &"" and look_key != &"partner" and look_key != &"performer":
+		var lt := _station.ik_target(look_key)
+		if lt != null:
+			agent.ik.set_look_at(lt)
+			_look_set = true
+
+func _start_work_animation() -> void:
+	if agent.ik != null and _active_chains.is_empty() and not _look_set:
+		_engage_ik() # a job whose station has IK but no ALIGN phase
+	if agent.anim == null:
+		return
+	var tag: StringName = _action.anim_tag if (_action and _action.anim_tag != &"") else (_station.anim_tag if _station else &"")
+	if tag != &"":
+		agent.anim.play(tag)
+	if _action:
+		for scene in _action.props:
+			var p := agent.anim.attach_prop(scene, &"hand_r")
+			if p != null:
+				_props.append(p)
+
+func _release_adapters() -> void:
+	if agent == null:
+		return
+	if agent.ik != null:
+		for ch in _active_chains:
+			agent.ik.clear(ch)
+		if _look_set:
+			agent.ik.set_look_at(null)
+	_active_chains.clear()
+	_look_set = false
+	for p in _props:
+		if is_instance_valid(p):
+			if p.is_inside_tree():
+				p.queue_free()
+			else:
+				p.free()
+	_props.clear()
+	if agent.anim != null and phase != &"":
+		agent.anim.play(&"idle")

@@ -10,6 +10,10 @@ extends Node3D
 signal phase_changed(phase: StringName)
 
 @export var def: NpcCharacterDef
+## Animation and IK adapters (any NpcAnimationAdapter / NpcIkAdapter). Without an animation adapter the agent still runs its logic and warns once.
+var anim: NpcAnimationAdapter
+var ik: NpcIkAdapter
+var adapter_warnings := 0
 ## Optional explicit world; otherwise the agent finds the NpcWorld among its ancestors, or the only world in the scene (group `npc_world`).
 @export var world_path: NodePath
 
@@ -54,7 +58,10 @@ func bind_world(w: NpcWorld) -> void:
 	world = w
 	executor = NpcJobExecutor.new(self)
 	executor.phase_changed.connect(func(p: StringName) -> void: phase_changed.emit(p))
-	executor.navigator.edge_entered.connect(func(t: StringName, _i: int) -> void: world.on_edge_entered(self, t))
+	executor.navigator.edge_entered.connect(func(t: StringName, _i: int) -> void:
+		world.on_edge_entered(self, t)
+		if anim:
+			anim.set_locomotion(t, executor.navigator.current_speed(def.walk_speed if def else 1.2)))
 	if def:
 		agent_id = def.agent_id
 		tags = def.all_tags()
@@ -92,6 +99,10 @@ func tick(dt: float) -> void:
 func frame_update(delta: float) -> void:
 	if _job != null and executor != null:
 		executor.update(delta)
+	if anim:
+		anim.process(delta)
+	if ik:
+		ik.process(delta)
 
 func phase() -> StringName:
 	return executor.phase if executor else &""
@@ -225,6 +236,9 @@ func _begin(j: NpcJob, st: NpcStation, reason: StringName, now: float, top: Arra
 	idle_max_s = maxf(idle_max_s, idle_s)
 	var idle_before := idle_s
 	idle_s = 0.0
+	if anim == null and adapter_warnings == 0:
+		adapter_warnings = 1
+		push_warning("[npc_life] agent %s has no animation adapter: running logic only" % agent_id)
 	executor.start(j, st, work_s, act)
 	world.on_agent_decided(self, j, reason, top, temp, draw, idle_before)
 

@@ -14,46 +14,74 @@
 [sub_resource type="BoxMesh" id="BoxMesh_e5bfy"]
 size = Vector3(14, 0.2, 8)
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_dsm7f"]
-radius = 0.25
-height = 1.7
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dsm7f"]
+albedo_color = Color(1, 0.15, 0.15, 1)
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_phmvl"]
-radius = 0.25
-height = 1.7
+[sub_resource type="SphereMesh" id="SphereMesh_phmvl"]
+radius = 0.04
+height = 0.08
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_j11dl"]
-radius = 0.25
-height = 1.7
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_j11dl"]
+albedo_color = Color(1, 0.85, 0.1, 1)
 
-[node name="Workshop" type="Node3D" unique_id=68502116]
+[sub_resource type="SphereMesh" id="SphereMesh_3rl3m"]
+radius = 0.04
+height = 0.08
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dm305"]
+albedo_color = Color(1, 0.85, 0.1, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_fjryd"]
+radius = 0.04
+height = 0.08
+
+[node name="Workshop" type="Node3D" unique_id=2060131102]
 script = ExtResource("1_cogx3")
 
-[node name="Raft" type="Node3D" parent="." unique_id=1054145277]
+[node name="Raft" type="Node3D" parent="." unique_id=617816101]
 script = ExtResource("2_lhsv2")
+drift_radius = 3.0
 
-[node name="Deck" type="MeshInstance3D" parent="Raft" unique_id=781727373]
+[node name="Deck" type="MeshInstance3D" parent="Raft" unique_id=985277968]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11, 0)
 mesh = SubResource("BoxMesh_e5bfy")
 
-[node name="NpcWorld" type="Node" parent="Raft" unique_id=1672522091 node_paths=PackedStringArray("platform_root")]
+[node name="NpcWorld" type="Node" parent="Raft" unique_id=635472156 node_paths=PackedStringArray("platform_root")]
 script = ExtResource("3_x1kdi")
 platform_root = NodePath("..")
 graph = ExtResource("4_basce")
 
-[node name="Source" type="Node" parent="Raft/NpcWorld" unique_id=944730566]
+[node name="Source" type="Node" parent="Raft/NpcWorld" unique_id=132813444]
 script = ExtResource("5_8jhtr")
 source_id = &"workshop"
 
-[node name="Workbench" type="Node3D" parent="Raft" unique_id=3471332]
+[node name="Workbench" type="Node3D" parent="Raft" unique_id=821874719]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 0, 0)
 script = ExtResource("6_v53jr")
 station_id = &"workbench"
 kind = &"workbench"
 approach_offset = Vector3(0, 0, 0)
 facing_deg = 90.0
+ik_targets = Dictionary[StringName, NodePath]({
+&"hand_r": NodePath("hand_r"),
+&"look_at": NodePath("look_at")
+})
 
-[node name="LampPost" type="Node3D" parent="Raft" unique_id=443001827]
+[node name="hand_r" type="Marker3D" parent="Raft/Workbench" unique_id=1844126198]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 1.05, -0.2)
+
+[node name="Dot" type="MeshInstance3D" parent="Raft/Workbench/hand_r" unique_id=1239773458]
+material_override = SubResource("StandardMaterial3D_dsm7f")
+mesh = SubResource("SphereMesh_phmvl")
+
+[node name="look_at" type="Marker3D" parent="Raft/Workbench" unique_id=1430800242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.3, 0)
+
+[node name="Dot" type="MeshInstance3D" parent="Raft/Workbench/look_at" unique_id=1899730299]
+material_override = SubResource("StandardMaterial3D_j11dl")
+mesh = SubResource("SphereMesh_3rl3m")
+
+[node name="LampPost" type="Node3D" parent="Raft" unique_id=1909541743]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.3, 3.5)
 script = ExtResource("6_v53jr")
 station_id = &"lamp_post"
@@ -61,42 +89,40 @@ kind = &"lamp"
 approach_offset = Vector3(0, 0, 0)
 facing_deg = 180.0
 
-[node name="NetRack" type="Node3D" parent="Raft" unique_id=1172200869]
+[node name="NetRack" type="Node3D" parent="Raft" unique_id=1133867895]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, -3.5)
 script = ExtResource("6_v53jr")
 station_id = &"net_rack"
 kind = &"net"
 approach_offset = Vector3(0, 0, 0)
+ik_targets = Dictionary[StringName, NodePath]({
+&"look_at": NodePath("look_at")
+})
 
-[node name="Ana" type="Node3D" parent="Raft" unique_id=713364600]
+[node name="look_at" type="Marker3D" parent="Raft/NetRack" unique_id=124943696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, -1)
+
+[node name="Dot" type="MeshInstance3D" parent="Raft/NetRack/look_at" unique_id=939488460]
+material_override = SubResource("StandardMaterial3D_dm305")
+mesh = SubResource("SphereMesh_fjryd")
+
+[node name="Ana" type="Node3D" parent="Raft" unique_id=999160007]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 0.4)
 script = ExtResource("7_8576l")
 def = ExtResource("8_rdf6y")
 
-[node name="Puppet" type="MeshInstance3D" parent="Raft/Ana" unique_id=1136229853]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
-mesh = SubResource("CapsuleMesh_dsm7f")
-
-[node name="Bruno" type="Node3D" parent="Raft" unique_id=1647739285]
+[node name="Bruno" type="Node3D" parent="Raft" unique_id=505065125]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -0.4)
 script = ExtResource("7_8576l")
 def = ExtResource("9_q3keo")
 
-[node name="Puppet" type="MeshInstance3D" parent="Raft/Bruno" unique_id=1515577548]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
-mesh = SubResource("CapsuleMesh_phmvl")
-
-[node name="Cleo" type="Node3D" parent="Raft" unique_id=70348348]
+[node name="Cleo" type="Node3D" parent="Raft" unique_id=222614630]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 0, 0)
 script = ExtResource("7_8576l")
 def = ExtResource("10_xm2hj")
 
-[node name="Puppet" type="MeshInstance3D" parent="Raft/Cleo" unique_id=2127801928]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
-mesh = SubResource("CapsuleMesh_j11dl")
-
-[node name="Camera" type="Camera3D" parent="." unique_id=361750034]
+[node name="Camera" type="Camera3D" parent="." unique_id=739168752]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 14)
 
-[node name="Sun" type="DirectionalLight3D" parent="." unique_id=393126003]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1272310759]
 transform = Transform3D(0.8660254, -0.38302222, 0.32139382, 0, 0.64278764, 0.76604444, -0.5, -0.66341394, 0.5566704, 0, 0, 0)
