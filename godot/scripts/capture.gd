@@ -91,6 +91,10 @@ func _ready() -> void:
 			_seq_n = int(a.get_slice('=', 1).get_slice(',', 0))
 			_seq_h = float(a.get_slice('=', 1).get_slice(',', 1)) if a.count(',') >= 1 else 15.0
 			_seq_speed = float(a.get_slice('=', 1).get_slice(',', 2)) if a.count(',') >= 2 else 0.0
+		elif a == '--deck-survey':
+			var ds := Node.new()
+			ds.set_script(load('res://scripts/deck_survey.gd'))
+			get_tree().root.add_child.call_deferred(ds)
 		elif a == '--poll-sail-state':
 			_poll_state = true
 		elif a == '--plan=regression':
