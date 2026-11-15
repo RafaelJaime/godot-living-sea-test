@@ -95,7 +95,7 @@ func set_level(n: String) -> void:
 		ssao = true
 		ssao_quality = 0
 		ssil = false
-		ssr = true
+		ssr = false # M2a.5: off in final too (no visible effect on the ocean material, +1.5 ms); --ssr turns it on for tests
 		ssr_steps = 64
 		sky_radiance = 256
 		glow = true
