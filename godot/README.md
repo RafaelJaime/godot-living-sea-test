@@ -162,7 +162,7 @@ Other hooks: `PinnaceRig.sail_state()` -> furl, brace_deg, mean_pressure_pa, luf
 
 ## Camera shots and island polish (M3.10 / M3.11)
 Shot indices (hotkeys 1-7 and the 20 s cycle are unchanged; new shots are appended): 5 Canto, 7-10 crew close-ups, 12 helm, 13 violin, 17 wake,
-**18 storm** (low on the bow quarter), **19 island**, **20 island close** (from the island side of the ship toward the nearest island, via `Islands.targets()`, read-only).
+**18 storm** (low on the bow quarter), **19 island**, **20 island close**, **21 anti-sun** (looks away from the sun: rainbow) (from the island side of the ship toward the nearest island, via `Islands.targets()`, read-only).
 - `scripts/camera_clearview.gd` (`CameraClearView`): line-of-sight queries against the ship's own meshes (skeleton pose baked once, triangle BVHs) plus the helm
   wheel and the lanterns. `camera_director.gd` uses it for every shot with `"solve": true`: Canto, crew close-ups, helm, violin, island.
   Crew shots search a ring around the character (front quarter taken from the live `Visual` node, `front_deg`) with a dense ray grid over head and torso (thin

@@ -39,7 +39,9 @@ var shots: Array[Dictionary] = [
 	{"name": "storm", "pos": Vector3(-10.0, 1.5, -13.0), "look": Vector3(0.0, 8.0, -2.0), "fov": 62.0},
 	# Island portrait (index 19): from the deck toward the nearest island, framed by its size (evidence shot for island lighting).
 	{"name": "island", "mode": "island", "solve": true, "pos": Vector3(3.0, 9.0, -4.0), "fov": 40.0},
-	{"name": "island close", "mode": "island", "solve": true, "frame": 0.42, "pos": Vector3(3.0, 11.0, -4.0), "fov": 40.0}, # (index 21)
+	{"name": "island close", "mode": "island", "solve": true, "frame": 0.42, "pos": Vector3(3.0, 11.0, -4.0), "fov": 40.0},
+	# Anti-sun (index 21, not in the cycle): looks away from the sun, where the rainbow forms after a storm.
+	{"name": "anti-sun", "mode": "sun_away", "pos": Vector3(-13.0, 9.0, 6.0), "rise": 16.0, "fov": 72.0},
 ]
 ## Ocean inspection shots (not part of the auto cycle).
 ## (appended below in _ready)
@@ -181,6 +183,11 @@ func _shot_pose(i: int, t: float) -> Dictionary:
 		var c := _crew_center(s)
 		var off: Vector3 = _sol[i]["off"] if _sol.has(i) else s["off"]
 		return {"pos": c + off, "look": c, "fov": s["fov"], "att": true}
+	if mode == "sun_away":
+		var ha := Vector3(_sun_dir().x, 0.0, _sun_dir().z).normalized()
+		var wpa: Vector3 = f * (s["pos"] as Vector3)
+		var wla: Vector3 = wpa - ha * 100.0 + Vector3(0, float(s["rise"]), 0)
+		return {"pos": s["pos"], "look": f.affine_inverse() * wla, "fov": s["fov"]}
 	if mode == "island":
 		var isl_pose := _island_pose(i, s, f)
 		if not isl_pose.is_empty():
