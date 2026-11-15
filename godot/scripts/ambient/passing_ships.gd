@@ -68,11 +68,13 @@ func _ready() -> void:
 		omni.visible = false
 		omni.position = Vector3(0, 9, 0)
 		s.add_child(omni)
-		var slot := {"node": s, "vel": Vector3.ZERO, "active": false, "wait": randf_range(1.0, 25.0) + float(i) * 6.0, "omni": omni, "lights": s.get_meta("lights")}
+		var slot := {"node": s, "vel": Vector3.ZERO, "active": false, "wait": randf_range(5.0, 150.0), "omni": omni, "lights": s.get_meta("lights")}
 		_slots.append(slot)
 		s.visible = false
 		if _test:
 			_place_test(slot, i, count, test_dist, spread)
+		elif randf() < 0.55:
+			_spawn(slot, true) # part of the traffic is already under way at start: scattered, never a regular line-up
 
 func _unshaded(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -178,19 +180,30 @@ func _place_test(slot: Dictionary, i: int, count: int, dist: float, spread_deg: 
 	if _cross_speed > 0.0:
 		slot["vel"] = -fwd * _cross_speed # comes straight in so the 1200 m hand-over is crossed at a known time
 
-func _spawn(slot: Dictionary) -> void:
+func _spawn(slot: Dictionary, anywhere := false) -> void:
 	var fwd := _fwd()
 	var sp := _ship.global_position
 	# Prefer the forward half so ships are seen; lanes cross the line of sight at 4-9 m/s.
 	var ang := atan2(fwd.z, fwd.x) + randf_range(-1.7, 1.7)
-	var dist := randf_range(RANGE_MIN, RANGE_MAX)
+	if anywhere:
+		ang = randf() * TAU
+	var dist := RANGE_MIN + (RANGE_MAX - RANGE_MIN) * pow(randf(), 0.8) # spread over the whole 800-3000 m band
+	for other in _slots: # keep apart from the others: not in the same spot or line of sight
+		if other != slot and other["active"]:
+			var o := (other["node"] as Node3D).position
+			for _try in 6:
+				var cand := Vector3(sp.x + cos(ang) * dist, 0.0, sp.z + sin(ang) * dist)
+				if Vector2(cand.x - o.x, cand.z - o.z).length() > 350.0 and absf(angle_difference(ang, atan2(o.z - sp.z, o.x - sp.x))) > 0.12:
+					break
+				ang = atan2(fwd.z, fwd.x) + randf_range(-1.7, 1.7) if not anywhere else randf() * TAU
+				dist = randf_range(RANGE_MIN, RANGE_MAX)
 	var n := slot["node"] as Node3D
 	n.position = Vector3(sp.x + cos(ang) * dist, 0.0, sp.z + sin(ang) * dist)
 	var tang := Vector3(-sin(ang), 0, cos(ang)) * (1.0 if randf() < 0.5 else -1.0)
-	slot["vel"] = tang.rotated(Vector3.UP, randf_range(-0.4, 0.4)) * randf_range(4.0, 9.0)
+	slot["vel"] = tang.rotated(Vector3.UP, randf_range(-0.9, 0.9)) * randf_range(3.0, 10.0)
 	n.look_at(n.position + (slot["vel"] as Vector3), Vector3.UP)
 	n.rotate_object_local(Vector3.UP, PI)
-	var sc := randf_range(0.9, 1.5)
+	var sc := randf_range(0.7, 1.7)
 	n.scale = Vector3.ONE * sc
 	n.visible = true
 	slot["active"] = true
@@ -244,7 +257,7 @@ func _process(delta: float) -> void:
 		if not _test and dist > LEAVE:
 			n.visible = false
 			slot["active"] = false
-			slot["wait"] = randf_range(20.0, 70.0)
+			slot["wait"] = randf_range(15.0, 140.0)
 			_recycled += 1
 			if _log_recycle:
 				print("[passing_ships] recycled slot after leaving range dist=", snappedf(dist, 1.0), " total=", _recycled)
