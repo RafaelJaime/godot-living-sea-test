@@ -300,7 +300,7 @@ Evidence folders: `odd/evidence/M4a/`, `M4b/`, `M4c/`. Every changed-path listin
 ### Slice M4b-2 (PR-M4b2, about 300 lines): lighthouse and bioluminescence
 
 - [x] M4b2.1 [SA] Create `godot/scripts/ambient/lighthouse.gd`: placed using `islands.gd::targets()` (read-only use of `godot/scripts/islands.gd`; edit it only if a placement hook is missing and record why), additive beam cone plus `SpotLight3D` at `final`, dormant lamp at day. Verify: two night captures 2 s apart show the beam direction differing by the configured angular rate; day shows dormant lamp. Dependency: M4b1.2, M3.11. Done without a new lighthouse.gd: islands.gd already builds the lighthouses (targets() unchanged) and lighthouse_beam.gd sweeps the cone; no SpotLight3D (decision: it would only light open water); lamp emission now follows the beam rule. Evidence: odd/evidence/M4b/final/ (beam_yaw 54 deg/s = 9 rpm).
-- [ ] M4b2.2 [SA] Bioluminescence term (night × wake G channel) in `godot/shaders/ocean/foam.gdshaderinc`. Verify: night top-down capture shows wake glow, absent at day (spec: Night glow). Dependency: M2b.10, M4b1.2.
+- [x] M4b2.2 [SA] Bioluminescence term (night × wake G channel) in `godot/shaders/ocean/foam.gdshaderinc`. Verify: night top-down capture shows wake glow, absent at day (spec: Night glow). Dependency: M2b.10, M4b1.2. Evidence: twinkling sparks over the whole wake at night, absent by day: odd/evidence/M4-candidates/biolum_after_rebase_caustics_catspaws.jpg.
 - [ ] M4b2.3 [SA] Evidence: `--perf-log=30` both presets, 10-minute run counts, zero errors. Files: `odd/evidence/M4b/*`. Dependency: M4b2.1, M4b2.2.
 
 ### Slice M4c-1 (PR-M4c1, about 260 lines): cat's paws
@@ -311,7 +311,7 @@ Evidence folders: `odd/evidence/M4a/`, `M4b/`, `M4c/`. Every changed-path listin
 
 ### Slice M4c-2 (PR-M4c2, optional extras, about 330 lines; skipped extras are noted, not blocking)
 
-- [ ] M4c2.1 [SA] Add `deck_wetness` to `godot/scripts/world_state.gd` (rises with storm rain, dries with daylight and wind); wire deck material specularity. Verify: getter read before, during and after rain rises then decays; rain deck capture specular higher than dry. Dependency: M3.8.
+- [x] M4c2.1 [SA] Add `deck_wetness` to `godot/scripts/world_state.gd` (rises with storm rain, dries with daylight and wind); wire deck material specularity. Verify: getter read before, during and after rain rises then decays; rain deck capture specular higher than dry. Dependency: M3.8. Evidence: deck_wetness 0 -> 1.0 in a storm -> 0.98 right after, wet deck material: odd/evidence/M4-candidates/deck_dry_vs_wet.jpg.
 - [x] M4c2.2 [SA] Rainbow after storms and morning fog curve in `godot/scripts/sky.gd` and `godot/shaders/sky_night.gdshader`. Verify: capture after a storm shows the rainbow; dawn capture shows fog; both absent otherwise. Dependency: M3.6. Evidence: rainbow verified (handoff/sky_rainbow.png), dawn fog bank in captures/sky_f_dawn_clear.png.
 - [x] M4c2.3 [SA] Optional flotsam: `godot/scripts/ambient/flotsam.gd` fixed pool. Verify: visible in a wide capture; counts flat. Dependency: M4a.1. Evidence: fixed pool of 16 (final) / 10 (dev) in ambient_life.gd, flat counts, visible in odd/evidence/M4a/whale_spout.jpg; hull pushes it aside (f6b6f60).
 - [ ] M4c2.4 [SA] Evidence and docs: `odd/evidence/M4c/*` plus `godot/README.md` hook entry for `deck_wetness`. Dependency: M4c2.1 to M4c2.3.
