@@ -91,6 +91,10 @@ func update(delta: float) -> void:
 func _effect_at() -> float:
 	return _action.effect_at if _action else 0.5
 
+## Makes sure at least `seconds` of WORK remain (a social offer keeps its initiator waiting).
+func ensure_remaining(seconds: float) -> void:
+	_work_total = maxf(_work_total, _work_done + seconds)
+
 ## Drops the current job without finishing it (the agent releases the claims).
 func reset() -> void:
 	_release_adapters()

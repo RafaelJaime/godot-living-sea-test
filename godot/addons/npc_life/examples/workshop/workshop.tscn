@@ -1,63 +1,78 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/workshop.gd" id="1_cogx3"]
-[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/raft_motion.gd" id="2_lhsv2"]
-[ext_resource type="Script" path="res://addons/npc_life/core/npc_world.gd" id="3_x1kdi"]
-[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/workshop_graph.tres" id="4_basce"]
-[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/workshop_sources.gd" id="5_8jhtr"]
-[ext_resource type="Script" path="res://addons/npc_life/stations/npc_station.gd" id="6_v53jr"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_agent.gd" id="7_8576l"]
-[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/ana.tres" id="8_rdf6y"]
-[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/bruno.tres" id="9_q3keo"]
-[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/cleo.tres" id="10_xm2hj"]
+[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/workshop.gd" id="1_basce"]
+[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/raft_motion.gd" id="2_8jhtr"]
+[ext_resource type="Script" path="res://addons/npc_life/core/npc_world.gd" id="3_v53jr"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/workshop_graph.tres" id="4_8576l"]
+[ext_resource type="Script" path="res://addons/npc_life/examples/workshop/workshop_sources.gd" id="5_rdf6y"]
+[ext_resource type="Script" path="res://addons/npc_life/schedule/npc_watch_scheduler.gd" id="6_q3keo"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/roster.tres" id="7_xm2hj"]
+[ext_resource type="Script" path="res://addons/npc_life/social/npc_social_director.gd" id="8_e5bfy"]
+[ext_resource type="Script" path="res://addons/npc_life/stations/npc_station.gd" id="9_dsm7f"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_agent.gd" id="10_phmvl"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/ana.tres" id="11_j11dl"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/bruno.tres" id="12_3rl3m"]
+[ext_resource type="Resource" path="res://addons/npc_life/examples/workshop/defs/cleo.tres" id="13_dm305"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_e5bfy"]
+[sub_resource type="BoxMesh" id="BoxMesh_fjryd"]
 size = Vector3(14, 0.2, 8)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dsm7f"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lchg5"]
 albedo_color = Color(1, 0.15, 0.15, 1)
 
-[sub_resource type="SphereMesh" id="SphereMesh_phmvl"]
+[sub_resource type="SphereMesh" id="SphereMesh_awyyl"]
 radius = 0.04
 height = 0.08
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_j11dl"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_juutn"]
 albedo_color = Color(1, 0.85, 0.1, 1)
 
-[sub_resource type="SphereMesh" id="SphereMesh_3rl3m"]
+[sub_resource type="SphereMesh" id="SphereMesh_swhg8"]
 radius = 0.04
 height = 0.08
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dm305"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bxchx"]
 albedo_color = Color(1, 0.85, 0.1, 1)
 
-[sub_resource type="SphereMesh" id="SphereMesh_fjryd"]
+[sub_resource type="SphereMesh" id="SphereMesh_6bli6"]
 radius = 0.04
 height = 0.08
 
-[node name="Workshop" type="Node3D" unique_id=2060131102]
-script = ExtResource("1_cogx3")
+[node name="Workshop" type="Node3D" unique_id=1729278050]
+script = ExtResource("1_basce")
 
-[node name="Raft" type="Node3D" parent="." unique_id=617816101]
-script = ExtResource("2_lhsv2")
+[node name="Raft" type="Node3D" parent="." unique_id=2135439646]
+script = ExtResource("2_8jhtr")
 drift_radius = 3.0
 
-[node name="Deck" type="MeshInstance3D" parent="Raft" unique_id=985277968]
+[node name="Deck" type="MeshInstance3D" parent="Raft" unique_id=1883884649]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11, 0)
-mesh = SubResource("BoxMesh_e5bfy")
+mesh = SubResource("BoxMesh_fjryd")
 
-[node name="NpcWorld" type="Node" parent="Raft" unique_id=635472156 node_paths=PackedStringArray("platform_root")]
-script = ExtResource("3_x1kdi")
+[node name="NpcWorld" type="Node" parent="Raft" unique_id=908777642 node_paths=PackedStringArray("platform_root")]
+script = ExtResource("3_v53jr")
 platform_root = NodePath("..")
-graph = ExtResource("4_basce")
+graph = ExtResource("4_8576l")
 
-[node name="Source" type="Node" parent="Raft/NpcWorld" unique_id=132813444]
-script = ExtResource("5_8jhtr")
+[node name="Source" type="Node" parent="Raft/NpcWorld" unique_id=1396463653]
+script = ExtResource("5_rdf6y")
 source_id = &"workshop"
 
-[node name="Workbench" type="Node3D" parent="Raft" unique_id=821874719]
+[node name="Roster" type="Node" parent="Raft/NpcWorld" unique_id=2086304372]
+script = ExtResource("6_q3keo")
+roster = ExtResource("7_xm2hj")
+source_id = &"roster"
+poll_hz = 10.0
+
+[node name="Social" type="Node" parent="Raft/NpcWorld" unique_id=322799278]
+script = ExtResource("8_e5bfy")
+chat_chance = 0.15
+source_id = &"social"
+poll_hz = 5.0
+
+[node name="Workbench" type="Node3D" parent="Raft" unique_id=836982214]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 0, 0)
-script = ExtResource("6_v53jr")
+script = ExtResource("9_dsm7f")
 station_id = &"workbench"
 kind = &"workbench"
 approach_offset = Vector3(0, 0, 0)
@@ -67,31 +82,31 @@ ik_targets = Dictionary[StringName, NodePath]({
 &"look_at": NodePath("look_at")
 })
 
-[node name="hand_r" type="Marker3D" parent="Raft/Workbench" unique_id=1844126198]
+[node name="hand_r" type="Marker3D" parent="Raft/Workbench" unique_id=2146478353]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 1.05, -0.2)
 
-[node name="Dot" type="MeshInstance3D" parent="Raft/Workbench/hand_r" unique_id=1239773458]
-material_override = SubResource("StandardMaterial3D_dsm7f")
-mesh = SubResource("SphereMesh_phmvl")
+[node name="Dot" type="MeshInstance3D" parent="Raft/Workbench/hand_r" unique_id=1421919555]
+material_override = SubResource("StandardMaterial3D_lchg5")
+mesh = SubResource("SphereMesh_awyyl")
 
-[node name="look_at" type="Marker3D" parent="Raft/Workbench" unique_id=1430800242]
+[node name="look_at" type="Marker3D" parent="Raft/Workbench" unique_id=1205122950]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.3, 0)
 
-[node name="Dot" type="MeshInstance3D" parent="Raft/Workbench/look_at" unique_id=1899730299]
-material_override = SubResource("StandardMaterial3D_j11dl")
-mesh = SubResource("SphereMesh_3rl3m")
+[node name="Dot" type="MeshInstance3D" parent="Raft/Workbench/look_at" unique_id=1235402432]
+material_override = SubResource("StandardMaterial3D_juutn")
+mesh = SubResource("SphereMesh_swhg8")
 
-[node name="LampPost" type="Node3D" parent="Raft" unique_id=1909541743]
+[node name="LampPost" type="Node3D" parent="Raft" unique_id=1653527723]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.3, 3.5)
-script = ExtResource("6_v53jr")
+script = ExtResource("9_dsm7f")
 station_id = &"lamp_post"
 kind = &"lamp"
 approach_offset = Vector3(0, 0, 0)
 facing_deg = 180.0
 
-[node name="NetRack" type="Node3D" parent="Raft" unique_id=1133867895]
+[node name="NetRack" type="Node3D" parent="Raft" unique_id=81336071]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, -3.5)
-script = ExtResource("6_v53jr")
+script = ExtResource("9_dsm7f")
 station_id = &"net_rack"
 kind = &"net"
 approach_offset = Vector3(0, 0, 0)
@@ -99,30 +114,55 @@ ik_targets = Dictionary[StringName, NodePath]({
 &"look_at": NodePath("look_at")
 })
 
-[node name="look_at" type="Marker3D" parent="Raft/NetRack" unique_id=124943696]
+[node name="look_at" type="Marker3D" parent="Raft/NetRack" unique_id=579023416]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, -1)
 
-[node name="Dot" type="MeshInstance3D" parent="Raft/NetRack/look_at" unique_id=939488460]
-material_override = SubResource("StandardMaterial3D_dm305")
-mesh = SubResource("SphereMesh_fjryd")
+[node name="Dot" type="MeshInstance3D" parent="Raft/NetRack/look_at" unique_id=322555145]
+material_override = SubResource("StandardMaterial3D_bxchx")
+mesh = SubResource("SphereMesh_6bli6")
 
-[node name="Ana" type="Node3D" parent="Raft" unique_id=999160007]
+[node name="WatchPost" type="Node3D" parent="Raft" unique_id=1772588939]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0, 2.6)
+script = ExtResource("9_dsm7f")
+station_id = &"watch_post"
+kind = &"watch"
+approach_offset = Vector3(0, 0, 0)
+
+[node name="Campfire" type="Node3D" parent="Raft" unique_id=463242955]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2.8)
+script = ExtResource("9_dsm7f")
+station_id = &"campfire"
+kind = &"social_spot"
+tags = PackedStringArray("social")
+slot_count = 3
+approach_offset = Vector3(0, 0, 0)
+
+[node name="FiddleSeat" type="Node3D" parent="Raft" unique_id=567344564]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0, -2.6)
+script = ExtResource("9_dsm7f")
+station_id = &"fiddle_seat"
+kind = &"performer_seat"
+tags = PackedStringArray("performer")
+approach_offset = Vector3(0, 0, 0)
+facing_deg = 180.0
+
+[node name="Ana" type="Node3D" parent="Raft" unique_id=507379356]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 0.4)
-script = ExtResource("7_8576l")
-def = ExtResource("8_rdf6y")
+script = ExtResource("10_phmvl")
+def = ExtResource("11_j11dl")
 
-[node name="Bruno" type="Node3D" parent="Raft" unique_id=505065125]
+[node name="Bruno" type="Node3D" parent="Raft" unique_id=1371581777]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -0.4)
-script = ExtResource("7_8576l")
-def = ExtResource("9_q3keo")
+script = ExtResource("10_phmvl")
+def = ExtResource("12_3rl3m")
 
-[node name="Cleo" type="Node3D" parent="Raft" unique_id=222614630]
+[node name="Cleo" type="Node3D" parent="Raft" unique_id=1359086808]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 0, 0)
-script = ExtResource("7_8576l")
-def = ExtResource("10_xm2hj")
+script = ExtResource("10_phmvl")
+def = ExtResource("13_dm305")
 
-[node name="Camera" type="Camera3D" parent="." unique_id=739168752]
+[node name="Camera" type="Camera3D" parent="." unique_id=1413488490]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 14)
 
-[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1272310759]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1073811390]
 transform = Transform3D(0.8660254, -0.38302222, 0.32139382, 0, 0.64278764, 0.76604444, -0.5, -0.66341394, 0.5566704, 0, 0, 0)

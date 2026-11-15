@@ -42,8 +42,23 @@ func _initialize() -> void:
 		for k in d[2]:
 			def.preferences[k] = d[2][k]
 		def.needs[&"focus"] = 3.0
+		def.skills[&"lookout"] = {&"Ana": 0.8, &"Bruno": 0.5, &"Cleo": 0.6}[def.agent_id]
+		if def.agent_id == &"Bruno":
+			def.tags = PackedStringArray(["performer"])
 		def.temperature_scale = d[3]
 		ResourceSaver.save(def, DIR + "defs/%s.tres" % String(d[0]).to_lower())
+	# roster: one watch at the watch post, shifts of 40 s with a 10 s overlapped handover
+	var watch := NpcWatchDef.new()
+	watch.watch_id = &"lookout"
+	watch.station_id = &"watch_post"
+	watch.job_kind = &"lookout"
+	watch.eligible = PackedStringArray(["Ana", "Cleo"]) # Bruno is the fiddler
+	watch.shift_s = 40.0
+	watch.handover_lead_s = 10.0
+	watch.max_consecutive = 2
+	var roster := NpcRoster.new()
+	roster.watches.append(watch)
+	ResourceSaver.save(roster, DIR + "defs/roster.tres")
 	# scene
 	var root := Node3D.new()
 	root.name = "Workshop"
@@ -69,7 +84,18 @@ func _initialize() -> void:
 	src.name = "Source"
 	src.source_id = &"workshop"
 	world.add_child(src)
-	for st in [["workbench", &"workbench", Vector3(5.5, 0, 0), 90.0], ["lamp_post", &"lamp", Vector3(-1.5, 0.3, 3.5), 180.0], ["net_rack", &"net", Vector3(-1.5, 0, -3.5), 0.0]]:
+	var sched := NpcWatchScheduler.new()
+	sched.name = "Roster"
+	sched.source_id = &"roster"
+	sched.roster = load(DIR + "defs/roster.tres")
+	world.add_child(sched)
+	var social := NpcSocialDirector.new()
+	social.name = "Social"
+	social.source_id = &"social"
+	social.chat_chance = 0.15
+	world.add_child(social)
+	for st in [["workbench", &"workbench", Vector3(5.5, 0, 0), 90.0], ["lamp_post", &"lamp", Vector3(-1.5, 0.3, 3.5), 180.0], ["net_rack", &"net", Vector3(-1.5, 0, -3.5), 0.0],
+			["watch_post", &"watch", Vector3(4.5, 0, 2.6), 0.0], ["campfire", &"social_spot", Vector3(2.0, 0, 2.8), 0.0], ["fiddle_seat", &"performer_seat", Vector3(2.5, 0, -2.6), 180.0]]:
 		var s := NpcStation.new()
 		s.name = String(st[0]).capitalize().replace(" ", "")
 		s.station_id = StringName(st[0])
@@ -77,6 +103,11 @@ func _initialize() -> void:
 		s.position = st[2]
 		s.facing_deg = st[3]
 		s.approach_offset = Vector3(0, 0, 0)
+		if st[0] == "campfire":
+			s.slot_count = 3
+			s.tags = PackedStringArray(["social"])
+		elif st[0] == "fiddle_seat":
+			s.tags = PackedStringArray(["performer"])
 		raft.add_child(s)
 		# IK markers in the station's local space (the agent stands on the station anchor facing `facing_deg`)
 		if st[0] == "workbench":

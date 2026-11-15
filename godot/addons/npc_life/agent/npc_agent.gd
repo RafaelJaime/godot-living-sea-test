@@ -69,6 +69,27 @@ func bind_world(w: NpcWorld) -> void:
 		if name == &"" or String(name).begins_with("@"):
 			name = String(agent_id)
 
+## Jobs that only an emergency of the same class may displace: emergency and all-hands jobs, and must-staff jobs flagged `keep_in_emergency`.
+static func is_protected(j: NpcJob) -> bool:
+	return j != null and (j.override == &"emergency" or j.override == &"all_hands" or (j.override == &"must_staff" and bool(j.payload.get("keep_in_emergency", false))))
+
+static func is_keep_job(j: NpcJob) -> bool:
+	return j != null and j.override == &"must_staff" and bool(j.payload.get("keep_in_emergency", false))
+
+## Invisible to this agent: a must-staff job a roster assigned to someone else, and an offer this agent made itself (`payload.initiator`).
+func _assigned_elsewhere(j: NpcJob) -> bool:
+	if j.payload.has("initiator") and StringName(j.payload["initiator"]) == agent_id:
+		return true
+	return j.override == &"must_staff" and j.payload.has("assigned") and StringName(j.payload["assigned"]) != agent_id
+
+func _assigned_to_me(j: NpcJob) -> bool:
+	return j.override == &"must_staff" and j.payload.has("assigned") and StringName(j.payload["assigned"]) == agent_id
+
+## What others look at: a node named `LookAnchor` (head height) under the agent when the visual provides one, else the agent itself.
+func look_anchor() -> Node3D:
+	var n := find_child("LookAnchor", true, false) as Node3D
+	return n if n != null else self
+
 func current_job() -> NpcJob:
 	return _job
 
@@ -116,11 +137,15 @@ func needs_decision(w: NpcWorld) -> bool:
 	if _job == null:
 		return true
 	var now := w.now()
-	var holds_override := _job.override != &""
-	if not holds_override and not w.board.candidates(agent_id, tags).filter(func(j: NpcJob) -> bool: return j.override == &"emergency" or j.override == &"all_hands").is_empty():
-		return true
-	if NpcAmbient.is_ambient(_job) and now >= _committed_until:
-		return not w.board.candidates(agent_id, tags).is_empty()
+	var cands := w.board.candidates(agent_id, tags)
+	for j in cands:
+		if _assigned_to_me(j) and not (is_keep_job(_job) and not is_keep_job(j)):
+			if not is_protected(_job) or (is_keep_job(j) and not is_keep_job(_job)):
+				return true
+		if not is_protected(_job) and (j.override == &"emergency" or j.override == &"all_hands"):
+			return true
+	if NpcAmbient.is_ambient(_job) and _job.kind != &"ambient_chat_offer" and now >= _committed_until: # (an agent waiting on its own chat offer stays put)
+		return not cands.filter(func(j: NpcJob) -> bool: return not _assigned_elsewhere(j)).is_empty()
 	return false
 
 # ---- decision ------------------------------------------------------------------------------------------------------------------------------
@@ -130,16 +155,36 @@ func decide(w: NpcWorld, now: float) -> void:
 	var overrides: Array[NpcJob] = []
 	var staffing: Array[NpcJob] = []
 	var normal: Array[NpcJob] = []
+	var mine: Array[NpcJob] = []
 	for j in cands:
+		if _assigned_elsewhere(j):
+			continue
 		match j.override:
 			&"emergency", &"all_hands":
 				overrides.append(j)
 			&"must_staff":
-				staffing.append(j)
+				if _assigned_to_me(j):
+					mine.append(j)
+				else:
+					staffing.append(j)
 			_:
 				normal.append(j)
+	# 0. a watch a roster assigned to me, flagged to survive emergencies, comes before everything (the captain takes the helm)
+	for j in _by_priority(mine):
+		if bool(j.payload.get("keep_in_emergency", false)) and not is_keep_job(_job):
+			if _job != null:
+				end_job(&"preempted")
+			if _take(j, &"roster", now, []):
+				return
+	# 0b. other assigned watches pre-empt anything that is not protected
+	for j in _by_priority(mine):
+		if _job == null or not is_protected(_job):
+			if _job != null:
+				end_job(&"preempted")
+			if _take(j, &"roster", now, []):
+				return
 	# 1. overrides bypass scoring and the commitment window
-	if _job == null or _job.override == &"":
+	if _job == null or not is_protected(_job):
 		for j in _by_priority(overrides):
 			if _job != null:
 				end_job(&"preempted")

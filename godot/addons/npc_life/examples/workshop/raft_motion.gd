@@ -3,7 +3,7 @@ extends Node3D
 
 @export var yaw_deg_per_s := 20.0
 @export var drift_radius := 6.0
-@export var roll_deg := 12.0
+@export var roll_deg := 7.0
 var _t := 0.0
 
 func _process(delta: float) -> void:

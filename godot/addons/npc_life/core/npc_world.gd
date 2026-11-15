@@ -39,6 +39,7 @@ var _perf_sum := 0.0
 var _perf_n := 0
 var _perf_max := 0.0
 var _quit_after_s := -1.0
+var _requested: Array[StringName] = []
 var _acc := 0.0
 var _decisions_this_frame := 0
 var _rr := 0
@@ -102,11 +103,15 @@ func _release_agent(a: NpcAgent) -> void:
 func _process(delta: float) -> void:
 	advance(delta)
 
-## The end-of-run summary block (folds in agents that never got to decide).
+## The end-of-run summary block (folds in agents that never got to decide; sources may add a line through `summary_line()`).
 func summary_text() -> String:
 	for id in agent_ids():
 		decision_log.merge_idle_max(id, (_agents[id] as NpcAgent).idle_max_s)
-	return decision_log.summary_text()
+	var t := decision_log.summary_text()
+	for s in _sources:
+		if s.has_method("summary_line"):
+			t += "\n" + s.summary_line()
+	return t
 
 static func _monitor_value() -> float:
 	return NpcWorld._monitor_usec
@@ -191,6 +196,15 @@ func _frame_update(delta: float) -> void:
 func _run_decisions(ids: Array[StringName]) -> void:
 	var n := ids.size()
 	var last := -1
+	# agents a roster asked to decide first (a keeper that must be on watch from the first tick)
+	for rid in _requested:
+		if _decisions_this_frame >= max_decisions_per_frame:
+			break
+		var ra := _agents.get(rid) as NpcAgent
+		if ra != null and ra.needs_decision(self):
+			ra.decide(self, now())
+			_decisions_this_frame += 1
+	_requested.clear()
 	for k in n:
 		if _decisions_this_frame >= max_decisions_per_frame:
 			break
@@ -218,6 +232,11 @@ func on_agent_decided(agent: NpcAgent, job: NpcJob, reason: StringName, top: Arr
 	decision_log.record_idle(agent.agent_id, idle_before, idle_bound_s)
 	decision_log.log_decision(tick_count, agent.agent_id, job, reason, top, temp, draw)
 	agent_decided.emit(agent.agent_id, job, reason)
+
+## Asks for `agent_id` to decide before the round-robin of this tick (still inside the frame budget).
+func request_decision(agent_id: StringName) -> void:
+	if not _requested.has(agent_id):
+		_requested.append(agent_id)
 
 ## Called by the executor when a job's WORK reached its effect moment: the world signal and the owning source's callback.
 func on_job_effect(agent: NpcAgent, job: NpcJob, effect: StringName) -> void:

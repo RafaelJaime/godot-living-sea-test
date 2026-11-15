@@ -7,9 +7,13 @@
 script = ExtResource("1_1kbbv")
 agent_id = &"Bruno"
 display_name = "Bruno"
+tags = PackedStringArray("performer")
 preferences = Dictionary[StringName, float]({
 &"craft": -0.1,
 &"mend": 0.9
+})
+skills = Dictionary[StringName, float]({
+&"lookout": 0.5
 })
 needs = Dictionary[StringName, float]({
 &"focus": 3.0

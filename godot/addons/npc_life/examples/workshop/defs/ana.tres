@@ -11,6 +11,9 @@ preferences = Dictionary[StringName, float]({
 &"craft": 0.9,
 &"mend": -0.2
 })
+skills = Dictionary[StringName, float]({
+&"lookout": 0.8
+})
 needs = Dictionary[StringName, float]({
 &"focus": 3.0
 })

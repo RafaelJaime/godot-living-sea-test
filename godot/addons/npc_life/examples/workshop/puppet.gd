@@ -54,6 +54,10 @@ static func build(tint: Color) -> Node3D:
 		mi.material_override = mat
 		mi.position = Vector3(0, -length * 0.5 if length > 0.0 else absf(length) * 0.5, 0)
 		att.add_child(mi)
+	var anchor := Marker3D.new() # what other agents look at: the head
+	anchor.name = "LookAnchor"
+	anchor.position = Vector3(0, 1.62, 0)
+	root.add_child(anchor)
 	var player := AnimationPlayer.new()
 	player.name = "AnimationPlayer"
 	root.add_child(player)
