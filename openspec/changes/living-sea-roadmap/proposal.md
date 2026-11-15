@@ -57,7 +57,7 @@ merged to main in dependency order; main always runnable. Rejected: B (one mega-
 and causes agent conflicts) and C (per ODD task: ignores shared dependencies such as the wake/ocean shaders).
 
 Conventions for every milestone:
-- One worktree per agent under `el-terraria-blender-worktrees/`; never edit `stable`.
+- One worktree per agent under `godot-living-sea-test-worktrees/`; never edit `stable`.
 - Every Godot run through `~/.claude/bin/testsem` with `open -g` (focus-free), batched captures.
 - Verification is functional (no unit runner): `--capture` at fixed presets vs the matching `refs/reference_krautdev`
   frame, `--jitter-test`, `--autopilot-log`, `--rebase-test=N` where water/wake is touched, zero script errors in

@@ -6,7 +6,7 @@ The shipped wallpaper launch passes `--quality=final`; every run without the fla
 
 ## Run
 ```
-godot --path /Users/rafael/Documents/workspace/autonomo/el-terraria-blender/godot
+godot --path <repo>/godot
 ```
 First time (or after dropping new GLBs): `godot --headless --path <project> --import`
 (not strictly needed: GLBs without an import file are parsed at runtime as a fallback).

@@ -1,5 +1,5 @@
 import bpy, mathutils
-OUT = "/Users/rafael/Documents/workspace/autonomo/el-terraria-blender/godot/assets/placeholder/"
+OUT = "<repo>/godot/assets/placeholder/"
 rig = bpy.data.objects['Ship_Rig']
 rig.animation_data_clear()
 rig.location = (0, 0, 0); rig.rotation_euler = (0, 0, 0); rig.scale = (1, 1, 1)

@@ -3,7 +3,7 @@
 import bpy, os
 import os
 # Inputs (untracked refs) come from REFS_ROOT, the output goes to the checkout that runs the script.
-REFS_ROOT = os.environ.get("REFS_ROOT", "/Users/rafael/Documents/workspace/autonomo/el-terraria-blender/")
+REFS_ROOT = os.environ.get("REFS_ROOT", "<repo>/")
 ROOT = REFS_ROOT
 TEX = REFS_ROOT + "refs/sketchfab_pirate_ship_rigged/textures/"
 OUT = os.path.dirname(os.path.abspath(__file__)) + "/godot/assets/ship/pinnace/barco_pinnace.glb"

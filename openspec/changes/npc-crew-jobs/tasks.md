@@ -32,7 +32,7 @@ first H-slice apply: roadmap M1-b merged (see H-gate). C-slices need the user's 
 ## Conventions for every task
 
 - Owners: **NPC** = the user's NPC session (addon A-slices, C-slices, `crew_*.gd`, crew content). **OS** = our
-  ocean/ship agent (H-slices only, own worktree under `el-terraria-blender-worktrees/`, never `stable`). **ORC** =
+  ocean/ship agent (H-slices only, own worktree under `godot-living-sea-test-worktrees/`, never `stable`). **ORC** =
   orchestrator (merges, evidence index, user questions). Our agents never edit `crew_*.gd` or `godot/crew/**`
   (`openspec/config.yaml` `rules.apply`); the NPC session never edits H-owned files while an H-slice is open.
 - RUN template (only way to launch Godot): `~/.claude/bin/testsem -- open -g -n -W -a /Applications/Godot.app --args
@@ -183,7 +183,7 @@ Evidence folder: `.../A5/`. Specs: npc-life-debug-tools (Force-job/freeze/step, 
 
 Evidence folder: `.../H1/`. Specs: ship-crew-stations (ShipStations adapter and catalogue, Lanterns as stations, Missing access markers and geometry, Documentation and boundaries). Gate: roadmap M1-b merged AND A1 merged
 (needs `NpcStation` and `NpcStationProvider`; A3 not needed for H1). OS-agent worktree under
-`el-terraria-blender-worktrees/`. Strict boundary: no edits in `godot/addons/npc_life/**` and no `crew_*.gd`.
+`godot-living-sea-test-worktrees/`. Strict boundary: no edits in `godot/addons/npc_life/**` and no `crew_*.gd`.
 
 - [x] H1.1 [OS] Deck survey: run `--debug-deck` (existing flag) and record on a pinnace deck capture where ratlines, crow's nest, door and stairs exist; list in `odd/evidence/npc-crew-jobs/H1/deck_survey.md`. Verify: the note lists coordinates (Pivot-local) for each of: helm, lanterns, shrouds/ratlines, crow's nest, door, stairs, deck levels y about 6.5 / 1.85 / 3.5 (answers design Open Question 1). Files: `godot/scripts/crew_markers.gd` (read-only), `godot/scripts/ship_lights.gd` (read-only), `godot/scripts/crew_rig.gd` (read-only). Dependency: H-gate.
 - [x] H1.2 [OS] Add additive fields `stand_local` and `local_position` (Pivot-local) to the `get_lanterns()` entries in `godot/scripts/ship_lights.gd`, API otherwise unchanged. Verify: log of `ShipLights.get_lanterns()` entries shows the new keys with finite values; `--capture` unchanged (diff of the existing lantern capture), 0 errors. Dependency: H1.1. Spec: ship-crew-stations (Lanterns as stations).

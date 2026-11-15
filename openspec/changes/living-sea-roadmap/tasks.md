@@ -28,7 +28,7 @@ Note on the decision line: it is "Yes" solely for slice MQ-c (task MQ.6). If the
 
 ## Conventions for every task
 
-- Tracks: **ORC** = orchestrator (docs, evidence, merges, user decisions); **OS** = ocean/ship agent (ocean, wake, shaders, buoyancy, boat); **SA** = sky/ambient agent (sky, weather, clouds, camera, islands, ambient). One agent per track, one worktree each under `el-terraria-blender-worktrees/`, never `stable`.
+- Tracks: **ORC** = orchestrator (docs, evidence, merges, user decisions); **OS** = ocean/ship agent (ocean, wake, shaders, buoyancy, boat); **SA** = sky/ambient agent (sky, weather, clouds, camera, islands, ambient). One agent per track, one worktree each under `godot-living-sea-test-worktrees/`, never `stable`.
 - RUN template (the only way to launch Godot): `~/.claude/bin/testsem -- open -g -n -W -a /Applications/Godot.app --args --path godot --log-file godot/_shots/godot.log -- <flags>`. Iterate with `--quality=dev`; one `--quality=final` batch at slice close. Physics logs (`--autopilot-log`, `[keel]`, `--log-boat`) run at `final` (design physics-invariant rule).
 - Evidence goes under `odd/evidence/<milestone>/` using the spec spelling `M0`, `M1`, `M2a` and so on (design text says lowercase `m0`; the specs are the contract and win). Each slice evidence set = captures at affected presets next to the matching reference frame, frame-time log per quality preset, applicable logs, and a godot log with zero `SCRIPT ERROR` / `ERROR:` lines.
 - Capture presets (design Decision 13): `day_calm`, `dusk_moderate`, `storm`, `night`. Reference frames live in `refs/reference_krautdev/` and are read-only everywhere.

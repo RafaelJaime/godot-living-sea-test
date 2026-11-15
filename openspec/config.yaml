@@ -5,7 +5,7 @@ context: |
   Blender Python at repo root (build_ship_scene.py, export_*.py); Higgsfield-generated GLBs; addons/ocean_fft vendored (MIT).
   Conventions: Conventional Commits, ODD feature docs in odd/tasks, research in odd/research, ATTRIBUTION.md for licenses.
   Constraints: NPC/crew code owned by a separate user session; Godot runs only via ~/.claude/bin/testsem (max 2); launch with open -g.
-  User tests from worktree el-terraria-blender-worktrees/stable; parallel agents use worktrees under el-terraria-blender-worktrees/.
+  User tests from worktree godot-living-sea-test-worktrees/stable; parallel agents use worktrees under godot-living-sea-test-worktrees/.
 strict_tdd: false
 projects:
   - path: godot

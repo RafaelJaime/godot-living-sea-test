@@ -375,7 +375,7 @@ or higher (after Ocean, before WakeField).
 | M6 | fixes found by QA in the owning files, `godot/README.md`, ODD doc, `odd/evidence/m6/*` | — |
 | any | NEVER: `scripts/crew_*.gd`, character assets, the `stable` worktree | — |
 
-### Concurrency (max 2 agents, worktree each under `el-terraria-blender-worktrees/`)
+### Concurrency (max 2 agents, worktree each under `godot-living-sea-test-worktrees/`)
 
 Safe pairs given the ownership table: M1 ∥ M2a (foam vs surface/shading incs, after MQ); M1 ∥ M2d; M3 ∥ M5;
 M4a ∥ M2b; M2c ∥ M3. Forbidden pairs: any two milestones that own the same inc; M2b ∥ M4b (foam); M2a ∥ M4c
