@@ -106,6 +106,8 @@ Order is priority; runnable main at all times (agent works on a branch/worktree,
       textured foam, no artificial white lines), turquoise shallows like ref_3s. Check vs ref_3s/ref_12s.
 - [ ] R3 Wake & spray realism: wake from the same foam accumulation (Kelvin wake ~19.5° arms, turbulent
       centre), bow wave and spray tied to hull/water relative speed; no ribbon artifacts. Check vs ref_12s.
+      Progress 2026-11-15: wake field hardened and ribbon removed (M2b.1-M2b.10: 64-bit origin, fixed 30 Hz, footprint, Froude/heel stamps,
+      G/B channels, gains 1.0). Open: spray rework (M2c), bow-wave-only capture, total M2b cost vs pre-M2b.
 - [x] R4 Cloth realism (sails + flags, one WindField): flags tied at the 2 hoist corners only, correct mass
       and gravity (hang fully in calm, droop in light wind, stream in strong wind), drag/lift aero, enough
       substeps; sails as the same cloth pinned to yards with sheets; forces feed T8 propulsion. Check: calm /
