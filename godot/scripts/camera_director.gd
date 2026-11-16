@@ -87,6 +87,11 @@ func _ready() -> void:
 		if a.begins_with("--cam="): # debug: --cam=x,y,z,lx,ly,lz[,fov] in ship space, metres (index 22, mode raw)
 			var v := a.get_slice("=", 1).split_floats(",")
 			shots.append({"name": "debug", "mode": "raw", "pos": Vector3(v[0], v[1], v[2]), "look": Vector3(v[3], v[4], v[5]), "fov": v[6] if v.size() > 6 else 55.0})
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cam-crew="): # debug: --cam-crew=<Slot>,dx,dy,dz[,fov] a hand-placed camera at a fixed offset from a crew member, in ship space (index 22 or 23, no solver)
+			var p := a.get_slice("=", 1).split(",")
+			if p.size() >= 4:
+				shots.append({"name": "debug crew", "mode": "crew", "solve": false, "slot": p[0], "off": Vector3(float(p[1]), float(p[2]), float(p[3])), "fov": float(p[4]) if p.size() > 4 else 50.0})
 	var ld := get_node_or_null("../Ship/Pivot/Model")
 	if ld and ld.has_signal("ship_ready"):
 		ld.ship_ready.connect(func(l: float, _b: float, _r: float) -> void:
