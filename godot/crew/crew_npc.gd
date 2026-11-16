@@ -58,6 +58,9 @@ func _on_crew_ready() -> void:
 	sched.source_id = &"roster"
 	sched.roster = load(DEF_DIR + "crew_roster.tres") as NpcRoster
 	world.add_child(sched)
+	_install_kinds()
+	for src in [CrewLanternSource.new(), CrewChoresSource.new(), CrewLeisureSource.new()]:
+		world.add_child(src)
 	bridge = CrewWorldBridge.new()
 	bridge.name = "Bridge"
 	add_child(bridge)
@@ -74,6 +77,35 @@ func _on_crew_ready() -> void:
 		j.ttl_s = 0.0
 		world.board.post(j, world.now())
 	print("[crew] npc mode:%d agents, graph %d nodes, roster %d watches" % [agents.size(), world.graph.node_count(), sched.roster.watches.size()])
+
+## Job kind defaults: how much a kind attracts, which need it relieves and how long it takes. Leisure kinds relieve boredom; chores barely attract
+## (an agent does them when nothing it likes is open); the station supplies the animation tag.
+func _install_kinds() -> void:
+	var table := [
+		[&"lantern", 0.3, &"", 0.0, Vector2(4, 6)],
+		[&"mop_zone", 0.1, &"", 0.0, Vector2(12, 24)],
+		[&"repair_spot", 0.15, &"", 0.0, Vector2(12, 24)],
+		[&"boat_check", 0.1, &"", 0.0, Vector2(8, 14)],
+		[&"fishing_rail", 0.2, &"boredom", 0.5, Vector2(25, 60)],
+		[&"violin_seat", 0.2, &"boredom", 0.5, Vector2(30, 70)],
+		[&"chart_table", 0.2, &"boredom", 0.4, Vector2(15, 30)],
+		[&"listen_spot", 0.15, &"boredom", 0.4, Vector2(15, 40)],
+		[&"spyglass_post", 0.2, &"boredom", 0.3, Vector2(20, 40)],
+		[&"crows_nest", 0.2, &"boredom", 0.3, Vector2(25, 50)],
+		[&"social_spot", 0.15, &"boredom", 0.4, Vector2(10, 25)],
+	]
+	for row in table:
+		var kd := NpcJobKindDef.new()
+		kd.kind = row[0]
+		kd.base_score = row[1]
+		kd.satisfies = row[2]
+		kd.satisfy_amount = row[3]
+		var act := NpcActionDef.new()
+		act.action_id = StringName("default_%s" % row[0])
+		act.job_kinds = PackedStringArray([String(row[0])])
+		act.duration_range = row[4]
+		kd.default_action = act
+		world.kind_defs[kd.kind] = kd
 
 func _spawn(slot: Node3D, pivot: Node3D) -> void:
 	var visual := slot.get("visual") as Node3D
