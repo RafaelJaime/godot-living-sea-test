@@ -131,6 +131,8 @@ Night/backlit fill (sky.gd `_update`): `ambient_light_color` + `ambient_light_sk
 
 Planar reflection of the ship (opt-in PoC, default OFF): `--planar-reflection=off|hull|ship`, `--planar-scale=<0.25..1>` (default 0.5), `--planar-gain=<x>` (default 2.5), `--planar-distort=<x>` (0.03), `--planar-log`, `--planar-dump=<frame>`. `scripts/planar_reflection.gd` renders layer 20 (ship meshes tagged at runtime) from a camera mirrored in y=0 into a half-res HDR SubViewport (own empty Compositor so SC2 clouds do not run); the ocean material samples it through `planar_tex` / `planar_gain` / `planar_distort` (declared in `shaders/ocean_fft.gdshader`, gain 0 = off). Measured (final 1080p): hull +0.6 ms p50, ship +0.9..1.6 ms; the effect is barely visible at the current low side shots (hull base sits behind the bow wave and wake foam), see `odd/evidence/look-dev/sheets/planar_*.jpg`.
 
+`--cpu-prof=<secs>` (scripts/cpu_prof.gd): per-script `_process`/`_physics_process` timing (takes over engine dispatch after 6 s, prints top scripts, frame split and draw-call counters, then quits). Use with `--quality=final --uncap`; results in `odd/evidence/look-dev/cpu/`.
+
 ## Ambient life (R8)
 `scripts/ambient/ambient_life.gd` (node `AmbientLife`): dolphin pods at the bow (day, calm), distant whale spouts, a ship passing on the horizon (lanterns lit at night/storm),
 flotsam and seaweed on the swell (height + slope from `Waves.height_at`). `scripts/gulls.gd`: gull + albatross boids around the masts, drawn with three MultiMeshes; birds fly in from the horizon and leave towards it (never pop in or out) and their number follows day, storm and wind (calm: few, flapping; fresh: all, soaring; strong: fewer; storm: none).

@@ -93,6 +93,8 @@ func _ready() -> void:
 		add_child((load("res://scripts/ship_probe.gd") as GDScript).new())
 	if _has_arg("--planar-reflection"): # opt-in planar reflection PoC (scripts/planar_reflection.gd)
 		add_child((load("res://scripts/planar_reflection.gd") as GDScript).new())
+	if _has_arg("--cpu-prof"): # per-script _process profiler (scripts/cpu_prof.gd)
+		add_child((load("res://scripts/cpu_prof.gd") as GDScript).new())
 	if _has_arg("--look"): # look-dev A/B candidates (scripts/look_dev.gd), inert without the flag
 		add_child((load("res://scripts/look_dev.gd") as GDScript).new())
 
