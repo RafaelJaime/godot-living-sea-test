@@ -98,6 +98,15 @@ var sail_fill := {}    ## per sail index: signed wind pressure on the sail (for 
 var last_thrust := Vector3.ZERO
 var last_heel_scale := 1.0
 var _cols: Array = []  ## {x, z, yb, dA}
+## Warm-started surface height (perf): each column keeps the rest position found by the previous tick, so one displacement sample per
+## column per tick replaces the 3 of Waves.height_at (the fixed-point iteration converges across ticks). NaN = full iteration
+## (first tick, after a rebase). `--buoy-exact` restores Waves.height_at, `--buoy-check` logs the max difference between both every 10 s.
+var _cpx := PackedFloat64Array()
+var _cpz := PackedFloat64Array()
+var _buoy_exact := OS.get_cmdline_user_args().has("--buoy-exact")
+var _buoy_check := OS.get_cmdline_user_args().has("--buoy-check")
+var _chk_max := 0.0
+var _chk_t := 0.0
 var _col_top := 5.0
 var _keel := PackedFloat32Array()
 var _wlw := PackedFloat32Array()
@@ -128,6 +137,28 @@ func _ready() -> void:
 
 func rebase(shift: Vector3) -> void:
 	global_position -= shift
+	_cpx.fill(NAN) # cached rest positions are in the old world frame
+
+## Surface height under world column i at (x, z); see _cpx.
+func _col_height(i: int, x: float, z: float) -> float:
+	var o := Waves.ocean
+	if _buoy_exact or Waves.flat or o == null:
+		return Waves.height_at(x, z)
+	var px := _cpx[i]
+	var pz := _cpz[i]
+	if is_nan(px):
+		px = x
+		pz = z
+		for _k in 2:
+			var d0: Vector3 = o.displacement_at(px, pz)
+			px = x - d0.x
+			pz = z - d0.z
+	var d: Vector3 = o.displacement_at(px, pz)
+	_cpx[i] = x - d.x
+	_cpz[i] = z - d.z
+	if _buoy_check:
+		_chk_max = maxf(_chk_max, absf(d.y - o.height_at(x, z)))
+	return d.y
 
 static func _smooth(cur: float, target: float, vel: float, smooth_time: float, dt: float) -> Vector2:
 	# Critically damped spring (Unity-style SmoothDamp). Returns (value, velocity).
@@ -424,6 +455,9 @@ func _build_columns() -> void:
 	center_of_mass = _com_local
 	inertia = Vector3(mass * pow(pitch_gyradius, 2.0), mass * pow(yaw_gyradius, 2.0), mass * pow(roll_gyradius, 2.0))
 	_kz = bz
+	_cpx.resize(_cols.size())
+	_cpz.resize(_cols.size())
+	_cpx.fill(NAN)
 	_phys_ready = true
 	print("[ship] physics: columns=", _cols.size(), " displaced=", snappedf(v0, 1.0), " m3 mass=", snappedf(mass / 1000.0, 1.0), " t  B=(z ", snappedf(bz, 0.1), ", y ", snappedf(by, 0.2),
 		") BM=", snappedf(bm, 0.01), " m  CoM y=", snappedf(com_y, 0.01), " GM=", gm_target, " m  inertia(pitch,yaw,roll)=", (inertia / 1.0e6).snapped(Vector3.ONE * 0.1), " e6")
@@ -499,9 +533,10 @@ func _physics_process(delta: float) -> void:
 	var hsum := 0.0
 	var up := gt.basis.y.normalized()
 	var upy := maxf(up.y, 0.5)
-	for c in _cols:
+	for ci in _cols.size():
+		var c: Dictionary = _cols[ci]
 		var pb := gt * Vector3(c["x"], c["yb"], c["z"])
-		var hw_l := Waves.height_at(pb.x, pb.z)
+		var hw_l := _col_height(ci, pb.x, pb.z)
 		var hw := lerpf(_hmean, hw_l, wave_coupling)
 		hsum += hw_l
 		_hmin = minf(_hmin, hw_l); _hmax = maxf(_hmax, hw_l)
@@ -528,6 +563,12 @@ func _physics_process(delta: float) -> void:
 		vsub += dA * depth
 	min_keel_clear = min_clear
 	min_mid = mid_clear
+	if _buoy_check:
+		_chk_t += delta
+		if _chk_t >= 10.0:
+			_chk_t = 0.0
+			print("[buoy] warm-start vs Waves.height_at: max |diff| = ", snappedf(_chk_max * 1000.0, 0.01), " mm over the last 10 s")
+			_chk_max = 0.0
 	if _t > 12.0:
 		keel_clear_min = maxf(keel_clear_min, min_clear)
 		keel_mid_lift = maxf(keel_mid_lift, mid_clear)
