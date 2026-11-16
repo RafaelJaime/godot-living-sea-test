@@ -59,7 +59,12 @@ func _on_crew_ready() -> void:
 	sched.roster = load(DEF_DIR + "crew_roster.tres") as NpcRoster
 	world.add_child(sched)
 	_install_kinds()
-	for src in [CrewLanternSource.new(), CrewChoresSource.new(), CrewLeisureSource.new()]:
+	var pinnace_rig := pivot.get_node_or_null("PinnaceRig")
+	var storm := CrewStormSource.new()
+	storm.rig = pinnace_rig
+	var maneuver := CrewManeuverSource.new()
+	maneuver.rig = pinnace_rig
+	for src in [CrewLanternSource.new(), CrewChoresSource.new(), CrewLeisureSource.new(), storm, maneuver]:
 		world.add_child(src)
 	bridge = CrewWorldBridge.new()
 	bridge.name = "Bridge"
@@ -82,6 +87,8 @@ func _on_crew_ready() -> void:
 ## (an agent does them when nothing it likes is open); the station supplies the animation tag.
 func _install_kinds() -> void:
 	var table := [
+		[&"reef", 0.5, &"", 0.0, Vector2(10, 16)],
+		[&"brace", 0.4, &"", 0.0, Vector2(8, 14)],
 		[&"lantern", 0.3, &"", 0.0, Vector2(4, 6)],
 		[&"mop_zone", 0.1, &"", 0.0, Vector2(12, 24)],
 		[&"repair_spot", 0.15, &"", 0.0, Vector2(12, 24)],
