@@ -14,6 +14,8 @@
 [ext_resource type="Script" path="res://scripts/ship_lights_builder.gd" id="99_lights"]
 [ext_resource type="PackedScene" path="res://ship/ship_stations.tscn" id="98_stations"]
 [ext_resource type="PackedScene" path="res://assets/ship/pinnace/barco_pinnace.glb" id="101_hull"]
+[ext_resource type="PackedScene" path="res://ship/helm_wheel.tscn" id="102_wheel"]
+[ext_resource type="Script" path="res://scripts/ship_lantern.gd" id="103_lantern"]
 
 [node name="Ship" type="RigidBody3D"]
 script = ExtResource("3_ship")
@@ -39,6 +41,13 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.023975, -1.14587, 0.91843
 [node name="Helm" type="Node3D" parent="Pivot"]
 script = ExtResource("16_helm")
 
+[node name="Wheel" parent="Pivot/Helm" instance=ExtResource("102_wheel")]
+position = Vector3(0, 7.6, 16.6)
+
+[node name="HandL" type="Node3D" parent="Pivot/Helm"]
+
+[node name="HandR" type="Node3D" parent="Pivot/Helm"]
+
 [node name="Flag" type="Node3D" parent="Pivot"]
 script = ExtResource("19_flag")
 
@@ -57,6 +66,18 @@ script = ExtResource("17_rig")
 
 [node name="Lights" type="Node3D" parent="Pivot"]
 script = ExtResource("99_lights")
+
+[node name="Lantern_stern_port" type="Node3D" parent="Pivot/Lights"]
+position = Vector3(-1.751, 8.64, 18.401)
+script = ExtResource("103_lantern")
+id = "stern_port"
+light_energy = 1.6
+
+[node name="Lantern_stern_starboard" type="Node3D" parent="Pivot/Lights"]
+position = Vector3(1.774, 8.64, 18.401)
+script = ExtResource("103_lantern")
+id = "stern_starboard"
+light_energy = 1.6
 
 [node name="ShipStations" parent="Pivot" instance=ExtResource("98_stations")]
 

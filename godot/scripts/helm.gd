@@ -34,8 +34,13 @@ func _ready() -> void:
 	_ship = get_node(ship_path)
 	var loader := get_node(loader_path)
 	loader.ship_ready.connect(_on_ship_ready)
-	hand_l = Node3D.new(); hand_l.name = "HandL"; add_child(hand_l)
-	hand_r = Node3D.new(); hand_r.name = "HandR"; add_child(hand_r)
+	# ship.tscn carries Wheel, HandL and HandR (editor-visible); they are created here when the scene does not have them
+	hand_l = get_node_or_null("HandL") as Node3D
+	if hand_l == null:
+		hand_l = Node3D.new(); hand_l.name = "HandL"; add_child(hand_l)
+	hand_r = get_node_or_null("HandR") as Node3D
+	if hand_r == null:
+		hand_r = Node3D.new(); hand_r.name = "HandR"; add_child(hand_r)
 
 func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 	if cut_baked_wheel:
@@ -88,6 +93,11 @@ func _cut_baked_wheel() -> void:
 	print("[helm] removed ", removed, " baked wheel triangles")
 
 func _build_wheel() -> void:
+	var existing := get_node_or_null("Wheel") as Node3D
+	if existing != null: # the scene's static wheel (ship/helm_wheel.tscn: ship_wheel.glb in a Holder with the transform _mount_wheel_asset computes): only place it
+		wheel = existing
+		wheel.position = wheel_pos
+		return
 	wheel = Node3D.new()
 	wheel.name = "Wheel"
 	wheel.position = wheel_pos

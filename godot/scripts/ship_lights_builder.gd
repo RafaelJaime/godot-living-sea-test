@@ -46,12 +46,17 @@ func _ready() -> void:
 
 func _build() -> void:
 	for d in LAMPS:
-		var l := ShipLantern.new()
-		l.name = "Lantern_" + String(d["id"])
+		# ship.tscn carries the two stern lanterns as static nodes (editor-visible, movable); they are created here when the scene does not have them
+		var l := get_node_or_null("Lantern_" + String(d["id"])) as ShipLantern
+		var fresh := l == null
+		if fresh:
+			l = ShipLantern.new()
+			l.name = "Lantern_" + String(d["id"])
 		l.id = d["id"]
 		l.position = d["pos"]
 		l.light_energy = 1.6
-		add_child(l)
+		if fresh:
+			add_child(l)
 		_lamps.append(l)
 	var cabin := ShipLantern.new()
 	cabin.name = "Lantern_cabin_windows"
