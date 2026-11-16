@@ -125,6 +125,8 @@ func _ready() -> void:
 					'windcal': PLAN = [[70.0, 15], [72.0, 16], [74.0, 1], [76.0, 0], [78.0, 2]] # long settle: a becalmed ship needs ~60 s to stop
 					'catpaw': PLAN = [[20.0, 2], [25.0, 2], [30.0, 1], [35.0, 1]] # two captures 5 s apart per view (M4c1)
 					'yards': PLAN = [[30.0, 14], [32.0, 0], [34.0, 2], [36.0, 14]] # braced yards: late enough for the brace to settle
+					'collide': PLAN = [[70.0, 22], [72.0, 22]] # long settle (calm): debug camera from `--cam=`
+					'collide_b': PLAN = [[30.0, 22], [32.0, 22]]
 					'sky': PLAN = [[3.0, 5], [6.0, 6], [9.0, 2], [12.0, 3], [15.0, 0], [18.0, 5]]
 		for a in OS.get_cmdline_user_args():
 			if a.begins_with('--shots='):

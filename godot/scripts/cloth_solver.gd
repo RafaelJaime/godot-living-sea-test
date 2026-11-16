@@ -39,6 +39,11 @@ var damping := 0.012 ## velocity loss per substep
 var substeps := 3
 static var _qlogged := false
 var iterations := 9
+var use_shared := false ## test the shared colliders above (sails: yes; flags have their own staff capsule)
+var skip_shared := PackedInt32Array() ## shared capsules this cloth must ignore (its own mast and yard: it is pinned to them)
+var pen_last := 0 ## particles inside a shared collider (or below the deck / through the bulwark) at the end of the last step
+var pen_max := 0
+var friction := 0.3 ## tangential velocity removed per contact (0 = ice, 1 = glue)
 var min_quality := 0.0 ## floor for Quality.cloth_scale: sails need the full solve or they limit-cycle (visible as jumps) at 30 fps
 var max_extra_substeps := 2 ## strong wind adds up to this many substeps (> 14 and > 22 m/s)
 var sor := 1.0 ## successive over-relaxation factor of the Gauss-Seidel sweeps (faster tension propagation along the grid)
@@ -106,6 +111,24 @@ static func register(c: ClothSolver) -> void:
 static func unregister(c: ClothSolver) -> void:
 	_all.erase(c)
 
+## --- Shared colliders (masts, the yards of the OTHER sails, the hull box), world space, rewritten every frame by the rig before the
+## cloth step is launched (same discipline as the pin targets: nobody writes them while the workers run). Capsules a-b, radius r.
+static var sh_a := PackedVector3Array()
+static var sh_b := PackedVector3Array()
+static var sh_r := PackedFloat32Array()
+static var hull_on := false
+static var hull_fwd := Transform3D.IDENTITY ## ship space -> world
+static var hull_inv := Transform3D.IDENTITY ## world -> ship space
+static var hull_box := Vector4(4.0, 5.0, -14.0, 11.0) ## half-beam, deck top (y), z min, z max (ship space)
+static var hull_rail := 6.0 ## highest bulwark top (ship-space y), for the broad phase
+static var wall_data := PackedFloat32Array() ## shroud sheets (ship space), 7 floats each: x0, y0, x1, y1, zlo, zhi, side
+static var hull_z0 := 0.0 ## per-z profile of the deck: z of bin 0, bin length, deck top y and half-beam of each bin (ship space)
+static var hull_dz := 1.0
+static var hull_deck := PackedFloat32Array()
+static var hull_hw := PackedFloat32Array()
+static var count_pen := false ## --collide-log: count penetrations after every step (costs a pass)
+static var collide_push := true ## false = only count penetrations (--collide-log with --no-cloth-push)
+static var collide_margin := 0.04 ## m: particles are pushed out of a collider to radius + margin
 static var _group := -1
 static var _live: Array[ClothSolver] = []
 static var stall_ms := 0.0 ## main-thread time spent waiting for the cloth workers (0 = fully hidden behind the frame)
@@ -361,6 +384,38 @@ func _step(delta_raw: float) -> void:
 	var g := gravity
 	var kn := 0.25 * RHO
 	var amax2 := max_aero_accel * max_aero_accel
+	# broad phase ONCE per frame: which shared capsules / the hull box can touch this cloth (it moves < 1 m per frame)
+	var sh_near := PackedInt32Array()
+	var hull_hit := false
+	var wall_idx := PackedInt32Array()
+	if use_shared and n > 0:
+		var lo := P[0]
+		var hi := P[0]
+		for i in n:
+			lo = lo.min(P[i])
+			hi = hi.max(P[i])
+		lo -= Vector3.ONE * 1.0
+		hi += Vector3.ONE * 1.0
+		for q in sh_r.size():
+			if skip_shared.has(q):
+				continue
+			var ra := Vector3.ONE * (sh_r[q] + collide_margin)
+			var mn := sh_a[q].min(sh_b[q]) - ra
+			var mx := sh_a[q].max(sh_b[q]) + ra
+			if mx.x < lo.x or mn.x > hi.x or mx.y < lo.y or mn.y > hi.y or mx.z < lo.z or mn.z > hi.z:
+				continue
+			sh_near.append(q)
+		if hull_on and not wall_data.is_empty():
+			var cw := hull_inv * ((lo + hi) * 0.5)
+			var rw := (hi - lo).length() * 0.5
+			for w in range(0, wall_data.size(), 7):
+				var wx := maxf(wall_data[w], wall_data[w + 2])
+				if cw.z + rw > wall_data[w + 4] - 0.3 and cw.z - rw < wall_data[w + 5] + 0.3 and cw.y + rw > wall_data[w + 1] and cw.y - rw < wall_data[w + 3] and absf(cw.x) < wx + rw + 0.3 and absf(cw.x) > 0.0 - rw:
+					wall_idx.append(w)
+		if hull_on:
+			var cl := hull_inv * ((lo + hi) * 0.5)
+			var rad_c := (hi - lo).length() * 0.5
+			hull_hit = cl.y - rad_c < hull_rail + 0.5 and absf(cl.x) < hull_box.x + rad_c + 0.5 and cl.z > hull_box.z - rad_c and cl.z < hull_box.w + rad_c
 	for s in nsub:
 		var u := float(s + 1) / float(nsub)
 		# --- external forces: aero per triangle -----------------------------------------------------------------
@@ -482,6 +537,76 @@ func _step(delta_raw: float) -> void:
 					if dl2 < rad2:
 						var dlen := sqrt(dl2)
 						P[i] = cp + (dd / dlen if dlen > 1.0e-6 else Vector3(1, 0, 0)) * rad
+			var col_pass := (_it % 3 == 2) or _it == niter - 1 # shared colliders only every 3rd sweep and the last one: they are rarely touched
+			for q in (sh_near if col_pass else PackedInt32Array()):
+				var sa := sh_a[q]
+				var sab := sh_b[q] - sa
+				var sab2 := maxf(sab.length_squared(), 1.0e-9)
+				var srad := sh_r[q] + collide_margin
+				var srad2 := srad * srad
+				for i in n:
+					if IM[i] == 0.0:
+						continue
+					var p := P[i]
+					var cp := sa + sab * clampf((p - sa).dot(sab) / sab2, 0.0, 1.0)
+					var dd := p - cp
+					var dl2 := dd.length_squared()
+					if dl2 < srad2 and collide_push:
+						var dlen := sqrt(dl2)
+						var nrm := dd / dlen if dlen > 1.0e-6 else Vector3(1, 0, 0)
+						P[i] = cp + nrm * srad
+						# friction: remove part of the sliding motion of this substep along the surface
+						var mv := P[i] - Q[i]
+						P[i] -= (mv - nrm * mv.dot(nrm)) * friction
+			if hull_hit and col_pass:
+				var nb := hull_deck.size()
+				for i in n:
+					if IM[i] == 0.0:
+						continue
+					var pl := hull_inv * P[i]
+					var bi := clampi(int((pl.z - hull_z0) / hull_dz), 0, nb - 1)
+					if pl.z < hull_box.z or pl.z > hull_box.w or pl.y > hull_deck[bi] + 1.0:
+						continue
+					var hw := hull_hw[bi]
+					var dy := hull_deck[bi]
+					var m := collide_margin
+					var moved := false
+					if absf(pl.x) < hw - 0.15 and pl.y < dy + m:
+						pl.y = dy + m # the deck is a floor
+						moved = true
+					elif absf(pl.x) >= hw - 0.15 and absf(pl.x) <= hw + 0.15 and pl.y < dy + 1.0:
+						# bulwark: a thin wall, the particle is left on the side it came from
+						var came_x := (hull_inv * Q[i]).x
+						var side := signf(came_x if absf(came_x) > 1.0e-4 else pl.x)
+						pl.x = side * (hw - 0.15 - m) if absf(came_x) < hw else side * (hw + 0.15 + m)
+						moved = true
+					if moved and collide_push:
+						var pw := hull_fwd * pl
+						var mv2 := pw - Q[i]
+						P[i] = pw
+						P[i] -= (mv2 - Vector3.UP * mv2.dot(Vector3.UP)) * friction * 0.5
+			for w in (wall_idx if col_pass else PackedInt32Array()):
+				var wy0 := wall_data[w + 1]
+				var wy1 := wall_data[w + 3]
+				var slope := (wall_data[w + 2] - wall_data[w]) / (wy1 - wy0)
+				var side := wall_data[w + 6]
+				var tm := 0.06 + collide_margin
+				for i in n:
+					if IM[i] == 0.0:
+						continue
+					var ps := hull_inv * P[i]
+					if ps.y < wy0 or ps.y > wy1 or ps.z < wall_data[w + 4] or ps.z > wall_data[w + 5]:
+						continue
+					var xl := wall_data[w] + slope * (ps.y - wy0)
+					var d := side * ps.x - xl
+					if absf(d) < tm and collide_push:
+						var qs := hull_inv * Q[i]
+						var came := side * qs.x - (wall_data[w] + slope * (qs.y - wy0))
+						var sgn := signf(came if absf(came) > 0.06 else d)
+						if sgn == 0.0:
+							sgn = 1.0
+						ps.x = side * (xl + sgn * tm)
+						P[i] = hull_fwd * ps
 		# --- velocities + constraint (reaction) force --------------------------------------------------------------
 		var cf := Vector3.ZERO
 		for i in n:
@@ -493,6 +618,35 @@ func _step(delta_raw: float) -> void:
 			cf += (vnew - V[i]) * (M[i] * inv_h)
 			V[i] = vnew
 		cf_acc += cf
+	if count_pen and use_shared and (not sh_near.is_empty() or hull_hit or not wall_idx.is_empty()):
+		var pen := 0
+		for q in sh_near:
+			var sa2 := sh_a[q]
+			var sab_ := sh_b[q] - sa2
+			var sab2_ := maxf(sab_.length_squared(), 1.0e-9)
+			var r2 := sh_r[q] * sh_r[q]
+			for i in n:
+				var pp := P[i]
+				if pp.distance_squared_to(sa2 + sab_ * clampf((pp - sa2).dot(sab_) / sab2_, 0.0, 1.0)) < r2:
+					pen += 1
+		for w in wall_idx:
+			var wy0c := wall_data[w + 1]
+			var slc := (wall_data[w + 2] - wall_data[w]) / (wall_data[w + 3] - wy0c)
+			for i in n:
+				var pc := hull_inv * P[i]
+				if pc.y >= wy0c and pc.y <= wall_data[w + 3] and pc.z >= wall_data[w + 4] and pc.z <= wall_data[w + 5] and absf(wall_data[w + 6] * pc.x - (wall_data[w] + slc * (pc.y - wy0c))) < 0.06:
+					pen += 1
+		if hull_hit:
+			var nb2 := hull_deck.size()
+			for i in n:
+				var pl2 := hull_inv * P[i]
+				var bi2 := clampi(int((pl2.z - hull_z0) / hull_dz), 0, nb2 - 1)
+				if pl2.z >= hull_box.z and pl2.z <= hull_box.w and absf(pl2.x) < hull_hw[bi2] - 0.15 and pl2.y < hull_deck[bi2]:
+					pen += 1
+		pen_last = pen
+		pen_max = maxi(pen_max, pen)
+	else:
+		pen_last = 0
 	pos = P
 	prev = Q
 	vel = V

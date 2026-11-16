@@ -35,6 +35,14 @@ var _done_logged: Array[bool] = []
 var _storm_since := -1.0                ## time storm went above furl_storm (-1 = below)
 var _time := 0.0
 var _furl_log := false
+var _mast_zs := PackedFloat32Array()
+var _hull_ready := false
+var _no_collide := false
+var _collide_log := false
+var _collide_scale := 1.0
+var _collide_t := 0.0
+var _pen_sum := 0
+var _pen_frames := 0
 var _log_t := 0.0
 var _test_req: Array = []               ## --request-furl=idx:t@sec test aid
 
@@ -62,6 +70,7 @@ func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 		if _rudder_bone >= 0:
 			_rudder_rest = _skel.get_bone_rest(_rudder_bone).basis.get_rotation_quaternion()
 	var mast_zs := PackedFloat32Array()
+	_mast_zs = mast_zs
 	var pinv := _pivot.global_transform.affine_inverse()
 	if _skel:
 		for bn in ["def_forecourse", "def_main_sail", "def_mizzen_course"]:
@@ -92,6 +101,7 @@ func _on_ship_ready(_l: float, _b: float, _r: float) -> void:
 	if "sail_defs" in _ship:
 		for d in _ship.sail_defs: tot += float(d["area"])
 	_init_furl_state()
+	_init_colliders(model)
 	print("[sails] total area m2=", snappedf(tot, 1.0), " cloth=", cloth, " hidden furled/duplicate=", hidden, " rudder_bone=", _rudder_bone)
 
 ## Key shared by a sail mesh and its furled/yard meshes: "geo_ship_pinnace_sails_fore_topsail_down" and "..._sails_fore_topsail_top"
@@ -220,6 +230,179 @@ func _restore_yard_mesh(model: Node, key: String, yard: int) -> void:
 		if "--rig-log" in OS.get_cmdline_user_args():
 			print("[rig] restored yard ", yname, " from ", o.name, ": ", kept, " triangles")
 		return
+
+## --- Cloth colliders (masts, yards of the other sails, hull box), see ClothSolver.sh_*: built in ship space once, moved to world every frame.
+func _init_colliders(model: Node) -> void:
+	_no_collide = "--no-cloth-collide" in OS.get_cmdline_user_args()
+	ClothSolver.collide_push = not "--no-cloth-push" in OS.get_cmdline_user_args() # measure only
+	_collide_log = "--collide-log" in OS.get_cmdline_user_args()
+	ClothSolver.count_pen = _collide_log
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--collide-scale="): # stress/sanity: multiplies the shared capsule radii
+			_collide_scale = float(a.get_slice("=", 1))
+	if _no_collide or _mast_zs.is_empty():
+		return
+	var inv := _pivot.global_transform.affine_inverse()
+	var deck := model.find_child("geo_ship_pinnace_deck_001", true, false) as MeshInstance3D
+	if deck != null:
+		# Deck profile along z (the ship has a forecastle, a waist and a quarterdeck): per 1 m bin, the deck top (85th percentile of the
+		# vertex heights near the centreline) and the half-beam, in ship space.
+		var xf := inv * deck.global_transform
+		var zmin := 1.0e9
+		var zmax := -1.0e9
+		var pts := PackedVector3Array()
+		for si in deck.mesh.get_surface_count():
+			for v in deck.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]:
+				var q := xf * (v as Vector3)
+				pts.append(q)
+				zmin = minf(zmin, q.z)
+				zmax = maxf(zmax, q.z)
+		var nb := maxi(int(ceil(zmax - zmin)), 1)
+		var ys: Array = []
+		var hws := PackedFloat32Array()
+		for i in nb:
+			ys.append([])
+			hws.append(0.0)
+		for q in pts:
+			var bi := clampi(int(q.z - zmin), 0, nb - 1)
+			hws[bi] = maxf(hws[bi], absf(q.x))
+			if absf(q.x) < 3.0:
+				(ys[bi] as Array).append(q.y)
+		var deck_y := PackedFloat32Array()
+		var ymax := -1.0e9
+		for i in nb:
+			var a: Array = ys[i]
+			a.sort()
+			var y := (a[int(a.size() * 0.85)] if not a.is_empty() else (deck_y[i - 1] if i > 0 else 0.0)) as float
+			deck_y.append(y)
+			ymax = maxf(ymax, y)
+		ClothSolver.hull_z0 = zmin
+		ClothSolver.hull_dz = 1.0
+		ClothSolver.hull_deck = deck_y
+		ClothSolver.hull_hw = hws
+		var hwmax := 0.0
+		for h_ in hws:
+			hwmax = maxf(hwmax, h_)
+		ClothSolver.hull_box = Vector4(hwmax, ymax, zmin, zmax)
+		ClothSolver.hull_rail = ymax + 1.0
+		_hull_ready = true
+		var prof := []
+		for i in range(0, nb, 4):
+			prof.append("%d:%.1f/%.1f" % [int(zmin) + i, deck_y[i], hws[i]])
+		print("[cloth] collide deck profile z:deck_y/half_beam ", " ".join(prof))
+	_build_shroud_walls(model, inv)
+	for si in _sails.size():
+		var sail := _sails[si]
+		var k := 0
+		var best := 1.0e9
+		for mi_ in _mast_zs.size():
+			if absf(_mast_zs[mi_] - sail.mast_z) < best:
+				best = absf(_mast_zs[mi_] - sail.mast_z)
+				k = mi_
+		sail.cloth.use_shared = true
+		sail.cloth.skip_shared = PackedInt32Array([2 * k, 2 * k + 1, 2 * _mast_zs.size() + si])
+
+## Shroud ladders are sloping sheets from the rails to the mast top, a little aft of each mast: sails braced hard or billowing aft pressed
+## through them. Fitted from the mast meshes: per mast and side, |x| against y of the ladder vertices (ship space), and its z range.
+func _build_shroud_walls(model: Node, inv: Transform3D) -> void:
+	var walls := PackedFloat32Array() # per wall: x0 (at y0), y0, x1 (at y1), y1, zlo, zhi, side (+1 / -1)
+	var verts := PackedVector3Array()
+	for n in model.find_children("*mast*", "MeshInstance3D", true, false):
+		var m := n as MeshInstance3D
+		if m.name.to_lower().contains("pavillion"):
+			continue
+		var xf := inv * m.global_transform
+		for si in m.mesh.get_surface_count():
+			for v in m.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]:
+				verts.append(xf * (v as Vector3))
+	for zk in _mast_zs:
+		var bins := {} # y bin (0.5 m) -> [max |x|, count]
+		var zlo := 1.0e9
+		var zhi := -1.0e9
+		for q in verts:
+			if q.z > zk + 0.25 and q.z < zk + 3.6 and absf(q.x) > 1.2 and absf(q.x) < 4.6:
+				var kb := int(floor(q.y * 2.0))
+				var e: Array = bins.get(kb, [0.0, 0])
+				e[0] = maxf(e[0], absf(q.x))
+				e[1] += 1
+				bins[kb] = e
+				zlo = minf(zlo, q.z)
+				zhi = maxf(zhi, q.z)
+		var ks := []
+		for kb in bins:
+			if int((bins[kb] as Array)[1]) >= 8:
+				ks.append(kb)
+		if ks.size() < 6:
+			continue
+		# least squares |x| = a + b y
+		var n_ := float(ks.size())
+		var sy := 0.0
+		var sx := 0.0
+		var syy := 0.0
+		var sxy := 0.0
+		for kb in ks:
+			var y := (float(kb) + 0.5) * 0.5
+			var x: float = (bins[kb] as Array)[0]
+			sy += y; sx += x; syy += y * y; sxy += y * x
+		var den := n_ * syy - sy * sy
+		if absf(den) < 1.0e-6:
+			continue
+		var b := (n_ * sxy - sy * sx) / den
+		var a := (sx - b * sy) / n_
+		ks.sort()
+		var y0 := (float(ks[0]) + 0.5) * 0.5
+		var y1 := (float(ks[ks.size() - 1]) + 0.5) * 0.5
+		for side in [1.0, -1.0]:
+			walls.append_array(PackedFloat32Array([a + b * y0, y0, a + b * y1, y1, zlo, zhi, side]))
+		print("[cloth] shroud wall mast z=", snappedf(zk, 0.1), ": |x| ", snappedf(a + b * y0, 0.01), " at y ", snappedf(y0, 0.1), " -> ", snappedf(a + b * y1, 0.01), " at y ", snappedf(y1, 0.1), ", z ", snappedf(zlo, 0.1), "..", snappedf(zhi, 0.1))
+	ClothSolver.wall_data = walls
+
+func _update_colliders(br: float) -> void:
+	if _no_collide and _collide_log:
+		_collide_t += get_process_delta_time()
+		if _collide_t >= 10.0:
+			_collide_t = 0.0
+			print("[collide] 10 s: collisions OFF cloth step ms ", snappedf(ClothSolver.step_ms, 0.01))
+	if _no_collide or _mast_zs.is_empty() or _sails.is_empty():
+		return
+	var gt := _pivot.get_global_transform_interpolated()
+	var a := PackedVector3Array()
+	var b := PackedVector3Array()
+	var r := PackedFloat32Array()
+	for z in _mast_zs:
+		a.append(gt * Vector3(0.0, 1.0, z)); b.append(gt * Vector3(0.0, 13.0, z)); r.append(0.42 * _collide_scale)
+		a.append(gt * Vector3(0.0, 13.0, z)); b.append(gt * Vector3(0.0, 28.0, z)); r.append(0.2 * _collide_scale)
+	var rot := Basis(Vector3.UP, br)
+	for sail in _sails:
+		var mp := sail.mast_pos
+		var y := sail.ytop + 0.05
+		var p0 := mp + rot * (Vector3(sail.yard_x.x - 0.4, y, sail.z0) - mp)
+		var p1 := mp + rot * (Vector3(sail.yard_x.y + 0.4, y, sail.z0) - mp)
+		a.append(gt * p0); b.append(gt * p1); r.append(0.17 * _collide_scale)
+	if _collide_log:
+		var tot := 0
+		for sail in _sails:
+			tot += sail.cloth.pen_last
+		_pen_sum += tot
+		_pen_frames += 1
+		_collide_t += get_process_delta_time()
+		if _collide_t >= 10.0:
+			var pm := []
+			for sail in _sails:
+				pm.append("%s:%d" % [String(sail.sail_name).trim_prefix("geo_ship_pinnace_sails_").trim_prefix("GEO_ship_pinnace_sails_").trim_suffix("_down"), sail.cloth.pen_max])
+			print("[collide] 10 s: mean penetrating particles/frame ", snappedf(float(_pen_sum) / maxf(float(_pen_frames), 1.0), 0.01), " cloth step ms ", snappedf(ClothSolver.step_ms, 0.01), " max per sail ", " ".join(pm))
+			_collide_t = 0.0
+			_pen_sum = 0
+			_pen_frames = 0
+			for sail in _sails:
+				sail.cloth.pen_max = 0
+	ClothSolver.sh_a = a
+	ClothSolver.sh_b = b
+	ClothSolver.sh_r = r
+	if _hull_ready:
+		ClothSolver.hull_fwd = gt
+		ClothSolver.hull_inv = gt.affine_inverse()
+		ClothSolver.hull_on = true
 
 func _has_down(model: Node, nm: String) -> bool:
 	return model.find_child(nm + "_down", true, false) != null or model.find_child(nm.replace("geo_", "geo_") + "_down", true, false) != null
@@ -409,6 +592,7 @@ func _process(delta: float) -> void:
 		var fv: float = _furls[si] if si < _furls.size() else 0.0
 		_sails[si].set_furl(fv, _time)
 		_sails[si].update_anchors(fv, br) # pin targets for this frame; the parallel cloth step is launched last in the frame
+	_update_colliders(br)
 	# Furled bundles appear only once the sails are mostly up.
 	for f in _furled:
 		f.visible = _furl > 0.9

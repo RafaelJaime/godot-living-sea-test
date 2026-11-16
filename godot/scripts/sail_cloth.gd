@@ -27,6 +27,7 @@ var z0 := 0.0
 var area := 1.0
 var visible_sim := true
 var mast_z := 0.0
+var yard_x := Vector2.ZERO ## ship-space x extent of the top row (the yard), unbraced
 var brace := 0.0 ## current yard brace (rad), written by the rig from Ship.brace; the yard bones are rotated by the rig, here the pins follow
 var mast_pos := Vector3.ZERO ## brace axis (vertical through x = 0, z), ship space, same pivot the rig uses for the bones
 var _brace_sim := 0.0
@@ -85,6 +86,7 @@ func setup(p_mi: MeshInstance3D, shader: Shader, p_pivot: Node3D, mast_zs: Packe
 		sl[j] = (xl[j - 1] + xl[j] * 2.0 + xl[j + 1]) * 0.25
 		sr[j] = (xr[j - 1] + xr[j] * 2.0 + xr[j + 1]) * 0.25
 	xl = sl; xr = sr
+	yard_x = Vector2(xl[0], xr[0])
 	# 3) rest plane z (near the yard) and baked z per node
 	var zs := 0.0
 	var zc := 0
