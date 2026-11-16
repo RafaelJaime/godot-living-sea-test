@@ -22,7 +22,7 @@ def main():
         for s, ph, xs, pole in (("R", 0.0, -1, Vector((-0.7, 0.5, -0.8))), ("L", 0.5, 1, Vector((0.7, 0.5, -0.8)))):
             q = (u - ph) % 1.0
             p = ease(q / 0.6) if q < 0.6 else 1.0 - ease((q - 0.6) / 0.4)
-            grip = Vector((xs * 0.28, -0.52 + 0.20 * p, 1.08 + 0.26 * p))
+            grip = Vector((xs * 0.26, -0.53 + 0.26 * p, 1.03 + 0.40 * p))
             hands[s] = (grip, Vector((0.0, -0.7, -0.7)), Vector((0.0, 0.7, -0.7)), pole, "FN")
         D, _ = rig.solve(hips, trunk, hands, feet)
         return hips, D
