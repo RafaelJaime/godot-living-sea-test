@@ -69,7 +69,7 @@ func bind_world(w: NpcWorld) -> void:
 			if _edge_type != &"" and _edge_type != t:
 				var hold := anim.exit_transition(_edge_type)
 				if hold > 0.0:
-					executor.navigator.hold(hold)
+					executor.navigator.hold(hold, anim.exit_advance(_edge_type))
 			anim.set_locomotion(t, executor.navigator.current_speed(def.walk_speed if def else 1.2))
 		_edge_type = t)
 	if def:

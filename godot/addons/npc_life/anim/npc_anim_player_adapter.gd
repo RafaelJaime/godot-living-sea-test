@@ -93,6 +93,9 @@ func exit_transition(from_edge_type: StringName) -> float:
 	_pending_tag = &""
 	return _player.get_animation(String(clip)).length
 
+func exit_advance(from_edge_type: StringName) -> float:
+	return float(anim_set.exit_advance.get(from_edge_type, 0.0))
+
 func _on_clip_finished(clip_name: StringName) -> void:
 	if _exit_clip == &"" or clip_name != _exit_clip:
 		return

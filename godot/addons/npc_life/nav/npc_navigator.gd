@@ -26,13 +26,20 @@ var _entered := -1
 var _cur_type: StringName = &"walk"
 var _last_set := Vector3.INF
 var _hold := 0.0
+var _hold_total := 0.0
+var _hold_adv := 0.0
 
-## Stand still for `seconds` (the agent plays a transition clip, e.g. stepping off a ladder); the path stays pending and resumes afterwards.
-func hold(seconds: float) -> void:
+## Pause the walk for `seconds` (the agent plays a transition clip, e.g. stepping off a ladder); the path stays pending and resumes afterwards.
+## `advance_m` is the root motion of that clip: the node covers that distance along the path during the hold (eased in and out) while the clip
+## itself stays in place.
+func hold(seconds: float, advance_m := 0.0) -> void:
 	_hold = maxf(seconds, 0.0)
+	_hold_total = _hold
+	_hold_adv = advance_m
 
 func set_path(points: PackedVector3Array, types: Array[StringName]) -> void:
 	_hold = 0.0
+	_hold_adv = 0.0
 	_pts = points
 	_types = types
 	_seg = 0
@@ -69,13 +76,17 @@ func current_speed(base_speed: float) -> float:
 func step(agent: Node3D, dt: float, base_speed: float, others: Array = []) -> void:
 	if finished:
 		return
-	if _hold > 0.0:
-		_hold -= dt
-		return
 	if _last_set != Vector3.INF:
 		max_error = maxf(max_error, (agent.position - _last_set).length())
 	_enter_segment()
 	var travel := current_speed(base_speed) * dt
+	if _hold > 0.0: # a transition clip is playing: only its root motion, eased
+		var u0 := 1.0 - _hold / maxf(_hold_total, 1.0e-6)
+		_hold = maxf(_hold - dt, 0.0)
+		if _hold < 1.0e-4: # float residue of the countdown must not cost one more step
+			_hold = 0.0
+		var u1 := 1.0 - _hold / maxf(_hold_total, 1.0e-6)
+		travel = _hold_adv * (smoothstep(0.0, 1.0, u1) - smoothstep(0.0, 1.0, u0))
 	while travel > 0.0 and not finished:
 		var seg_len := _pts[_seg].distance_to(_pts[_seg + 1])
 		var left := seg_len - _dist

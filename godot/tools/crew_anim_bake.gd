@@ -31,6 +31,8 @@ const CLIPS := {
 	&"spyglass_look": "blender/spyglass_look.res",
 }
 ## Optional clips authored later (godot-ship); picked up when the file exists.
+## Clips whose horizontal hip travel becomes node movement (see NpcAnimSet.exit_advance): the hips stay where they start, only the height is kept.
+const IN_PLACE: Array[StringName] = [&"climb_ladder_off"]
 const OPTIONAL := {
 	&"furl_aloft": "blender/furl_aloft.res",
 	&"haul": "blender/haul.res",
@@ -62,6 +64,8 @@ func _initialize() -> void:
 			return
 		var c := a.duplicate() as Animation
 		var k := _normalise_hips(c, ref_y)
+		if IN_PLACE.has(name):
+			_strip_hip_travel(c)
 		lib.add_animation(name, c)
 		report.append("%s from %s: %d tracks, %.2f s, hips x%.3f" % [name, all[name], c.get_track_count(), c.length, k])
 	var err := ResourceSaver.save(lib, OUT)
@@ -79,6 +83,14 @@ func _normalise_hips(a: Animation, ref_y: float) -> float:
 			for k in a.track_get_key_count(t):
 				a.track_set_key_value(t, k, (a.track_get_key_value(t, k) as Vector3) * factor)
 	return factor
+
+func _strip_hip_travel(a: Animation) -> void:
+	for t in a.get_track_count():
+		if a.track_get_type(t) == Animation.TYPE_POSITION_3D and String(a.track_get_path(t)).ends_with(":Hips"):
+			var p0: Vector3 = a.track_get_key_value(t, 0)
+			for k in a.track_get_key_count(t):
+				var v: Vector3 = a.track_get_key_value(t, k)
+				a.track_set_key_value(t, k, Vector3(p0.x, v.y, p0.z))
 
 func _fuego_idle(ref_y: float) -> Animation:
 	var root := (load(IDLE_SRC) as PackedScene).instantiate()

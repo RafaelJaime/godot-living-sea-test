@@ -165,10 +165,13 @@ func test_leaving_a_ladder_plays_the_exit_clip_before_walking() -> void:
 	ad.anim_set = _anim_set()
 	ad.anim_set.shared[&"ladder_off"] = &"shared/off"
 	ad.anim_set.exit_tags = {&"ladder": &"ladder_off"}
+	ad.anim_set.exit_advance = {&"ladder": 0.35}
 	ad.anim_set.locomotion = {&"walk": &"walk", &"ladder": &"work"}
 	ad.bind(null, vis)
 	ad.set_locomotion(&"ladder", 0.5)
 	assert_eq(ad.exit_transition(&"walk"), 0.0, "leaving a plain edge has no exit clip")
+	assert_eq(ad.exit_advance(&"walk"), 0.0)
+	assert_almost_eq(ad.exit_advance(&"ladder"), 0.35, 1e-6, "metres the node moves while the in-place exit clip plays")
 	var d := ad.exit_transition(&"ladder")
 	assert_almost_eq(d, 1.0, 0.001, "the exit clip length is returned so the agent can wait")
 	assert_eq(player.current_animation, "shared/off")

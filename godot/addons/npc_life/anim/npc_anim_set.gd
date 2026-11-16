@@ -18,6 +18,8 @@ extends Resource
 ## Tags without an entry use the adapter's `reference_speed`.
 ## Transition played once when the agent leaves an edge type (e.g. `ladder` -> `ladder_off`), before the next locomotion tag starts.
 @export var exit_tags: Dictionary[StringName, StringName] = {}
+## Root motion (m) of an exit transition, applied to the node while the in-place clip plays.
+@export var exit_advance: Dictionary[StringName, float] = {}
 @export var clip_speeds: Dictionary[StringName, float] = {}
 
 var _missing: Array[StringName] = []

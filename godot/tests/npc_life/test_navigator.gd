@@ -168,3 +168,21 @@ func test_hold_pauses_the_walk_and_then_resumes() -> void:
 	for i in 3:
 		nav.step(a, 0.1, 1.0)
 	assert_gt(a.position.x, x0, "it walks again after the hold")
+
+func test_hold_can_carry_the_agent_forward_along_the_path() -> void:
+	## Stepping off a ladder: the animation stays in place and the node covers the clip's root motion during the hold, eased in and out.
+	var parent := Node3D.new()
+	add_child_autofree(parent)
+	var a := _agent(parent, "a")
+	nav.set_path(PackedVector3Array([Vector3.ZERO, Vector3(10, 0, 0)]), _types(1))
+	nav.step(a, 0.0, 1.0) # enters the first segment
+	var x0 := a.position.x
+	nav.hold(1.0, 0.35)
+	var last := x0
+	for i in 10:
+		nav.step(a, 0.1, 1.0)
+		assert_gte(a.position.x, last - 1e-6, "never backwards")
+		last = a.position.x
+	assert_almost_eq(a.position.x - x0, 0.35, 0.002, "exactly the root motion over the hold")
+	nav.step(a, 0.1, 1.0)
+	assert_gt(a.position.x - x0, 0.35 + 0.05, "then the normal walk resumes")

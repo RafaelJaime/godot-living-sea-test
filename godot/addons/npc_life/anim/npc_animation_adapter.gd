@@ -27,6 +27,10 @@ func set_locomotion(_edge_type: StringName, _speed: float) -> void:
 func exit_transition(_from_edge_type: StringName) -> float:
 	return 0.0
 
+## Metres the node should move along its path while that transition plays (the clip is authored in place).
+func exit_advance(_from_edge_type: StringName) -> float:
+	return 0.0
+
 func attach_prop(_scene: PackedScene, _socket: StringName) -> Node3D:
 	return null
 

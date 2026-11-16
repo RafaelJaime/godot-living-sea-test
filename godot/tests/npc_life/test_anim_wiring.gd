@@ -13,9 +13,13 @@ class StubAnim extends NpcAnimationAdapter:
 
 class ExitStubAnim extends StubAnim:
 	var exited: Array = []
+	var advanced: Array = []
 	func exit_transition(from_edge_type: StringName) -> float:
 		exited.append(from_edge_type)
 		return 0.5 if from_edge_type == &"ladder" else 0.0
+	func exit_advance(from_edge_type: StringName) -> float:
+		advanced.append(from_edge_type)
+		return 0.35 if from_edge_type == &"ladder" else 0.0
 
 class StubIk extends NpcIkAdapter:
 	var calls: Array = []
@@ -164,4 +168,5 @@ func test_agent_waits_at_the_top_of_a_ladder_for_the_exit_clip() -> void:
 		world.advance(0.05)
 		if ex.exited.size() > 1:
 			break
+	assert_true(ex.advanced.has(&"ladder"), "the root motion of the exit clip is asked for")
 	assert_eq(ex.exited, [&"walk", &"ladder"], "asked at each change of edge type; the ladder exit when the walk edge after it started")
