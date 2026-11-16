@@ -17,6 +17,7 @@ const DEF_DIR := "res://crew/defs/"
 var mode_override: StringName = &""
 var world: NpcWorld
 var bridge: CrewWorldBridge
+var sound: CrewAudio
 var agents: Dictionary = {} # slot node name -> NpcAgent
 var _trace := OS.get_cmdline_user_args().has("--crew-trace") ## test aid: one status line per agent every 2 s (logical time)
 var _trace_next := 2.0
@@ -84,6 +85,9 @@ func _build() -> void:
 	maneuver.rig = pinnace_rig
 	for src in [CrewLanternSource.new(), CrewChoresSource.new(), CrewLeisureSource.new(), storm, maneuver]:
 		world.add_child(src)
+	sound = CrewAudio.new()
+	sound.name = "Sound"
+	add_child(sound)
 	bridge = CrewWorldBridge.new()
 	bridge.name = "Bridge"
 	add_child(bridge)
@@ -164,6 +168,8 @@ func _spawn(slot: Node3D, pivot: Node3D) -> void:
 			agent.ik = ik
 	agents[slot.name] = agent
 	_slots[slot.name] = slot
+	if sound != null:
+		sound.watch(def.agent_id, agent, agent.anim)
 
 func _process(delta: float) -> void:
 	_clock += delta
@@ -176,8 +182,12 @@ func _process(delta: float) -> void:
 			var ik := a.ik as CrewIkAdapter
 			print("[crew-trace] t=%.1f %s phase=%s tag=%s job=%s action=%s pos=%s violin=%s hand_l=%.2f hand_r=%.2f" % [world.now(), a.agent_id, a.phase(), (a.anim.current_tag() if a.anim else &""), a.current_job_id(), a.last_action_id(),
 				a.position.snapped(Vector3.ONE * 0.1), ik.violin_active() if ik else false, ik.weight_of(&"hand_l") if ik else 0.0, ik.weight_of(&"hand_r") if ik else 0.0])
+	if sound != null and world != null:
+		sound.wet = float(world.inputs.get_value(&"deck_wetness", 0.0))
 	for n in agents:
 		var a := agents[n] as NpcAgent
+		if sound != null and a.anim != null:
+			sound.step_agent(a, a.anim.current_tag(), a.phase(), delta)
 		var s := _slots[n] as Node3D
 		s.position = a.position
 		s.rotation.y = a.rotation.y

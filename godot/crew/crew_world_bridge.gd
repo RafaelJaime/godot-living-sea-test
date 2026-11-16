@@ -1,7 +1,7 @@
 class_name CrewWorldBridge
 extends Node
 ## Writes the ship's facts into the NpcWorld blackboard (C1.2); the NPC sources and the scorer read only `world.inputs`, never the game.
-## Keys: daylight 0..1, storm 0..1, wind 0..1 (all quantized), roll_deg (abs, 2 deg steps), maneuver (kind or &""), maneuver_side (-1/0/+1).
+## Keys: daylight 0..1, storm 0..1, wind 0..1, deck_wetness 0..1 (all quantized), roll_deg (abs, 2 deg steps), maneuver (kind or &""), maneuver_side (-1/0/+1).
 ## Writes happen at SYNC_HZ and are quantized, so the blackboard log does not churn every frame.
 
 const SYNC_HZ := 5.0
@@ -33,6 +33,7 @@ func sync_now() -> void:
 	world.inputs.set_value(&"daylight", snappedf(WorldState.daylight, 0.05))
 	world.inputs.set_value(&"storm", snappedf(WorldState.storm, 0.05))
 	world.inputs.set_value(&"wind", snappedf(WorldState.wind_strength, 0.05))
+	world.inputs.set_value(&"deck_wetness", snappedf(WorldState.deck_wetness, 0.05))
 	var roll: Variant = _ship.get("roll") if _ship != null else null
 	world.inputs.set_value(&"roll_deg", snappedf(absf(rad_to_deg(float(roll if roll != null else 0.0))), 2.0))
 
