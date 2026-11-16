@@ -230,7 +230,7 @@ Limits: the tops (cofas) are placed from the course-yard suspension heights (for
 Changelog (H1): `ShipLights.get_lanterns()` gained `local_position` / `stand_local`; `ShipStations` is additive, nothing in the crew files changed.
 
 ### Scenes: `main.tscn` and `ship/ship.tscn`
-`main.tscn` holds the world (Sun, Moon, Weather, Sky, Sc2Clouds, Ocean, Wake, Boat, Islands, Gulls, AmbientLife, PassingShips, Ambient, Camera, CantoSun) and instances `ship/ship.tscn` as `Ship`; every NodePath used by other scripts
+`main.tscn` holds the world (Sun, Moon, Weather, Sky, Sc2Clouds, Ocean, Wake, Boat, Islands, Gulls, AmbientLife, PassingShips, Ambient, Camera) and instances `ship/ship.tscn` as `Ship`; every NodePath used by other scripts
 (`../Ship/Pivot/Model`, `/root/Main/Ship/...`, `Main/Ship` in capture.gd) is unchanged because the instance keeps that name.
 `ship/ship.tscn` (root `Ship`, RigidBody3D with buoyancy.gd) carries everything of the ship: Autopilot, FX, `Pivot` with `Model` (ship_loader.gd; the hull GLB is instanced under `Normalized/barco_pinnace`, the loader still recomputes the
 normalisation at startup and only loads the GLB by path if that node is missing), Helm (static `Wheel` = `ship/helm_wheel.tscn`, `HandL`, `HandR`), Flag, FlagMain, PinnaceRig, CrewRig, Lights (the two stern lanterns as static nodes, the cabin windows are created
