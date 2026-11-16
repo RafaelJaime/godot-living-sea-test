@@ -237,19 +237,19 @@ metadata/edge_type = &"walk"
 [node name="n_waist_p" type="Marker3D" parent="Markers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 1.85, -2.8)
 metadata/kind = &"nav"
-metadata/edge_to = "n_waist_f"
+metadata/edge_to = "n_waist_f,n_lad_p_a"
 metadata/edge_type = &"walk"
 
 [node name="n_waist_s" type="Marker3D" parent="Markers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 1.85, -2.8)
 metadata/kind = &"nav"
-metadata/edge_to = "n_waist_f"
+metadata/edge_to = "n_waist_f,n_lad_s_a"
 metadata/edge_type = &"walk"
 
 [node name="n_waist_f" type="Marker3D" parent="Markers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, -4)
 metadata/kind = &"nav"
-metadata/edge_to = "n_fore_a:stairs"
+metadata/edge_to = "n_fore_a:stairs:6"
 metadata/edge_type = &"walk"
 
 [node name="n_fore_a" type="Marker3D" parent="Markers"]
@@ -298,6 +298,30 @@ metadata/edge_type = &"walk"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 23.4, 2.8)
 metadata/kind = &"nav"
 metadata/edge_to = ""
+metadata/edge_type = &"walk"
+
+[node name="n_lad_p_a" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.9, 1.85, -4.3)
+metadata/kind = &"nav"
+metadata/edge_to = "n_lad_p_b:ladder"
+metadata/edge_type = &"walk"
+
+[node name="n_lad_s_a" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9, 1.85, -4.3)
+metadata/kind = &"nav"
+metadata/edge_to = "n_lad_s_b:ladder"
+metadata/edge_type = &"walk"
+
+[node name="n_lad_p_b" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.9, 3.55, -5.9)
+metadata/kind = &"nav"
+metadata/edge_to = "n_fore_a"
+metadata/edge_type = &"walk"
+
+[node name="n_lad_s_b" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9, 3.55, -5.9)
+metadata/kind = &"nav"
+metadata/edge_to = "n_fore_a"
 metadata/edge_type = &"walk"
 
 [node name="n_fore_rat_p" type="Marker3D" parent="Markers"]

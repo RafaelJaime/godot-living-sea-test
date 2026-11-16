@@ -334,11 +334,12 @@ func build_graph(snap: Callable = Callable()) -> NpcWaypointGraph:
 		for spec in String(m.get_meta("edge_to", "")).split(",", false):
 			var parts := spec.strip_edges().split(":")
 			var other := StringName(parts[0])
-			var etype := StringName(parts[1]) if parts.size() > 1 else default_type
+			var etype := StringName(parts[1]) if parts.size() > 1 and parts[1] != "" else default_type
+			var cmul := float(parts[2]) if parts.size() > 2 else 1.0 # optional third part "name:type:cost_mul" (e.g. a flight blocked by the boat)
 			if not index.has(other):
 				push_warning("[crew] graph: %s -> %s: unknown navigation node" % [n["name"], other])
 				continue
-			g.connect_nodes(index[n["name"]], index[other], etype)
+			g.connect_nodes(index[n["name"]], index[other], etype, cmul)
 	var unlinked: Array[StringName] = []
 	for st in provide_stations():
 		var p := st.position

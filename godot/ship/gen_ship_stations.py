@@ -45,9 +45,9 @@ NAV = [
     ("n_quarter_end", (0.0, 3.85, 5.0), "n_waist_a:stairs"),
     ("n_waist_a", (0.0, 1.85, 3.5), "n_waist_b"),
     ("n_waist_b", (0.0, 1.85, 1.0), "n_waist_p,n_waist_s,n_ratline_p,n_ratline_s"),
-    ("n_waist_p", (-1.6, 1.85, -2.8), "n_waist_f"),
-    ("n_waist_s", (1.6, 1.85, -2.8), "n_waist_f"),
-    ("n_waist_f", (0.0, 1.85, -4.0), "n_fore_a:stairs"),
+    ("n_waist_p", (-1.6, 1.85, -2.8), "n_waist_f,n_lad_p_a"),
+    ("n_waist_s", (1.6, 1.85, -2.8), "n_waist_f,n_lad_s_a"),
+    ("n_waist_f", (0.0, 1.85, -4.0), "n_fore_a:stairs:6"),   # the foot of the central flight is inside the lashed boat: x6 cost so the crew takes the side ladders
     ("n_fore_a", (0.0, 3.5, -6.5), "n_fore_b"),
     ("n_fore_b", (0.0, 3.55, -8.5), "n_fore_bow"),
     ("n_fore_bow", (0.0, 3.9, -10.0), ""),
@@ -78,6 +78,9 @@ BRACES = [
 ]
 # Extra navigation nodes for climbing: per mast base (deck node, ratline foot, shroud, top, tops of the upper stages). edge_to lists use "rope" for the climbs.
 NAV_ALOFT = [
+    # side ladders of the forecastle break (rungs at x +-3.0, z -5.16): foot on the waist deck, top on the forecastle deck, then to the forecastle walk node
+    ("n_lad_p_a", (-2.9, 1.85, -4.3), "n_lad_p_b:ladder"), ("n_lad_s_a", (2.9, 1.85, -4.3), "n_lad_s_b:ladder"),
+    ("n_lad_p_b", (-2.9, 3.55, -5.9), "n_fore_a"), ("n_lad_s_b", (2.9, 3.55, -5.9), "n_fore_a"),
     ("n_fore_rat_p", (-2.6, 3.55, -7.4), "n_fore_shroud_p:rope"), ("n_fore_rat_s", (2.6, 3.55, -7.4), "n_fore_shroud_s:rope"),
     ("n_fore_shroud_p", (-1.5, 9.4, -8.3), "n_top_fore:rope"), ("n_fore_shroud_s", (1.5, 9.4, -8.3), "n_top_fore:rope"),
     ("n_top_fore", (0.0, 11.9, -8.55), "n_fore_up_p:rope,n_fore_up_s:rope"),
