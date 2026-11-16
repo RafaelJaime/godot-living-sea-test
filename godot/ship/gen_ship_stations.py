@@ -32,7 +32,7 @@ REEF_PINS = [("reef_pin_fore", (0.0, 3.55, -8.1)), ("reef_pin_main", (0.0, 1.85,
 ACCESS = [
     ("stairs_poop", "stairs", (0.0, 5.7, 14.5)),
     ("stairs_waist", "stairs", (0.0, 2.9, 4.4)),
-    ("stairs_forecastle", "stairs", (0.0, 2.7, -5.5)),
+    ("stairs_forecastle", "stairs", (0.0, 2.7, -4.9)),
     ("door_companionway", "door", (0.0, 4.2, 9.0)),
 ]
 # Navigation nodes: (name, (x, y, z), edge_to). Edge list "other[:type]". Types: walk (default), stairs, rope, ladder.
@@ -47,7 +47,7 @@ NAV = [
     ("n_waist_b", (0.0, 1.85, 1.0), "n_waist_p,n_waist_s,n_ratline_p,n_ratline_s"),
     ("n_waist_p", (-1.6, 1.85, -2.8), "n_waist_f"),
     ("n_waist_s", (1.6, 1.85, -2.8), "n_waist_f"),
-    ("n_waist_f", (0.0, 1.85, -5.0), "n_fore_a:stairs"),
+    ("n_waist_f", (0.0, 1.85, -4.0), "n_fore_a:stairs"),
     ("n_fore_a", (0.0, 3.5, -6.5), "n_fore_b"),
     ("n_fore_b", (0.0, 3.55, -8.5), "n_fore_bow"),
     ("n_fore_bow", (0.0, 3.9, -10.0), ""),

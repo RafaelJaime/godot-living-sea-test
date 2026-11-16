@@ -179,7 +179,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.9, 4.4)
 metadata/kind = &"stairs"
 
 [node name="stairs_forecastle" type="Marker3D" parent="Markers"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, -5.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, -4.9)
 metadata/kind = &"stairs"
 
 [node name="door_companionway" type="Marker3D" parent="Markers"]
@@ -247,7 +247,7 @@ metadata/edge_to = "n_waist_f"
 metadata/edge_type = &"walk"
 
 [node name="n_waist_f" type="Marker3D" parent="Markers"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, -5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, -4)
 metadata/kind = &"nav"
 metadata/edge_to = "n_fore_a:stairs"
 metadata/edge_type = &"walk"
