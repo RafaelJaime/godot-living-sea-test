@@ -248,6 +248,7 @@ func _build_cloth(ax: Vector3) -> void:
 	_cloth.max_extra_substeps = 1
 	_cloth.alpha_bend = 4.0e-2
 	_cloth.flutter = 1.0
+	_cloth.min_quality = 1.0 # dev halves substeps and iterations: at 30 fps the flags then blow up and reset several times a second
 	_cloth.build(cols, rows, rest)
 	# The whole hoist edge is laced to the staff (interpolated between the two ties): with only the corners tied the cloth was a
 	# plank hinged on the pole's axis and could never hang limp in a calm.
