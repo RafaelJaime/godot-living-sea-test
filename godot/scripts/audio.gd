@@ -50,6 +50,7 @@ var _demo_t := 0.0
 var _demo_next := 0.0
 var _demo_loop: AudioStreamPlayer3D
 var _built := false
+var _preload_ids: Array = []
 var _persist := {} # key -> {player, base_db}
 var _next_island_gull := 12.0
 var _next_far_bell := 40.0
@@ -311,6 +312,12 @@ func _process(delta: float) -> void:
 			return
 		_build_with_ship()
 	_t += delta
+	# Decode/load every clip once, one id per frame, right after start-up: the first use of a lazily loaded stream stalled a frame by milliseconds.
+	if _preload_ids.is_empty() and not _smooth.has("_pre"):
+		_smooth["_pre"] = 1.0
+		_preload_ids = _lib.keys()
+	if not _preload_ids.is_empty():
+		_streams(_preload_ids.pop_back())
 	var w := WorldState
 	var dt := minf(delta, 0.1)
 	var speed := 0.0

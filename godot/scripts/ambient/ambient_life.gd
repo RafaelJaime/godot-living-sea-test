@@ -372,12 +372,23 @@ func _hull_push(f: Dictionary, p: Vector3, dt: float) -> void:
 	f["spinv"] = float(f["spinv"]) + signf(side) * depth * 2.2 * dt
 	f["dip"] = maxf(float(f["dip"]), depth)
 
-func _tick_flotsam(dt: float) -> void:
+const FLOT_SLICES := 3
+var _flot_frame := 0
+
+func _tick_flotsam(frame_dt: float) -> void:
 	var sp := _ship.global_position
 	var fwd := _ship_fwd()
 	var wv := WorldState.wind_vector() * 0.35
 	var drift := Vector3(wv.x, 0, wv.y)
-	for f in _flot:
+	# Each object is simulated once every FLOT_SLICES frames (with the accumulated time), so the 16 objects x 3 wave samples cost a third per frame.
+	_flot_frame += 1
+	for idx in _flot.size():
+		var f: Dictionary = _flot[idx]
+		f["acc"] = float(f.get("acc", 0.0)) + frame_dt
+		if (idx + _flot_frame) % FLOT_SLICES != 0:
+			continue
+		var dt := float(f["acc"])
+		f["acc"] = 0.0
 		var p: Vector3 = f["pos"]
 		_hull_push(f, p, dt)
 		var v: Vector3 = f["vel"]
