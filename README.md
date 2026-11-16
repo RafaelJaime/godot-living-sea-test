@@ -70,7 +70,7 @@ average and 36 to 39 fps in the 1 % lows. The `dev` preset is capped at a fixed 
 
 | Key | Action |
 |---|---|
-| `1` to `7` | Jump to a camera preset (3/4 bow, side low, high wide, captain, deck crew, "Canto" (needs an optional sun texture), silhouette) |
+| `1` to `7` | Jump to a camera preset (3/4 bow, side low, high wide, captain, deck crew, "Sun", silhouette) |
 | `C` | Toggle the free-fly debug camera |
 | `W` `A` `S` `D`, `Q` `E`, `Shift` | Free-fly: move, down/up, fast |
 | Mouse | Free-fly: look |

@@ -1,6 +1,6 @@
 extends Node
 ## Autonomous world clocks: day/night cycle, weather cycle (clear -> cloudy -> storm -> cloudy -> clear),
-## slowly drifting wind. Everything else (sky, fog, lights, rain, ocean sea_state, Canto, autopilot) reads from here.
+## slowly drifting wind. Everything else (sky, fog, lights, rain, ocean sea_state, autopilot) reads from here.
 ## Capture/test args: --timescale=N (speeds up the internal clocks only), --start-phase=0..1 (0 midnight, .5 noon),
 ## --weather=clear|cloudy|storm (start there and hold), --sea=0..1 (force sea_state).
 

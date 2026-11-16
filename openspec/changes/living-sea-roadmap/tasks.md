@@ -54,7 +54,7 @@ Note on the decision line: it is "Yes" solely for slice MQ-c (task MQ.6). If the
 | M2d | Island caustics | PR-M2d | RUN island shore capture day/night | RUN `--perf-log=30` island on/off | `caustics.gdshaderinc` plus one include line |
 | M3-1 | Cloud gate spike and clouds adapter | PR-M3a | RUN gate decision log + `--perf-log=30` | RUN `--plan=regression` | `clouds.gd`, addon dir, `sky.gd` cloud key |
 | M3-2 | Exposure curve, SSAO/SSIL, shadows, storm and rain | PR-M3b | RUN `--timescale` day run exposure log | RUN storm capture and storm-end 60 s | `sky.gd`, `weather_fx.gd` blocks |
-| M3-3 | Camera shots and island polish | PR-M3c | RUN shot-preset captures, Canto unoccluded | RUN dusk/night island captures | `camera_director.gd`, `islands.gd` |
+| M3-3 | Camera shots and island polish | PR-M3c | RUN shot-preset captures, sun unoccluded | RUN dusk/night island captures | `camera_director.gd`, `islands.gd` |
 | M4a | Ambient director, boids, dolphins, optional whales | PR-M4a | RUN day capture shows 3+ birds; dolphin capture | RUN 10-minute `--timescale` run with `AmbientDirector.stats()` | `scripts/ambient/*`, Ambient node, restore `gulls.gd` |
 | M4b-1 | Passing ships with lights | PR-M4b1 | RUN night capture shows lit ship | RUN recycle log | `passing_ships.gd` only |
 | M4b-2 | Lighthouse beam, bioluminescence | PR-M4b2 | RUN two night captures 2 s apart; night top-down wake | RUN `--perf-log=30` | `lighthouse.gd`, foam inc biolum term |
@@ -274,7 +274,7 @@ Evidence folder: `odd/evidence/M3/`. Depends on: M0 (sky WIP committed) and, pre
 
 ### Slice M3-3 (PR-M3c, about 200 lines): camera and islands (T6)
 
-- [x] M3.10 [SA] Camera shots: Canto unoccluded, close-ups, helm and storm shots (shot definitions only). Files: `godot/scripts/camera_director.gd`. Verify: every shot-preset capture shows the Canto not occluded by sails, rigging or geometry. Dependency: M3.9.
+- [x] M3.10 [SA] Camera shots: sun unoccluded, close-ups, helm and storm shots (shot definitions only). Files: `godot/scripts/camera_director.gd`. Verify: every shot-preset capture shows the sun not occluded by sails, rigging or geometry. Dependency: M3.9.
 - [x] M3.11 [SA] Island polish at each time of day. Files: `godot/scripts/islands.gd`. Verify: dusk and night island captures show lighting matching the sky with no unlit or black patches. Dependency: M3.9.
 - [x] M3.12 [SA] Evidence and docs: `odd/evidence/M3/*` shot captures; ODD R5 and T6 boxes. Files: `odd/tasks/living-sea-wallpaper.md`. Dependency: M3.10, M3.11.
 

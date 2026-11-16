@@ -3,7 +3,7 @@ extends Node
 ## frame's _process work takes. Frames longer than the threshold (default 25 ms between two frame ends) print the bands; a summary compares
 ## the band means of normal and slow frames and the spacing of the slow frames.
 ## Bands are named by the process_priority of the last system inside: wind join (-1000) | world_state (-90) | camera (10) | ocean + cloth launch (100)
-## | ambient (120) | wake (150) | canto/cloth probe (200) | end. "rest" = frame time minus all bands = physics, rendering, vsync wait.
+## | ambient (120) | wake (150) | cloth probe (200) | end. "rest" = frame time minus all bands = physics, rendering, vsync wait.
 
 const PRIOS := [-1100, -999, -95, 0, 15, 90, 101, 130, 160, 250, 999]
 var _stamps := PackedInt64Array()

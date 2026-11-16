@@ -107,7 +107,7 @@ Conventions for every milestone:
 #### M3 Sky, light and weather R5 + T6 polish (effort L, may split)
 - Intent: sky that matches ref_15s/ref_18s across the day and weather cycle.
 - In: clouds (decision 2), sun/sky/fog/ambient consistency per time of day and weather, auto-exposure, SSAO/SSIL where
-  affordable, crisp ship shadows, storm darkness and rain; T6 camera (Canto unoccluded, close-ups, helm/storm shots)
+  affordable, crisp ship shadows, storm darkness and rain; T6 camera (sun unoccluded, close-ups, helm/storm shots)
   and island polish (decision 6).
 - Out: weather cycle logic rewrite.
 - Depends on: M0 (sky WIP committed); can follow M2a (reflection uses sky).

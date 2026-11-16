@@ -19,8 +19,8 @@ var shots: Array[Dictionary] = [
 	{"name": "captain", "attached": true, "pos": Vector3(-1.3, 7.3, 13.4), "look": Vector3(0.0, 4.0, -14.0), "fov": 60.0},
 	{"name": "deck crew", "attached": true, "pos": Vector3(-9.0, 7.0, 4.0), "look": Vector3(0.0, 3.0, 0.0), "fov": 55.0},
 	# Sun-relative shots (computed from the DirectionalLight3D direction at runtime).
-	# Canto: the camera is searched (camera_clearview.gd) so the sun god-face and the ship share the frame and no sail/rigging covers him.
-	{"name": "Canto", "mode": "canto_frame", "solve": true, "fov": 62.0},
+	# Sun: the camera is searched (camera_clearview.gd) so the sun and the ship share the frame and no sail/rigging covers the sun.
+	{"name": "Sun", "mode": "sun_frame", "solve": true, "fov": 62.0},
 	{"name": "silhouette", "mode": "sun_behind", "dist": 34.0, "height": 2.6, "fov": 56.0},
 	# Crew close-ups (not part of the auto cycle): offset is relative to the character, in the ship frame.
 	{"name": "close Papi_Fuego", "mode": "crew", "solve": true, "slot": "Papi_Fuego", "off": Vector3(-2.6, 0.5, -2.6), "fov": 45.0},
@@ -216,9 +216,9 @@ func _shot_pose(i: int, t: float) -> Dictionary:
 		var isl_pose := _island_pose(i, s, f)
 		if not isl_pose.is_empty():
 			return isl_pose
-	if mode == "canto_frame":
-		var pos: Vector3 = _sol[i]["pos"] if _sol.has(i) else _canto_default()
-		var fr := _canto_frame(pos, _sun_local(f))
+	if mode == "sun_frame":
+		var pos: Vector3 = _sol[i]["pos"] if _sol.has(i) else _sun_shot_default()
+		var fr := _sun_shot_frame(pos, _sun_local(f))
 		return {"pos": pos, "look": pos + (fr["dir"] as Vector3) * 100.0, "fov": fr["fov"]}
 	if mode == "sun_look":
 		# Stand on deck and look up toward the sun, keeping it in the upper third of the frame.
@@ -338,7 +338,7 @@ func _ensure_cv() -> bool:
 		print("[cam] clear-view occluders: ", _cv.items.size(), " ship meshes (", rig, " rigging), ship length ", snappedf(_ship_len, 0.1), " m")
 	return _cv_ready
 
-func _canto_default() -> Vector3:
+func _sun_shot_default() -> Vector3:
 	return Vector3(-0.6, 0.12, 0.8) * _ship_len
 
 func _sun_local(f: Transform3D) -> Vector3:
@@ -347,9 +347,9 @@ func _sun_local(f: Transform3D) -> Vector3:
 	return sd.normalized()
 
 ## Look direction and vertical fov that keep the sun face and the ship centre in frame from `pos` (ship yaw frame). The look
-## direction starts halfway between them and shifts toward the sun when both do not fit (high noon sun): Canto always stays
-## fully framed, the ship is then allowed to crop at the bottom. `ok` = Canto fits; `need` = the vertical fov (deg) used.
-func _canto_frame(pos: Vector3, sd: Vector3) -> Dictionary:
+## direction starts halfway between them and shifts toward the sun when both do not fit (high noon sun): the sun always stays
+## fully framed, the ship is then allowed to crop at the bottom. `ok` = the sun fits; `need` = the vertical fov (deg) used.
+func _sun_shot_frame(pos: Vector3, sd: Vector3) -> Dictionary:
 	var ctr := Vector3(0.0, 0.2 * _ship_len, 0.0)
 	var dc := (ctr - pos).normalized()
 	var hw := minf(atan(0.55 * _ship_len / maxf(pos.distance_to(ctr), 1.0)), deg_to_rad(32.0))
@@ -417,7 +417,7 @@ func _update_solver(i: int, dt: float, immediate: bool) -> void:
 	var is_island := mode == "island"
 	var key := "off" if is_crew else "pos"
 	if not _sol.has(i):
-		_sol[i] = {key: (s["off"] as Vector3) if is_crew else (_island_default() if is_island else _canto_default()), "goal": null, "cands": [], "ci": 0, "age": 99.0, "best": null, "best_f": -1.0}
+		_sol[i] = {key: (s["off"] as Vector3) if is_crew else (_island_default() if is_island else _sun_shot_default()), "goal": null, "cands": [], "ci": 0, "age": 99.0, "best": null, "best_f": -1.0}
 	var st: Dictionary = _sol[i]
 	st["age"] = float(st["age"]) + dt
 	var c := _crew_center(s) if is_crew else Vector3.ZERO
@@ -436,7 +436,7 @@ func _update_solver(i: int, dt: float, immediate: bool) -> void:
 			elif is_island:
 				ok = _sun_clear(g, aim)
 			else:
-				ok = _canto_frame(g, sd)["ok"] and _sun_clear(g, sd)
+				ok = _sun_shot_frame(g, sd)["ok"] and _sun_clear(g, sd)
 		st["age"] = 0.0
 		st["ref"] = aim
 		if not ok:
@@ -445,7 +445,7 @@ func _update_solver(i: int, dt: float, immediate: bool) -> void:
 			elif is_island:
 				st["cands"] = _island_candidates(st, aim)
 			else:
-				st["cands"] = _canto_candidates(st, sd)
+				st["cands"] = _sun_shot_candidates(st, sd)
 			st["ci"] = 0
 			st["best"] = null
 			st["best_f"] = -1.0
@@ -511,8 +511,8 @@ func _crew_candidates(s: Dictionary, c: Vector3, st: Dictionary) -> Array:
 	out.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
 	return out.map(func(e: Array) -> Vector3: return e[1])
 
-func _canto_candidates(st: Dictionary, sd: Vector3) -> Array:
-	var cur: Vector3 = st["goal"] if st["goal"] != null else _canto_default()
+func _sun_shot_candidates(st: Dictionary, sd: Vector3) -> Array:
+	var cur: Vector3 = st["goal"] if st["goal"] != null else _sun_shot_default()
 	var ac := atan2(cur.x, cur.z)
 	var cr := Vector2(cur.x, cur.z).length() / _ship_len
 	var ch := cur.y / _ship_len
@@ -522,7 +522,7 @@ func _canto_candidates(st: Dictionary, sd: Vector3) -> Array:
 		for rm: float in [0.9, 1.15, 1.5, 2.0]:
 			for hm: float in [0.12, 0.3, 0.6]:
 				var p := Vector3(sin(a) * rm * _ship_len, hm * _ship_len, cos(a) * rm * _ship_len)
-				var fr := _canto_frame(p, sd)
+				var fr := _sun_shot_frame(p, sd)
 				if not fr["ok"]:
 					continue
 				var need: float = fr["need"]

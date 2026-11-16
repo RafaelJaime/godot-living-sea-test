@@ -146,7 +146,7 @@ Ocean and wake: `--water-debug=1..7` (7 = cat's paw mask), `--catpaw=<gain>` (de
 Ship, rig and lights: `--hold-heading=<deg>`, `--tack-test`, `--rudder-test`, `--analytic-sails`, `--no-yard-brace` (old behaviour: yards stay square to the ship), `--no-yard-restore` (do not rebuild the yards of the 7 sails whose rigging mesh is hidden), `--rig-log` (yard and brace bones per sail), `--settle-log`, `--log-wobble`, `--furl-log`, `--request-furl=idx:t@sec`, `--maneuver-log`, `--log-boat`, `--no-lash-load`,
 `--auto-light[=s]`, `--debug-lights`, `--check-lamps`, `--debug-deck`, `--deck-survey`, `--debug-stations`, `--bake-crew-graph`, `--ambient-now`.
 Cloth and wind diagnostics: `--cloth-probe=<s>` (per-frame sail/flag vertex motion log, `[probe]` CSV lines), `--cloth-demo=<name>` with `--wind-rel=<deg>` and `--soak-secs=<s>`, `--log-wind` (flag wind log), `--gust-amp=X` (the gust pulse test is `--cloth-demo=gust`).
-Other debug aids: `--debug-phys`, `--debug-pins`, `--debug-rig`, `--debug-wheel`, `--flat` (flat sea), `--no-canto`, `--no-pole`, `--cam-prof`, `--cam-verify`, `--island-verify`, `--beam-log`, `--ao-quality=0..3`, `--sc2-light-steps=N`, `--test-clip=<name>`. Test aids that scale an input (`--wake-test-speed`, `--fx-test-speed`) do not change the real ship speed.
+Other debug aids: `--debug-phys`, `--debug-pins`, `--debug-rig`, `--debug-wheel`, `--flat` (flat sea), `--no-pole`, `--cam-prof`, `--cam-verify`, `--island-verify`, `--beam-log`, `--ao-quality=0..3`, `--sc2-light-steps=N`, `--test-clip=<name>`. Test aids that scale an input (`--wake-test-speed`, `--fx-test-speed`) do not change the real ship speed.
 
 ## Integration API (names, with kind)
 | Name | Kind | Notes |
@@ -229,14 +229,14 @@ and the hull cross-section table, `whitecap_term`, `wake_term`); `shading.gdshad
 Other hooks: `PinnaceRig.sail_state()` -> furl, brace_deg, mean_pressure_pa, luffing, backed, gust (read-only; `--poll-sail-state` logs it each `--autopilot-log` period).
 
 ## Camera shots and island polish (M3.10 / M3.11)
-Shot indices (hotkeys 1-7 and the 20 s cycle are unchanged; new shots are appended): 5 Canto, 7-10 crew close-ups, 12 helm, 13 violin, 17 wake,
+Shot indices (hotkeys 1-7 and the 20 s cycle are unchanged; new shots are appended): 5 Sun, 7-10 crew close-ups, 12 helm, 13 violin, 17 wake,
 **18 storm** (low on the bow quarter), **19 island**, **20 island close**, **21 anti-sun** (looks away from the sun: rainbow) (from the island side of the ship toward the nearest island, via `Islands.targets()`, read-only).
 - `scripts/camera_clearview.gd` (`CameraClearView`): line-of-sight queries against the ship's own meshes (skeleton pose baked once, triangle BVHs) plus the helm
-  wheel and the lanterns. `camera_director.gd` uses it for every shot with `"solve": true`: Canto, crew close-ups, helm, violin, island.
+  wheel and the lanterns. `camera_director.gd` uses it for every shot with `"solve": true`: Sun, crew close-ups, helm, violin, island.
   Crew shots search a ring around the character (front quarter taken from the live `Visual` node, `front_deg`) with a dense ray grid over head and torso (thin
   shrouds slip through a few rays), and reject lenses jammed against a lantern or rail (`near_blocked`). Optional per shot: `front_deg`, `min_clear`.
-  Canto: candidates around the ship, the sun face (+-5 deg cone) must be clear of sails, rigging and hull, and the view leans between the sun and the ship
-  (continuous in the sun angle; with a near-zenith sun Canto stays fully framed and the ship crops at the bottom). Re-solved every 1.5 s or when the sun
+  Sun: candidates around the ship, the sun (+-5 deg cone) must be clear of sails, rigging and hull, and the view leans between the sun and the ship
+  (continuous in the sun angle; with a near-zenith sun the sun stays fully framed and the ship crops at the bottom). Re-solved every 1.5 s or when the sun
   moves 3 deg relative to the ship, and the camera glides with a critically damped spring (no velocity kick, `--jitter-test` accel stays < 3 m/s2).
   Solutions are logged as `[cam] <shot>: clear spot ...`; the occluder set is built once at 2-6 s after start (one short hitch during the start-up ramp).
 - Islands (`islands.gd`): `shaders/island.gdshader` replaces the StandardMaterials (terrain, palms, rocks, bushes, lighthouse bodies) with the same PBR plus a fill

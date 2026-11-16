@@ -1,6 +1,6 @@
 shader_type sky;
 // Procedural sky with day/dusk/night gradient, stars, moon, overcast and a moving fbm cloud layer.
-// The sun disc is NOT drawn here (Canto billboard is the sun).
+// The sun is drawn here as a simple disc with a warm glow (visible above the horizon, dimmed by cloud cover and storms).
 
 uniform vec3 sky_top : source_color = vec3(0.22, 0.42, 0.75);
 uniform vec3 sky_horizon : source_color = vec3(0.8, 0.8, 0.8);
@@ -81,6 +81,16 @@ void sky() {
 			vec3 spec = clamp(vec3(1.5 - abs(t * 4.0 - 3.0), 1.5 - abs(t * 4.0 - 2.0), 1.5 - abs(t * 4.0 - 1.0)), 0.0, 1.0);
 			col += spec * sin(t * 3.14159) * rainbow * 0.28 * smoothstep(-0.01, 0.06, h) * (0.35 + 0.65 * daylight);
 		}
+	}
+
+	// Sun disc and glow.
+	{
+		vec3 sdn = normalize(sun_dir);
+		float sd = dot(d, sdn);
+		float disc = smoothstep(0.99955, 0.99975, sd);
+		float glow = pow(max(sd, 0.0), 70.0) * 0.55 + pow(max(sd, 0.0), 9.0) * 0.12;
+		float vis = smoothstep(-0.03, 0.06, sdn.y) * (1.0 - 0.75 * cloud_cover) * (1.0 - storminess) * step(-0.02, h);
+		col += (vec3(1.0, 0.93, 0.78) * disc * 7.0 + vec3(1.0, 0.72, 0.42) * glow) * vis;
 	}
 
 	// Clouds on a flat layer.

@@ -1,6 +1,6 @@
 extends WorldEnvironment
 ## Sky, sun, moon, fog and ambient light, all driven every frame by WorldState (day/night + weather).
-## The sky is a custom shader (gradient, stars, moon, clouds); the sun disc itself is the Canto billboard.
+## The sky is a custom shader (gradient, stars, moon, clouds); the sun is a disc drawn in the sky shader.
 
 @export var sun_path := NodePath("../Sun")
 @export var moon_path := NodePath("../Moon")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="2_sky"]
@@ -6,7 +6,6 @@
 [ext_resource type="Script" path="res://scripts/islands.gd" id="8_islands"]
 [ext_resource type="Script" path="res://scripts/gulls.gd" id="9_gulls"]
 [ext_resource type="Script" path="res://scripts/camera_director.gd" id="10_cam"]
-[ext_resource type="Script" path="res://scripts/canto_sun.gd" id="11_canto"]
 [ext_resource type="Script" path="res://scripts/weather_fx.gd" id="14_weather"]
 [ext_resource type="Script" path="res://scripts/lashed_boat.gd" id="98_boat"]
 [ext_resource type="Script" path="res://scripts/wake_field.gd" id="99_wakefield"]
@@ -62,5 +61,3 @@ script = ExtResource("95_dir")
 current = true
 script = ExtResource("10_cam")
 
-[node name="CantoSun" type="MeshInstance3D" parent="."]
-script = ExtResource("11_canto")

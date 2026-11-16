@@ -88,13 +88,13 @@ During storms the scene SHALL darken, desaturate, reduce visibility, and show ra
 
 ### Requirement: Camera and island polish
 
-The camera SHALL keep the Canto unoccluded, include close-ups, helm and storm shots, and islands SHALL read as finished at each time of day.
+The camera SHALL keep the sun unoccluded, include close-ups, helm and storm shots, and islands SHALL read as finished at each time of day.
 
-#### Scenario: Canto unoccluded
+#### Scenario: sun unoccluded
 
 - GIVEN the fixed shot presets
 - WHEN each capture is inspected
-- THEN the Canto is not occluded by sails, rigging or geometry in any preset shot
+- THEN the sun is not occluded by sails, rigging or geometry in any preset shot
 
 #### Scenario: Island at dusk and night
 
