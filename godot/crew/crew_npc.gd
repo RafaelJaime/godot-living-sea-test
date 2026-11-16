@@ -73,14 +73,16 @@ func _on_crew_ready() -> void:
 	for slot in get_node(crew_path).get_children():
 		if slot is Marker3D: # the barrels are siblings too
 			_spawn(slot as Node3D, pivot)
-	if OS.get_cmdline_user_args().has("--crew-demo-violin"): # test aid until the free-time source (C2) posts these jobs: Omar plays at once
-		var j := NpcJob.new()
-		j.id = &"demo:violin"
-		j.kind = &"violin_seat"
-		j.station_id = &"violin_seat"
-		j.priority = 1.0
-		j.ttl_s = 0.0
-		world.board.post(j, world.now())
+	if OS.get_cmdline_user_args().has("--crew-demo-all"): # test aid for captures: three agents start one signature job at once
+		for row in [[&"violin_seat", &"violin_seat", &"don_omar"], [&"fishing_rail", &"fishing_rail_0", &"el_salchipapa"], [&"repair_spot", &"repair_spot_0", &"papi_diagnostica"]]:
+			var j := NpcJob.new()
+			j.id = StringName("demo:%s" % row[0])
+			j.kind = row[0]
+			j.station_id = row[1]
+			j.priority = 2.0
+			j.ttl_s = 0.0
+			j.required_tags = PackedStringArray([String(row[2])])
+			world.board.post(j, world.now())
 	print("[crew] npc mode:%d agents, graph %d nodes, roster %d watches" % [agents.size(), world.graph.node_count(), sched.roster.watches.size()])
 
 ## Job kind defaults: how much a kind attracts, which need it relieves and how long it takes. Leisure kinds relieve boredom; chores barely attract
@@ -151,7 +153,7 @@ func _process(_delta: float) -> void:
 		for n in agents:
 			var a := agents[n] as NpcAgent
 			var ik := a.ik as CrewIkAdapter
-			print("[crew-trace] t=%.1f %s phase=%s job=%s action=%s pos=%s violin=%s hand_l=%.2f hand_r=%.2f" % [world.now(), a.agent_id, a.phase(), a.current_job_id(), a.last_action_id(),
+			print("[crew-trace] t=%.1f %s phase=%s tag=%s job=%s action=%s pos=%s violin=%s hand_l=%.2f hand_r=%.2f" % [world.now(), a.agent_id, a.phase(), (a.anim.current_tag() if a.anim else &""), a.current_job_id(), a.last_action_id(),
 				a.position.snapped(Vector3.ONE * 0.1), ik.violin_active() if ik else false, ik.weight_of(&"hand_l") if ik else 0.0, ik.weight_of(&"hand_r") if ik else 0.0])
 	for n in agents:
 		var a := agents[n] as NpcAgent
