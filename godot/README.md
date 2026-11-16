@@ -229,6 +229,18 @@ Yard positions come from `--yard-survey` (`odd/evidence/npc-crew-jobs/H4/yard_su
 Limits: the tops (cofas) are placed from the course-yard suspension heights (fore 11.9, main 13.0, mizzen 12.9), not measured on a platform mesh; foremast and mizzen ratline feet are estimated; the sail indices follow `PinnaceRig` (sail_defs order).
 Changelog (H1): `ShipLights.get_lanterns()` gained `local_position` / `stand_local`; `ShipStations` is additive, nothing in the crew files changed.
 
+### Scenes: `main.tscn` and `ship/ship.tscn`
+`main.tscn` holds the world (Sun, Moon, Weather, Sky, Sc2Clouds, Ocean, Wake, Boat, Islands, Gulls, AmbientLife, PassingShips, Ambient, Camera, CantoSun) and instances `ship/ship.tscn` as `Ship`; every NodePath used by other scripts
+(`../Ship/Pivot/Model`, `/root/Main/Ship/...`, `Main/Ship` in capture.gd) is unchanged because the instance keeps that name.
+`ship/ship.tscn` (root `Ship`, RigidBody3D with buoyancy.gd) carries everything of the ship: Autopilot, FX, `Pivot` with `Model` (ship_loader.gd; the hull GLB is instanced under `Normalized/barco_pinnace`, the loader still recomputes the
+normalisation at startup and only loads the GLB by path if that node is missing), Helm (static `Wheel` = `ship/helm_wheel.tscn`, `HandL`, `HandR`), Flag, FlagMain, PinnaceRig, CrewRig, Lights (the two stern lanterns as static nodes, the cabin windows are created
+by `ship_lights_builder.gd`), ShipStations, CrewMarkers with the four legacy slots, CrewNpc, and `EditorPreview`.
+Static in the scene: the node tree, every export, the hull instance, the lantern nodes, the wheel. Still procedural: normalisation, sail cloth, flag cloth, hull profile for the ocean shader, the rowing boat, the spray, stance rays, crew visuals.
+Scripts that used to create nodes adopt the ones already in the scene (`helm.gd`: Wheel/HandL/HandR; `ship_lights_builder.gd`: the stern lanterns).
+Editor preview: `scripts/ship_preview.gd` is a `@tool` script on `Pivot/EditorPreview`; in the editor it shows the deployed `*_down` sails (hides the furled and duplicate meshes, reverted when the scene is closed so nothing is saved), two flat flag rectangles and glow spheres
+/ panes at the lanterns and cabin windows. It runs no simulation and frees itself in the game. `ship/gen_ship_scene.py` is the one-off script that split the ship out of main.tscn (kept for the record; do not run it again).
+Refactor tests: `--tree-dump=<s>` writes a sorted dump of the live node tree to `_shots/tree_dump.txt` (compare two dumps ignoring `PassingShips`, random names and `world_seed`), `--yard-survey` prints sail / mast / yard boxes and `def_*` bones in pivot space.
+
 ### Ocean shader layout (godot/shaders/ocean/)
 `ocean_fft.gdshader` is a shell: header, four includes and `fragment()`. Owners: `common.gdshaderinc` = all (defines, uniforms, varyings, island_distance);
 `surface.gdshaderinc` = M2a/M2b (vertex displacement, bicubic normal sampling); `foam.gdshaderinc` = M2b/M1.9 (`hull_foam_term` heel-aware via `hull_inv`

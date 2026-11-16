@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://assets/ship/pinnace/barco_pinnace.glb" id="101_hull"]
 [ext_resource type="PackedScene" path="res://ship/helm_wheel.tscn" id="102_wheel"]
 [ext_resource type="Script" path="res://scripts/ship_lantern.gd" id="103_lantern"]
+[ext_resource type="Script" path="res://scripts/ship_preview.gd" id="104_preview"]
 
 [node name="Ship" type="RigidBody3D"]
 script = ExtResource("3_ship")
@@ -29,6 +30,9 @@ script = ExtResource("15_auto")
 script = ExtResource("12_fx")
 
 [node name="Pivot" type="Node3D" parent="."]
+
+[node name="EditorPreview" type="Node3D" parent="Pivot"]
+script = ExtResource("104_preview")
 
 [node name="Model" type="Node3D" parent="Pivot"]
 script = ExtResource("4_loader")
