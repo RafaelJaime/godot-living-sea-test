@@ -13,6 +13,11 @@ render_mode world_vertex_coords, shadows_disabled, depth_draw_opaque;
 #include "res://shaders/ocean/shading.gdshaderinc"
 #include "res://shaders/ocean/caustics.gdshaderinc"
 
+// Planar reflection of the ship (opt-in PoC, scripts/planar_reflection.gd, --planar-reflection=hull|ship). gain 0 = off.
+uniform sampler2D planar_tex : filter_linear, hint_default_transparent;
+uniform float planar_gain = 0.0;
+uniform float planar_distort = 0.03;
+
 void fragment() {
 	bool masked_dbg = false;
 	vec3 world_pos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -91,5 +96,13 @@ void fragment() {
 	fresnel = mix(pow(1.0 - dot(VIEW, NORMAL), 5.0 * exp(-2.69 * roughness)) / (1.0 + 22.7 * pow(roughness, 1.5)), 1.0, REFLECTANCE);
 	if (masked_dbg) { ALBEDO = vec3(1.0, 0.0, 1.0); EMISSION = vec3(1.0, 0.0, 1.0); }
 	ROUGHNESS = clamp(sqrt(roughness * roughness + 1.0 * min(slope_var, 0.2)) + foam_factor * 0.25 + wk.z * wake_turb_gain * 0.3, 0.08, 0.9) * (1.0 - 0.5 * cp);
+	if (planar_gain > 0.0) {
+		// The mirrored camera is built with X negated, so the image is flipped horizontally; the wave normal distorts the lookup.
+		vec3 pn = normalize(vec3(-gradient.x, 1.0, -gradient.y));
+		vec4 pc = texture(planar_tex, vec2(1.0 - SCREEN_UV.x - pn.x * planar_distort, SCREEN_UV.y - pn.z * planar_distort));
+		float pw = clamp(pc.a * clamp(fresnel, 0.0, 1.0) * planar_gain * (1.0 - foam_factor), 0.0, 1.0);
+		ALBEDO *= (1.0 - pw);
+		EMISSION += pc.rgb * pw;
+	}
 }
 

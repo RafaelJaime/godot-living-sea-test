@@ -91,6 +91,8 @@ func _ready() -> void:
 
 	if _has_arg("--probe"): # opt-in: no visible gain on the hull and +3..5 ms p95 (see odd/evidence/look-dev)
 		add_child((load("res://scripts/ship_probe.gd") as GDScript).new())
+	if _has_arg("--planar-reflection"): # opt-in planar reflection PoC (scripts/planar_reflection.gd)
+		add_child((load("res://scripts/planar_reflection.gd") as GDScript).new())
 	if _has_arg("--look"): # look-dev A/B candidates (scripts/look_dev.gd), inert without the flag
 		add_child((load("res://scripts/look_dev.gd") as GDScript).new())
 
