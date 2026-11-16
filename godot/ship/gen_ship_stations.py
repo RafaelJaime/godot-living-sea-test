@@ -58,6 +58,46 @@ NAV = [
     ("n_nest", (0.0, 23.4, 2.8), ""),
 ]
 
+
+# ---- aloft crew (yards, tops, braces) -------------------------------------------------------------------------------------------------------
+# Yard of each sail (index = PinnaceRig sail order = ship.sail_defs): (idx, mast, yard bone centre y, yard bone centre z, half length). Measured with `--yard-survey`
+# on the rest pose (yards square to the ship; braced yards move up to ~1 m in z at the stations, documented in the README). The spritsail (idx 9) has no aloft station.
+YARDS = [
+    (0, "fore", 19.67, -8.67, 2.2), (1, "fore", 15.74, -8.71, 3.2), (2, "fore", 9.88, -8.48, 3.65),
+    (3, "main", 10.47, 2.43, 4.3), (4, "main", 17.11, 2.31, 3.6), (5, "main", 22.83, 2.51, 2.5),
+    (6, "mizzen", 10.98, 12.34, 3.6), (7, "mizzen", 20.46, 12.43, 2.1), (8, "mizzen", 16.68, 12.27, 3.0),
+]
+FOOTROPE_DROP = 1.15   # footrope height below the yard
+FOOTROPE_AFT = 0.45    # the crew stands on the aft side of the yard, facing the bow, hands on the yard
+FOOTROPE_X = 0.55      # fraction of the half length from the mast
+# Brace pins on deck, one per side and mast: (name, mast, (x, y, z)). Starboard (x > 0) faces outboard (-90), port faces +90.
+BRACES = [
+    ("brace_fore_p", "fore", (-3.0, 3.55, -6.8)), ("brace_fore_s", "fore", (3.0, 3.55, -6.8)),
+    ("brace_main_p", "main", (-3.0, 1.85, 3.2)), ("brace_main_s", "main", (3.0, 1.85, 3.2)),
+    ("brace_mizzen_p", "mizzen", (-3.0, 4.6, 13.4)), ("brace_mizzen_s", "mizzen", (3.0, 4.6, 13.4)),
+]
+# Extra navigation nodes for climbing: per mast base (deck node, ratline foot, shroud, top, tops of the upper stages). edge_to lists use "rope" for the climbs.
+NAV_ALOFT = [
+    ("n_fore_rat_p", (-2.6, 3.55, -7.4), "n_fore_shroud_p:rope"), ("n_fore_rat_s", (2.6, 3.55, -7.4), "n_fore_shroud_s:rope"),
+    ("n_fore_shroud_p", (-1.5, 9.4, -8.3), "n_top_fore:rope"), ("n_fore_shroud_s", (1.5, 9.4, -8.3), "n_top_fore:rope"),
+    ("n_top_fore", (0.0, 11.9, -8.55), "n_fore_up_p:rope,n_fore_up_s:rope"),
+    ("n_fore_up_p", (-1.5, 15.3, -8.6), "n_fore_tg_p:rope"), ("n_fore_up_s", (1.5, 15.3, -8.6), "n_fore_tg_s:rope"),
+    ("n_fore_tg_p", (-1.2, 19.1, -8.6), ""), ("n_fore_tg_s", (1.2, 19.1, -8.6), ""),
+    ("n_top_main", (0.0, 13.0, 2.4), "n_main_up_p:rope,n_main_up_s:rope"),
+    ("n_main_up_p", (-1.5, 15.9, 2.4), "n_main_tg_p:rope"), ("n_main_up_s", (1.5, 15.9, 2.4), "n_main_tg_s:rope"),
+    ("n_main_tg_p", (-1.2, 21.5, 2.5), "n_nest:rope"), ("n_main_tg_s", (1.2, 21.5, 2.5), "n_nest:rope"),
+    ("n_miz_rat_p", (-2.4, 4.6, 11.4), "n_miz_shroud_p:rope"), ("n_miz_rat_s", (2.4, 4.6, 11.4), "n_miz_shroud_s:rope"),
+    ("n_miz_shroud_p", (-1.5, 9.4, 12.2), "n_top_miz:rope"), ("n_miz_shroud_s", (1.5, 9.4, 12.2), "n_top_miz:rope"),
+    ("n_top_miz", (0.0, 12.9, 12.4), "n_miz_up_p:rope,n_miz_up_s:rope"),
+    ("n_miz_up_p", (-1.4, 15.9, 12.3), "n_miz_tg_p:rope"), ("n_miz_up_s", (1.4, 15.9, 12.3), "n_miz_tg_s:rope"),
+    ("n_miz_tg_p", (-1.1, 19.7, 12.4), ""), ("n_miz_tg_s", (1.1, 19.7, 12.4), ""),
+]
+# Existing nodes that gain edges: name -> extra edge_to entries
+NAV_EXTRA_EDGES = {
+    "n_fore_b": "n_fore_rat_p,n_fore_rat_s", "n_quarter_mid": "n_miz_rat_p,n_miz_rat_s",
+    "n_shroud_p": "n_top_main:rope", "n_shroud_s": "n_top_main:rope",
+}
+
 def tr(p):
     return "Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, %g, %g)" % p
 
@@ -73,6 +113,20 @@ for name, p in REEF_PINS:
 for name, kind, p in ACCESS:
     out.append('[node name="%s" type="Marker3D" parent="Markers"]\ntransform = %s\nmetadata/kind = &"%s"\n' % (name, tr(p), kind))
 for name, p, edges in NAV:
+    if name in NAV_EXTRA_EDGES:
+        edges = (edges + "," if edges else "") + NAV_EXTRA_EDGES[name]
     out.append('[node name="%s" type="Marker3D" parent="Markers"]\ntransform = %s\nmetadata/kind = &"nav"\nmetadata/edge_to = "%s"\nmetadata/edge_type = &"walk"\n' % (name, tr(p), edges))
+for name, p, edges in NAV_ALOFT:
+    out.append('[node name="%s" type="Marker3D" parent="Markers"]\ntransform = %s\nmetadata/kind = &"nav"\nmetadata/edge_to = "%s"\nmetadata/edge_type = &"walk"\n' % (name, tr(p), edges))
+for idx, mast, yy, yz, half in YARDS:
+    for side, sx in (("p", -1.0), ("s", 1.0)):
+        x = sx * half * FOOTROPE_X
+        p = (x, yy - FOOTROPE_DROP, yz + FOOTROPE_AFT)
+        hl = (x - 0.3, yy, yz - 0.05)   # facing the bow: the character's left hand is on the port side (-x)
+        hr = (x + 0.3, yy, yz - 0.05)
+        out.append('[node name="yard_aloft_%d_%s" type="Marker3D" parent="Markers"]\ntransform = %s\nmetadata/kind = &"yard_aloft"\nmetadata/slots = 1\nmetadata/facing_deg = 0\nmetadata/anim_tag = &"furl_aloft"\nmetadata/must_staff = false\nmetadata/sail_idx = %d\nmetadata/side = &"%s"\nmetadata/mast = &"%s"\nmetadata/ik_hand_l = Vector3(%g, %g, %g)\nmetadata/ik_hand_r = Vector3(%g, %g, %g)\n' % (idx, side, tr(p), idx, side, mast, hl[0], hl[1], hl[2], hr[0], hr[1], hr[2]))
+for name, mast, p in BRACES:
+    f = -90.0 if p[0] > 0 else 90.0
+    out.append('[node name="%s" type="Marker3D" parent="Markers"]\ntransform = %s\nmetadata/kind = &"brace"\nmetadata/slots = 1\nmetadata/facing_deg = %g\nmetadata/anim_tag = &"haul"\nmetadata/must_staff = false\nmetadata/mast = &"%s"\nmetadata/side = &"%s"\n' % (name, tr(p), f, mast, name[-1]))
 out.append('[node name="Provider" type="Node" parent="."]\nscript = ExtResource("1_stations")\n')
 print("\n".join(out))

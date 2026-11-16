@@ -23,6 +23,10 @@ func _ready() -> void:
 			td.set_script(load("res://scripts/tree_dump.gd"))
 			td.secs = float(a.get_slice("=", 1))
 			add_child(td)
+	if OS.get_cmdline_user_args().has("--yard-survey"): # test aid: sail/yard/mast boxes in pivot space, see yard_survey.gd
+		var ys := Node.new()
+		ys.set_script(load("res://scripts/yard_survey.gd"))
+		add_child(ys)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--rebase-test="): # test aid: rebase every N meters
 			rebase_distance = float(a.get_slice("=", 1))

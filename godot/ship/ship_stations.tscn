@@ -7,7 +7,7 @@
 [node name="Markers" type="Node3D" parent="."]
 
 [node name="helm" type="Marker3D" parent="Markers"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.85, 17.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.85, 17)
 metadata/kind = &"helm"
 metadata/slots = 1
 metadata/facing_deg = 0
@@ -207,7 +207,7 @@ metadata/edge_type = &"walk"
 [node name="n_quarter_mid" type="Marker3D" parent="Markers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 11)
 metadata/kind = &"nav"
-metadata/edge_to = "n_quarter_b"
+metadata/edge_to = "n_quarter_b,n_miz_rat_p,n_miz_rat_s"
 metadata/edge_type = &"walk"
 
 [node name="n_quarter_b" type="Marker3D" parent="Markers"]
@@ -261,7 +261,7 @@ metadata/edge_type = &"walk"
 [node name="n_fore_b" type="Marker3D" parent="Markers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.55, -8.5)
 metadata/kind = &"nav"
-metadata/edge_to = "n_fore_bow"
+metadata/edge_to = "n_fore_bow,n_fore_rat_p,n_fore_rat_s"
 metadata/edge_type = &"walk"
 
 [node name="n_fore_bow" type="Marker3D" parent="Markers"]
@@ -285,13 +285,13 @@ metadata/edge_type = &"walk"
 [node name="n_shroud_p" type="Marker3D" parent="Markers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 9, 1.3)
 metadata/kind = &"nav"
-metadata/edge_to = "n_nest:rope"
+metadata/edge_to = "n_nest:rope,n_top_main:rope"
 metadata/edge_type = &"walk"
 
 [node name="n_shroud_s" type="Marker3D" parent="Markers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 9, 1.3)
 metadata/kind = &"nav"
-metadata/edge_to = "n_nest:rope"
+metadata/edge_to = "n_nest:rope,n_top_main:rope"
 metadata/edge_type = &"walk"
 
 [node name="n_nest" type="Marker3D" parent="Markers"]
@@ -299,6 +299,438 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 23.4, 2.8)
 metadata/kind = &"nav"
 metadata/edge_to = ""
 metadata/edge_type = &"walk"
+
+[node name="n_fore_rat_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.6, 3.55, -7.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_fore_shroud_p:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_fore_rat_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 3.55, -7.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_fore_shroud_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_fore_shroud_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 9.4, -8.3)
+metadata/kind = &"nav"
+metadata/edge_to = "n_top_fore:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_fore_shroud_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 9.4, -8.3)
+metadata/kind = &"nav"
+metadata/edge_to = "n_top_fore:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_top_fore" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.9, -8.55)
+metadata/kind = &"nav"
+metadata/edge_to = "n_fore_up_p:rope,n_fore_up_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_fore_up_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 15.3, -8.6)
+metadata/kind = &"nav"
+metadata/edge_to = "n_fore_tg_p:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_fore_up_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 15.3, -8.6)
+metadata/kind = &"nav"
+metadata/edge_to = "n_fore_tg_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_fore_tg_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 19.1, -8.6)
+metadata/kind = &"nav"
+metadata/edge_to = ""
+metadata/edge_type = &"walk"
+
+[node name="n_fore_tg_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 19.1, -8.6)
+metadata/kind = &"nav"
+metadata/edge_to = ""
+metadata/edge_type = &"walk"
+
+[node name="n_top_main" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13, 2.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_main_up_p:rope,n_main_up_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_main_up_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 15.9, 2.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_main_tg_p:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_main_up_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 15.9, 2.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_main_tg_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_main_tg_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 21.5, 2.5)
+metadata/kind = &"nav"
+metadata/edge_to = "n_nest:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_main_tg_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 21.5, 2.5)
+metadata/kind = &"nav"
+metadata/edge_to = "n_nest:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_miz_rat_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 4.6, 11.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_miz_shroud_p:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_miz_rat_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4, 4.6, 11.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_miz_shroud_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_miz_shroud_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 9.4, 12.2)
+metadata/kind = &"nav"
+metadata/edge_to = "n_top_miz:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_miz_shroud_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 9.4, 12.2)
+metadata/kind = &"nav"
+metadata/edge_to = "n_top_miz:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_top_miz" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.9, 12.4)
+metadata/kind = &"nav"
+metadata/edge_to = "n_miz_up_p:rope,n_miz_up_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_miz_up_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4, 15.9, 12.3)
+metadata/kind = &"nav"
+metadata/edge_to = "n_miz_tg_p:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_miz_up_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 15.9, 12.3)
+metadata/kind = &"nav"
+metadata/edge_to = "n_miz_tg_s:rope"
+metadata/edge_type = &"walk"
+
+[node name="n_miz_tg_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 19.7, 12.4)
+metadata/kind = &"nav"
+metadata/edge_to = ""
+metadata/edge_type = &"walk"
+
+[node name="n_miz_tg_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 19.7, 12.4)
+metadata/kind = &"nav"
+metadata/edge_to = ""
+metadata/edge_type = &"walk"
+
+[node name="yard_aloft_0_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.21, 18.52, -8.22)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 0
+metadata/side = &"p"
+metadata/mast = &"fore"
+metadata/ik_hand_l = Vector3(-1.51, 19.67, -8.72)
+metadata/ik_hand_r = Vector3(-0.91, 19.67, -8.72)
+
+[node name="yard_aloft_0_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.21, 18.52, -8.22)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 0
+metadata/side = &"s"
+metadata/mast = &"fore"
+metadata/ik_hand_l = Vector3(0.91, 19.67, -8.72)
+metadata/ik_hand_r = Vector3(1.51, 19.67, -8.72)
+
+[node name="yard_aloft_1_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.76, 14.59, -8.26)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 1
+metadata/side = &"p"
+metadata/mast = &"fore"
+metadata/ik_hand_l = Vector3(-2.06, 15.74, -8.76)
+metadata/ik_hand_r = Vector3(-1.46, 15.74, -8.76)
+
+[node name="yard_aloft_1_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.76, 14.59, -8.26)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 1
+metadata/side = &"s"
+metadata/mast = &"fore"
+metadata/ik_hand_l = Vector3(1.46, 15.74, -8.76)
+metadata/ik_hand_r = Vector3(2.06, 15.74, -8.76)
+
+[node name="yard_aloft_2_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.0075, 8.73, -8.03)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 2
+metadata/side = &"p"
+metadata/mast = &"fore"
+metadata/ik_hand_l = Vector3(-2.3075, 9.88, -8.53)
+metadata/ik_hand_r = Vector3(-1.7075, 9.88, -8.53)
+
+[node name="yard_aloft_2_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0075, 8.73, -8.03)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 2
+metadata/side = &"s"
+metadata/mast = &"fore"
+metadata/ik_hand_l = Vector3(1.7075, 9.88, -8.53)
+metadata/ik_hand_r = Vector3(2.3075, 9.88, -8.53)
+
+[node name="yard_aloft_3_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.365, 9.32, 2.88)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 3
+metadata/side = &"p"
+metadata/mast = &"main"
+metadata/ik_hand_l = Vector3(-2.665, 10.47, 2.38)
+metadata/ik_hand_r = Vector3(-2.065, 10.47, 2.38)
+
+[node name="yard_aloft_3_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.365, 9.32, 2.88)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 3
+metadata/side = &"s"
+metadata/mast = &"main"
+metadata/ik_hand_l = Vector3(2.065, 10.47, 2.38)
+metadata/ik_hand_r = Vector3(2.665, 10.47, 2.38)
+
+[node name="yard_aloft_4_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.98, 15.96, 2.76)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 4
+metadata/side = &"p"
+metadata/mast = &"main"
+metadata/ik_hand_l = Vector3(-2.28, 17.11, 2.26)
+metadata/ik_hand_r = Vector3(-1.68, 17.11, 2.26)
+
+[node name="yard_aloft_4_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.98, 15.96, 2.76)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 4
+metadata/side = &"s"
+metadata/mast = &"main"
+metadata/ik_hand_l = Vector3(1.68, 17.11, 2.26)
+metadata/ik_hand_r = Vector3(2.28, 17.11, 2.26)
+
+[node name="yard_aloft_5_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.375, 21.68, 2.96)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 5
+metadata/side = &"p"
+metadata/mast = &"main"
+metadata/ik_hand_l = Vector3(-1.675, 22.83, 2.46)
+metadata/ik_hand_r = Vector3(-1.075, 22.83, 2.46)
+
+[node name="yard_aloft_5_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.375, 21.68, 2.96)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 5
+metadata/side = &"s"
+metadata/mast = &"main"
+metadata/ik_hand_l = Vector3(1.075, 22.83, 2.46)
+metadata/ik_hand_r = Vector3(1.675, 22.83, 2.46)
+
+[node name="yard_aloft_6_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.98, 9.83, 12.79)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 6
+metadata/side = &"p"
+metadata/mast = &"mizzen"
+metadata/ik_hand_l = Vector3(-2.28, 10.98, 12.29)
+metadata/ik_hand_r = Vector3(-1.68, 10.98, 12.29)
+
+[node name="yard_aloft_6_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.98, 9.83, 12.79)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 6
+metadata/side = &"s"
+metadata/mast = &"mizzen"
+metadata/ik_hand_l = Vector3(1.68, 10.98, 12.29)
+metadata/ik_hand_r = Vector3(2.28, 10.98, 12.29)
+
+[node name="yard_aloft_7_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.155, 19.31, 12.88)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 7
+metadata/side = &"p"
+metadata/mast = &"mizzen"
+metadata/ik_hand_l = Vector3(-1.455, 20.46, 12.38)
+metadata/ik_hand_r = Vector3(-0.855, 20.46, 12.38)
+
+[node name="yard_aloft_7_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.155, 19.31, 12.88)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 7
+metadata/side = &"s"
+metadata/mast = &"mizzen"
+metadata/ik_hand_l = Vector3(0.855, 20.46, 12.38)
+metadata/ik_hand_r = Vector3(1.455, 20.46, 12.38)
+
+[node name="yard_aloft_8_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.65, 15.53, 12.72)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 8
+metadata/side = &"p"
+metadata/mast = &"mizzen"
+metadata/ik_hand_l = Vector3(-1.95, 16.68, 12.22)
+metadata/ik_hand_r = Vector3(-1.35, 16.68, 12.22)
+
+[node name="yard_aloft_8_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.65, 15.53, 12.72)
+metadata/kind = &"yard_aloft"
+metadata/slots = 1
+metadata/facing_deg = 0
+metadata/anim_tag = &"furl_aloft"
+metadata/must_staff = false
+metadata/sail_idx = 8
+metadata/side = &"s"
+metadata/mast = &"mizzen"
+metadata/ik_hand_l = Vector3(1.35, 16.68, 12.22)
+metadata/ik_hand_r = Vector3(1.95, 16.68, 12.22)
+
+[node name="brace_fore_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 3.55, -6.8)
+metadata/kind = &"brace"
+metadata/slots = 1
+metadata/facing_deg = 90
+metadata/anim_tag = &"haul"
+metadata/must_staff = false
+metadata/mast = &"fore"
+metadata/side = &"p"
+
+[node name="brace_fore_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 3.55, -6.8)
+metadata/kind = &"brace"
+metadata/slots = 1
+metadata/facing_deg = -90
+metadata/anim_tag = &"haul"
+metadata/must_staff = false
+metadata/mast = &"fore"
+metadata/side = &"s"
+
+[node name="brace_main_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 1.85, 3.2)
+metadata/kind = &"brace"
+metadata/slots = 1
+metadata/facing_deg = 90
+metadata/anim_tag = &"haul"
+metadata/must_staff = false
+metadata/mast = &"main"
+metadata/side = &"p"
+
+[node name="brace_main_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1.85, 3.2)
+metadata/kind = &"brace"
+metadata/slots = 1
+metadata/facing_deg = -90
+metadata/anim_tag = &"haul"
+metadata/must_staff = false
+metadata/mast = &"main"
+metadata/side = &"s"
+
+[node name="brace_mizzen_p" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 4.6, 13.4)
+metadata/kind = &"brace"
+metadata/slots = 1
+metadata/facing_deg = 90
+metadata/anim_tag = &"haul"
+metadata/must_staff = false
+metadata/mast = &"mizzen"
+metadata/side = &"p"
+
+[node name="brace_mizzen_s" type="Marker3D" parent="Markers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 4.6, 13.4)
+metadata/kind = &"brace"
+metadata/slots = 1
+metadata/facing_deg = -90
+metadata/anim_tag = &"haul"
+metadata/must_staff = false
+metadata/mast = &"mizzen"
+metadata/side = &"s"
 
 [node name="Provider" type="Node" parent="."]
 script = ExtResource("1_stations")

@@ -74,6 +74,17 @@ func rebuild() -> void:
 			st.facing_deg = float(m.get_meta("facing_deg", 0.0))
 			st.anim_tag = StringName(m.get_meta("anim_tag", &""))
 			st.must_staff = bool(m.get_meta("must_staff", false))
+			for key in [&"sail_idx", &"side", &"mast"]: # identifying metadata of the aloft / brace stations, copied for the crew code
+				if m.has_meta(key):
+					st.set_meta(key, m.get_meta(key))
+			for hand in [&"hand_l", &"hand_r"]: # IK targets given as pivot-local points (aloft stations: hands on the yard)
+				var mk := StringName("ik_" + String(hand))
+				if m.has_meta(mk):
+					var tgt := Node3D.new()
+					tgt.name = String(hand)
+					st.add_child(tgt)
+					tgt.position = (m.get_meta(mk) as Vector3) - st.position
+					st.ik_targets[hand] = st.get_path_to(tgt)
 	_build_lantern_stations()
 	_build_reef_stations()
 	_bind_ik()
@@ -222,7 +233,7 @@ func _sorted_ids() -> Array:
 
 ## Level name of a pivot-local point (deck survey, odd/evidence/npc-crew-jobs/H1/deck_survey.md).
 static func level_of(p: Vector3) -> StringName:
-	if p.y > 10.0:
+	if p.y > 8.0: # aloft: the lowest footropes (course yards) are at about 8.7 m
 		return &"mast"
 	if p.y >= 6.0:
 		return &"poop"
@@ -345,7 +356,7 @@ func build_graph(snap: Callable = Callable()) -> NpcWaypointGraph:
 				bd = d
 				best = index[n["name"]]
 		if best >= 0 and bd <= LINK_MAX:
-			g.connect_nodes(sn, best, &"walk")
+			g.connect_nodes(sn, best, &"rope" if p.y > 8.0 else &"walk") # aloft stations hang off the rigging
 		else:
 			unlinked.append(st.station_id)
 	var counts := {}
