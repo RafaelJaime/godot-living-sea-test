@@ -70,6 +70,18 @@ class Rig:
         F = h * N.cross(A)
         return Matrix((F, N, A)).transposed()
 
+    def hand_basis_FN(self, s, F, N):
+        """Same as hand_basis but the hand is given by its finger direction F and palm normal N (A = h * F x N)."""
+        h = self.hand_rest[s][3]
+        F = F.normalized()
+        N = (N - F * N.dot(F)).normalized()
+        return Matrix((F, N, h * F.cross(N))).transposed()
+
+    def hand_delta_FN(self, s, F, N):
+        F0, N0, A0, h = self.hand_rest[s]
+        m0 = Matrix((F0, N0, A0)).transposed()
+        return (self.hand_basis_FN(s, F, N) @ m0.inverted()).to_quaternion()
+
     def hand_delta(self, s, A, N):
         F0, N0, A0, h = self.hand_rest[s]
         m0 = Matrix((F0, N0, A0)).transposed()
@@ -101,8 +113,11 @@ class Rig:
             xs = 1 if s == "L" else -1
             root = head_of(p + "Arm")
             if hands and s in hands:
-                grip, A, N, pole = hands[s]
-                wrist_t = self.grip_to_wrist(s, grip, A, N)
+                spec = hands[s]
+                grip, A, N, pole = spec[:4]
+                fn = len(spec) > 4 and spec[4] == "FN"   # (grip, F, N, pole, "FN"): the hand is given by fingers + palm normal
+                B = self.hand_basis_FN(s, A, N) if fn else self.hand_basis(s, A, N)
+                wrist_t = grip - (B.col[0].to_3d() * PALM_F + B.col[1].to_3d() * PALM_N)
                 elbow, wrist, cl = two_bone(root, wrist_t, pole, a, b)
                 self.clamps[p + "Hand"] = self.clamps.get(p + "Hand", 0) + (1 if cl else 0)
                 self.last_stretch = getattr(self, 'last_stretch', {})
@@ -110,7 +125,7 @@ class Rig:
                 self.reach[s] = max(self.reach.get(s, 0), self.last_stretch[s])
                 D[p + "Arm"] = self.rest_dir(p + "Arm", p + "ForeArm").rotation_difference(elbow - root)
                 D[p + "ForeArm"] = self.rest_dir(p + "ForeArm", p + "Hand").rotation_difference(wrist - elbow)
-                D[p + "Hand"] = self.hand_delta(s, A, N)
+                D[p + "Hand"] = self.hand_delta_FN(s, A, N) if fn else self.hand_delta(s, A, N)
             else:
                 # relaxed arm: hang from the shoulder
                 D[p + "Arm"] = D["Spine"]; D[p + "ForeArm"] = D["Spine"]; D[p + "Hand"] = D["Spine"]
@@ -160,3 +175,19 @@ class Rig:
         print("[%s] IK reach clamps" % name, self.clamps, "worst arm stretch", {k: round(v, 2) for k, v in self.reach.items()})
         os.makedirs(os.path.join(HERE, "src"), exist_ok=True)
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "src", name + ".blend"), compress=True)
+
+
+def ease(x):
+    x = max(0.0, min(1.0, x))
+    return x * x * x * (x * (x * 6 - 15) + 10)
+
+
+def keys(t, ks):
+    """Smooth interpolation of keyed values ks = [(time, value), ...] (floats or Vectors) at time t; clamps outside."""
+    if t <= ks[0][0]:
+        return ks[0][1]
+    for (t0, v0), (t1, v1) in zip(ks, ks[1:]):
+        if t <= t1:
+            a = ease((t - t0) / (t1 - t0))
+            return v0 * (1.0 - a) + v1 * a
+    return ks[-1][1]
