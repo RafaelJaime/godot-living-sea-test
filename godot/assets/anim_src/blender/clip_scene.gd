@@ -31,10 +31,17 @@ func _ready() -> void:
 	add_child(crew)
 	ap = crew.find_children("*", "AnimationPlayer", true, false)[0]
 	var lib := AnimationLibrary.new()
+	var dir := "res://assets/anim_src/blender"
+	var prefix := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--dir="): # e.g. --dir=tomazod --prefix=baked_ for the (git-ignored) Tomazod bakes
+			dir = "res://assets/anim_src/" + a.get_slice("=", 1)
+		elif a.begins_with("--prefix="):
+			prefix = a.get_slice("=", 1)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--clips="):
 			for c in a.get_slice("=", 1).split(","):
-				lib.add_animation(c, load("res://assets/anim_src/blender/%s.res" % c) as Animation)
+				lib.add_animation(c, load("%s/%s%s.res" % [dir, prefix, c]) as Animation)
 	ap.add_animation_library("c", lib)
 	cam = Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL

@@ -14,3 +14,6 @@ godot/assets/ship/ship_wheel_normal.png
 
 # Vefects VFX packs: free but their license forbids redistribution, so they stay out of git (see godot/README.md, "Optional Vefects")
 godot/Vefects/
+
+# Tomazod Ultimate Animation Library (free demo / paid): custom license, no redistribution of the files or of anything derived from them (see godot/README.md, "Optional Tomazod")
+godot/assets/anim_src/tomazod/
