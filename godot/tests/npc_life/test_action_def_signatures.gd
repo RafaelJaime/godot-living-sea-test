@@ -76,3 +76,22 @@ func test_no_third_party_clip_in_addon() -> void:
 		for sub in DirAccess.get_directories_at(d):
 			dirs.append(d + "/" + sub)
 	assert_eq(found, [], "no model or clip files under the addon")
+
+func _action(id: StringName, action_id: StringName) -> NpcActionDef:
+	for a in _def(id).signature_actions:
+		if a.action_id == action_id:
+			return a
+	return null
+
+func test_tool_actions_carry_their_prop() -> void:
+	var want := {
+		[&"papi_diagnostica", &"hammer_repair"]: "hammer_prop.tscn",
+		[&"el_salchipapa", &"fishing_cast"]: "fishing_rod_prop.tscn",
+		[&"papi_fuego", &"spyglass_scan"]: "spyglass_prop.tscn",
+	}
+	for k in want:
+		var a := _action(k[0], k[1])
+		assert_not_null(a, "%s has %s" % [k[0], k[1]])
+		assert_eq(a.props.size(), 1, "%s/%s carries one prop" % [k[0], k[1]])
+		if a.props.size() == 1:
+			assert_true(a.props[0].resource_path.ends_with(want[k]), "%s uses %s" % [k[1], want[k]])

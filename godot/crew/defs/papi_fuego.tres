@@ -1,12 +1,13 @@
 [gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
 
-[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_84ae8"]
-[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_eujed"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_7nmy8"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_q00rm"]
+[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_eujed"]
+[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_jfcl7"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_q00rm"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_572f8"]
+[ext_resource type="PackedScene" path="res://assets/props/spyglass_prop.tscn" id="6_hn0uf"]
 
-[sub_resource type="Resource" id="Resource_b0x70"]
-script = ExtResource("5_q00rm")
+[sub_resource type="Resource" id="Resource_rlumu"]
+script = ExtResource("5_572f8")
 action_id = &"helm_steer"
 job_kinds = PackedStringArray("helm")
 anim_tag = &"helm_steer"
@@ -18,17 +19,18 @@ ik = Dictionary[StringName, StringName]({
 look_at = &"ahead"
 station_kind = &"helm"
 
-[sub_resource type="Resource" id="Resource_agit6"]
-script = ExtResource("5_q00rm")
+[sub_resource type="Resource" id="Resource_kpct4"]
+script = ExtResource("5_572f8")
 action_id = &"spyglass_scan"
 job_kinds = PackedStringArray("spyglass_post")
 anim_tag = &"spyglass_scan"
 duration_range = Vector2(10, 20)
 look_at = &"horizon"
+props = Array[PackedScene]([ExtResource("6_hn0uf")])
 station_kind = &"spyglass_post"
 
-[sub_resource type="Resource" id="Resource_rlumu"]
-script = ExtResource("5_q00rm")
+[sub_resource type="Resource" id="Resource_voa0k"]
+script = ExtResource("5_572f8")
 action_id = &"point_ahead"
 job_kinds = PackedStringArray("spyglass_post", "social_spot")
 anim_tag = &"point_ahead"
@@ -37,7 +39,7 @@ look_at = &"horizon"
 cooldown_s = 90.0
 
 [resource]
-script = ExtResource("4_7nmy8")
+script = ExtResource("4_q00rm")
 agent_id = &"papi_fuego"
 display_name = "Papi Fuego"
 roles = PackedStringArray("helmsman", "lookout")
@@ -56,8 +58,8 @@ skills = Dictionary[StringName, float]({
 needs = Dictionary[StringName, float]({
 &"boredom": 0.3
 })
-signature_actions = Array[ExtResource("5_q00rm")]([SubResource("Resource_b0x70"), SubResource("Resource_agit6"), SubResource("Resource_rlumu")])
-anim_set = ExtResource("1_84ae8")
-rig_profile = ExtResource("2_eujed")
+signature_actions = Array[ExtResource("5_572f8")]([SubResource("Resource_rlumu"), SubResource("Resource_kpct4"), SubResource("Resource_voa0k")])
+anim_set = ExtResource("1_eujed")
+rig_profile = ExtResource("2_jfcl7")
 temperature_scale = 0.8
 walk_speed = 1.25

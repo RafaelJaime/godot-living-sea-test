@@ -1,12 +1,13 @@
 [gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
 
-[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_miwhj"]
-[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_qv0dp"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_knjl0"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_uyq5l"]
+[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_qv0dp"]
+[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_6er2d"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_uyq5l"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_7howi"]
+[ext_resource type="PackedScene" path="res://assets/props/fishing_rod_prop.tscn" id="6_l04ko"]
 
-[sub_resource type="Resource" id="Resource_7howi"]
-script = ExtResource("5_uyq5l")
+[sub_resource type="Resource" id="Resource_7w3uk"]
+script = ExtResource("5_7howi")
 action_id = &"crows_nest_watch"
 job_kinds = PackedStringArray("crows_nest")
 anim_tag = &"crows_nest_watch"
@@ -14,24 +15,25 @@ duration_range = Vector2(14, 30)
 look_at = &"horizon"
 station_kind = &"crows_nest"
 
-[sub_resource type="Resource" id="Resource_l04ko"]
-script = ExtResource("5_uyq5l")
+[sub_resource type="Resource" id="Resource_1lhs6"]
+script = ExtResource("5_7howi")
 action_id = &"rope_work"
 job_kinds = PackedStringArray("reef_pin")
 anim_tag = &"rope_work"
 duration_range = Vector2(8, 16)
 station_kind = &"reef_pin"
 
-[sub_resource type="Resource" id="Resource_7w3uk"]
-script = ExtResource("5_uyq5l")
+[sub_resource type="Resource" id="Resource_nlrvg"]
+script = ExtResource("5_7howi")
 action_id = &"fishing_cast"
 job_kinds = PackedStringArray("fishing_rail")
 anim_tag = &"fishing_cast"
 duration_range = Vector2(16, 40)
+props = Array[PackedScene]([ExtResource("6_l04ko")])
 station_kind = &"fishing_rail"
 
-[sub_resource type="Resource" id="Resource_1lhs6"]
-script = ExtResource("5_uyq5l")
+[sub_resource type="Resource" id="Resource_sl7il"]
+script = ExtResource("5_7howi")
 action_id = &"comic_fall"
 job_kinds = PackedStringArray("chat", "social_spot")
 anim_tag = &"comic_fall"
@@ -39,7 +41,7 @@ duration_range = Vector2(3, 3.1)
 cooldown_s = 240.0
 
 [resource]
-script = ExtResource("4_knjl0")
+script = ExtResource("4_uyq5l")
 agent_id = &"el_salchipapa"
 display_name = "El Salchipapa"
 roles = PackedStringArray("lookout", "climber", "fisher")
@@ -58,8 +60,8 @@ skills = Dictionary[StringName, float]({
 needs = Dictionary[StringName, float]({
 &"boredom": 0.6
 })
-signature_actions = Array[ExtResource("5_uyq5l")]([SubResource("Resource_7howi"), SubResource("Resource_l04ko"), SubResource("Resource_7w3uk"), SubResource("Resource_1lhs6")])
-anim_set = ExtResource("1_miwhj")
-rig_profile = ExtResource("2_qv0dp")
+signature_actions = Array[ExtResource("5_7howi")]([SubResource("Resource_7w3uk"), SubResource("Resource_1lhs6"), SubResource("Resource_nlrvg"), SubResource("Resource_sl7il")])
+anim_set = ExtResource("1_qv0dp")
+rig_profile = ExtResource("2_6er2d")
 temperature_scale = 1.4
 walk_speed = 1.1

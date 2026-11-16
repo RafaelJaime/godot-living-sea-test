@@ -1,29 +1,31 @@
 [gd_resource type="Resource" script_class="NpcCharacterDef" format=3]
 
-[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_ioun3"]
-[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_ddrk7"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_kog3o"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_chbx0"]
+[ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_ddrk7"]
+[ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_kymw5"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_chbx0"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_idgie"]
+[ext_resource type="PackedScene" path="res://assets/props/hammer_prop.tscn" id="6_2im86"]
 
-[sub_resource type="Resource" id="Resource_idgie"]
-script = ExtResource("5_chbx0")
+[sub_resource type="Resource" id="Resource_cn3uf"]
+script = ExtResource("5_idgie")
 action_id = &"hammer_repair"
 job_kinds = PackedStringArray("repair_spot")
 anim_tag = &"hammer_repair"
 duration_range = Vector2(10, 20)
 effect = &"repair"
+props = Array[PackedScene]([ExtResource("6_2im86")])
 station_kind = &"repair_spot"
 
-[sub_resource type="Resource" id="Resource_2im86"]
-script = ExtResource("5_chbx0")
+[sub_resource type="Resource" id="Resource_idar1"]
+script = ExtResource("5_idgie")
 action_id = &"ratline_climb"
 job_kinds = PackedStringArray("ratline_path")
 anim_tag = &"ratline_climb"
 duration_range = Vector2(8, 14)
 station_kind = &"ratline_path"
 
-[sub_resource type="Resource" id="Resource_cn3uf"]
-script = ExtResource("5_chbx0")
+[sub_resource type="Resource" id="Resource_myemw"]
+script = ExtResource("5_idgie")
 action_id = &"carry_crate"
 job_kinds = PackedStringArray("haul")
 anim_tag = &"carry_crate"
@@ -31,7 +33,7 @@ duration_range = Vector2(6, 12)
 effect = &"haul"
 
 [resource]
-script = ExtResource("4_kog3o")
+script = ExtResource("4_chbx0")
 agent_id = &"papi_diagnostica"
 display_name = "Papi Diagnóstica"
 roles = PackedStringArray("carpenter", "climber")
@@ -50,7 +52,7 @@ skills = Dictionary[StringName, float]({
 needs = Dictionary[StringName, float]({
 &"boredom": 0.4
 })
-signature_actions = Array[ExtResource("5_chbx0")]([SubResource("Resource_idgie"), SubResource("Resource_2im86"), SubResource("Resource_cn3uf")])
-anim_set = ExtResource("1_ioun3")
-rig_profile = ExtResource("2_ddrk7")
+signature_actions = Array[ExtResource("5_idgie")]([SubResource("Resource_cn3uf"), SubResource("Resource_idar1"), SubResource("Resource_myemw")])
+anim_set = ExtResource("1_ddrk7")
+rig_profile = ExtResource("2_kymw5")
 walk_speed = 1.35

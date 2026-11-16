@@ -35,7 +35,7 @@ func _save(r: Resource, file: String) -> void:
 	if err != OK:
 		quit(1)
 
-func _act(id: StringName, kinds: Array, tag: StringName, dur := Vector2(8, 16), effect := &"", station_kind := &"", ik := {}, look := &"", cooldown := 0.0) -> NpcActionDef:
+func _act(id: StringName, kinds: Array, tag: StringName, dur := Vector2(8, 16), effect := &"", station_kind := &"", ik := {}, look := &"", cooldown := 0.0, prop := "") -> NpcActionDef:
 	var a := NpcActionDef.new()
 	a.action_id = id
 	a.job_kinds = PackedStringArray(kinds)
@@ -47,6 +47,8 @@ func _act(id: StringName, kinds: Array, tag: StringName, dur := Vector2(8, 16), 
 		a.ik[k] = ik[k]
 	a.look_at = look
 	a.cooldown_s = cooldown
+	if prop != "":
+		a.props = [load("res://assets/props/%s" % prop) as PackedScene] # grip-ready scenes (assets/props/README.md), attached to the right hand
 	return a
 
 func _def(id: StringName, name: String, roles: Array, tags: Array, walk: float, temp: float, prefs: Dictionary, skills: Dictionary, needs: Dictionary, acts: Array) -> NpcCharacterDef:
@@ -76,7 +78,7 @@ func _fuego() -> NpcCharacterDef:
 		{&"helm": 0.95, &"spyglass_post": 0.8, &"repair_spot": 0.4},
 		{&"boredom": 0.3},
 		[_act(&"helm_steer", ["helm"], &"helm_steer", Vector2(20, 45), &"", &"helm", {&"hand_l": &"hand_l", &"hand_r": &"hand_r"}, &"ahead"),
-		_act(&"spyglass_scan", ["spyglass_post"], &"spyglass_scan", Vector2(10, 20), &"", &"spyglass_post", {}, &"horizon"),
+		_act(&"spyglass_scan", ["spyglass_post"], &"spyglass_scan", Vector2(10, 20), &"", &"spyglass_post", {}, &"horizon", 0.0, "spyglass_prop.tscn"),
 		_act(&"point_ahead", ["spyglass_post", "social_spot"], &"point_ahead", Vector2(2.4, 2.6), &"", &"", {}, &"horizon", 90.0)])
 
 func _diagnostica() -> NpcCharacterDef:
@@ -84,7 +86,7 @@ func _diagnostica() -> NpcCharacterDef:
 		{&"repair_spot": 0.8, &"ratline_path": 0.5, &"reef_pin": 0.3, &"mop_zone": -0.4},
 		{&"repair_spot": 0.9, &"ratline_path": 0.8, &"helm": 0.3},
 		{&"boredom": 0.4},
-		[_act(&"hammer_repair", ["repair_spot"], &"hammer_repair", Vector2(10, 20), &"repair", &"repair_spot"),
+		[_act(&"hammer_repair", ["repair_spot"], &"hammer_repair", Vector2(10, 20), &"repair", &"repair_spot", {}, &"", 0.0, "hammer_prop.tscn"),
 		_act(&"ratline_climb", ["ratline_path"], &"ratline_climb", Vector2(8, 14), &"", &"ratline_path"),
 		_act(&"carry_crate", ["haul"], &"carry_crate", Vector2(6, 12), &"haul")])
 
@@ -95,7 +97,7 @@ func _salchipapa() -> NpcCharacterDef:
 		{&"boredom": 0.6},
 		[_act(&"crows_nest_watch", ["crows_nest"], &"crows_nest_watch", Vector2(14, 30), &"", &"crows_nest", {}, &"horizon"),
 		_act(&"rope_work", ["reef_pin"], &"rope_work", Vector2(8, 16), &"", &"reef_pin"),
-		_act(&"fishing_cast", ["fishing_rail"], &"fishing_cast", Vector2(16, 40), &"", &"fishing_rail"),
+		_act(&"fishing_cast", ["fishing_rail"], &"fishing_cast", Vector2(16, 40), &"", &"fishing_rail", {}, &"", 0.0, "fishing_rod_prop.tscn"),
 		_act(&"comic_fall", ["chat", "social_spot"], &"comic_fall", Vector2(3.0, 3.1), &"", &"", {}, &"", 240.0)])
 
 func _omar() -> NpcCharacterDef:

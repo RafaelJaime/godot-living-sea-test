@@ -76,6 +76,8 @@ func _build() -> void:
 	sched.name = "Roster"
 	sched.source_id = &"roster"
 	sched.roster = load(DEF_DIR + "crew_roster.tres") as NpcRoster
+	if OS.get_cmdline_user_args().has("--crew-no-watch"): # test aid: nobody is tied to the helm, so any agent can be sent anywhere for a capture
+		sched.roster = NpcRoster.new()
 	world.add_child(sched)
 	_install_kinds()
 	var pinnace_rig := pivot.get_node_or_null("PinnaceRig")
@@ -95,16 +97,15 @@ func _build() -> void:
 	for slot in get_node(crew_path).get_children():
 		if slot is Marker3D: # the barrels are siblings too
 			_spawn(slot as Node3D, pivot)
-	if OS.get_cmdline_user_args().has("--crew-demo-all"): # test aid for captures: three agents start one signature job at once
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--crew-demo="): # test aid for captures: --crew-demo=<kind>:<station>:<agent>[,...] starts those jobs at once
+			for item in a.get_slice("=", 1).split(","):
+				var p := item.split(":")
+				if p.size() == 3:
+					_post_demo([StringName(p[0]), StringName(p[1]), StringName(p[2])])
+	if OS.get_cmdline_user_args().has("--crew-demo-all"): # test aid for captures: four agents start one signature job at once
 		for row in [[&"violin_seat", &"violin_seat", &"don_omar"], [&"fishing_rail", &"fishing_rail_0", &"el_salchipapa"], [&"repair_spot", &"repair_spot_0", &"papi_diagnostica"], [&"social_spot", &"social_spot_0", &"el_salchipapa"]]:
-			var j := NpcJob.new()
-			j.id = StringName("demo:%s" % row[0])
-			j.kind = row[0]
-			j.station_id = row[1]
-			j.priority = 2.0
-			j.ttl_s = 0.0
-			j.required_tags = PackedStringArray([String(row[2])])
-			world.board.post(j, world.now())
+			_post_demo(row)
 	print("[crew] npc mode:%d agents, graph %d nodes, roster %d watches" % [agents.size(), world.graph.node_count(), sched.roster.watches.size()])
 
 ## Job kind defaults: how much a kind attracts, which need it relieves and how long it takes. Leisure kinds relieve boredom; chores barely attract
@@ -135,8 +136,20 @@ func _install_kinds() -> void:
 		act.action_id = StringName("default_%s" % row[0])
 		act.job_kinds = PackedStringArray([String(row[0])])
 		act.duration_range = row[4]
+		if row[0] == &"mop_zone":
+			act.props = [load("res://assets/props/mop_prop.tscn") as PackedScene]
 		kd.default_action = act
 		world.kind_defs[kd.kind] = kd
+
+func _post_demo(row: Array) -> void:
+	var j := NpcJob.new()
+	j.id = StringName("demo:%s:%s" % [row[0], row[2]])
+	j.kind = row[0]
+	j.station_id = row[1]
+	j.priority = 2.0
+	j.ttl_s = 0.0
+	j.required_tags = PackedStringArray([String(row[2])])
+	world.board.post(j, world.now())
 
 func _spawn(slot: Node3D, pivot: Node3D) -> void:
 	var visual := slot.get("visual") as Node3D

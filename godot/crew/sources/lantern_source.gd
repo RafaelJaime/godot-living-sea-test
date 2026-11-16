@@ -36,6 +36,7 @@ func _post_all(ids: Array, lit: bool) -> void:
 		act.duration_range = Vector2(4.0, 6.0)
 		act.effect_at = 0.6
 		act.effect = &"light"
+		act.props = [load("res://assets/props/lantern_prop.tscn") as PackedScene]
 		j.action = act
 		post_job(j)
 
