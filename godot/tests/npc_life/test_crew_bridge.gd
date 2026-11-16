@@ -21,16 +21,16 @@ func before_each() -> void:
 	add_child_autofree(bridge)
 	bridge.bind(world, ship)
 
-func test_flag_defaults_to_legacy() -> void:
-	assert_eq(CrewNpc.mode(PackedStringArray()), &"legacy")
-	assert_eq(CrewNpc.mode(PackedStringArray(["--other"])), &"legacy")
+func test_flag_defaults_to_npc() -> void:
+	assert_eq(CrewNpc.mode(PackedStringArray()), &"npc")
+	assert_eq(CrewNpc.mode(PackedStringArray(["--other"])), &"npc")
 
 func test_flag_values() -> void:
 	assert_eq(CrewNpc.mode(PackedStringArray(["--crew=npc"])), &"npc")
 	assert_eq(CrewNpc.mode(PackedStringArray(["--crew=legacy"])), &"legacy")
 
-func test_unknown_flag_value_falls_back_to_legacy() -> void:
-	assert_eq(CrewNpc.mode(PackedStringArray(["--crew=banana"])), &"legacy")
+func test_unknown_flag_value_falls_back_to_npc() -> void:
+	assert_eq(CrewNpc.mode(PackedStringArray(["--crew=banana"])), &"npc")
 	assert_push_warning("unknown --crew value")
 
 func test_bridge_writes_the_ship_facts() -> void:
@@ -52,6 +52,13 @@ func test_maneuver_signals_reach_the_blackboard() -> void:
 
 func test_legacy_creates_no_world() -> void:
 	var c := CrewNpc.new()
+	c.mode_override = &"legacy"
 	add_child_autofree(c)
-	assert_null(c.world, "no NpcWorld without --crew=npc")
+	assert_null(c.world, "no NpcWorld with --crew=legacy")
 	assert_eq(c.agents.size(), 0)
+
+func test_without_a_crew_node_it_stays_inert_instead_of_failing() -> void:
+	var c := CrewNpc.new()
+	c.mode_override = &"npc"
+	add_child_autofree(c)
+	assert_null(c.world)

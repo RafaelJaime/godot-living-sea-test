@@ -43,7 +43,7 @@ preferences = Dictionary[StringName, float]({
 &"repair_spot": 0.8
 })
 skills = Dictionary[StringName, float]({
-&"helm": 0.5,
+&"helm": 0.3,
 &"ratline_path": 0.8,
 &"repair_spot": 0.9
 })

@@ -82,7 +82,7 @@ func _fuego() -> NpcCharacterDef:
 func _diagnostica() -> NpcCharacterDef:
 	return _def(&"papi_diagnostica", "Papi Diagnóstica", ["carpenter", "climber"], [], 1.35, 1.0,
 		{&"repair_spot": 0.8, &"ratline_path": 0.5, &"reef_pin": 0.3, &"mop_zone": -0.4},
-		{&"repair_spot": 0.9, &"ratline_path": 0.8, &"helm": 0.5},
+		{&"repair_spot": 0.9, &"ratline_path": 0.8, &"helm": 0.3},
 		{&"boredom": 0.4},
 		[_act(&"hammer_repair", ["repair_spot"], &"hammer_repair", Vector2(10, 20), &"repair", &"repair_spot"),
 		_act(&"ratline_climb", ["ratline_path"], &"ratline_climb", Vector2(8, 14), &"", &"ratline_path"),
@@ -91,7 +91,7 @@ func _diagnostica() -> NpcCharacterDef:
 func _salchipapa() -> NpcCharacterDef:
 	return _def(&"el_salchipapa", "El Salchipapa", ["lookout", "climber", "fisher"], ["joker"], 1.1, 1.4,
 		{&"crows_nest": 0.8, &"fishing_rail": 0.7, &"reef_pin": 0.2, &"mop_zone": -0.6},
-		{&"crows_nest": 0.85, &"fishing_rail": 0.8, &"helm": 0.3},
+		{&"crows_nest": 0.85, &"fishing_rail": 0.8, &"helm": 0.15},
 		{&"boredom": 0.6},
 		[_act(&"crows_nest_watch", ["crows_nest"], &"crows_nest_watch", Vector2(14, 30), &"", &"crows_nest", {}, &"horizon"),
 		_act(&"rope_work", ["reef_pin"], &"rope_work", Vector2(8, 16), &"", &"reef_pin"),
@@ -101,7 +101,7 @@ func _salchipapa() -> NpcCharacterDef:
 func _omar() -> NpcCharacterDef:
 	return _def(&"don_omar", "Don Omar", ["musician", "navigator"], ["elder"], 0.95, 0.6,
 		{&"violin_seat": 0.9, &"chart_table": 0.6, &"listen_spot": 0.3, &"mop_zone": -0.5},
-		{&"violin_seat": 0.9, &"chart_table": 0.8, &"helm": 0.6},
+		{&"violin_seat": 0.9, &"chart_table": 0.8, &"helm": 0.35},
 		{&"boredom": 0.2},
 		[_act(&"violin_play", ["violin_seat"], &"violin_play", Vector2(25, 60), &"", &"violin_seat"),
 		_act(&"chart_study", ["chart_table"], &"chart_study", Vector2(12, 25), &"", &"chart_table"),
@@ -173,5 +173,5 @@ func _watch(id: StringName, station: StringName, kind: StringName, eligible: Arr
 	w.shift_s = shift
 	w.shift_jitter_s = jitter
 	w.keep_during_emergency = emergency
-	w.max_consecutive = 2 # nobody holds the post for more than two shifts in a row when someone else can take it
+	w.max_consecutive = 3 # nobody holds the post for more than three shifts in a row when someone else can take it
 	return w

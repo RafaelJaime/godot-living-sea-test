@@ -2,7 +2,7 @@ class_name CrewNpc
 extends Node
 ## Autonomous crew (C1.2). With `--crew=npc` it builds an NpcWorld under the ship pivot, one NpcAgent per crew slot, and the world bridge that
 ## feeds the blackboard. The CrewSlot markers keep owning the model (loading, fitting, camera lookups by name); each frame the slot follows its
-## agent, so cameras and the lean modifiers keep working. With `--crew=legacy` (default until C3 is verified) this node does nothing at all:
+## agent, so cameras and the lean modifiers keep working. `npc` is the default since C3; with `--crew=legacy` this node does nothing at all:
 ## no NpcWorld, no agents, the static slots behave exactly as before.
 
 const MODE_LEGACY := &"legacy"
@@ -13,6 +13,8 @@ const DEF_DIR := "res://crew/defs/"
 @export var stations_path := NodePath("../ShipStations/Provider")
 @export var ship_path := NodePath("../..")
 
+## Tests only: forces the mode instead of reading the command line.
+var mode_override: StringName = &""
 var world: NpcWorld
 var bridge: CrewWorldBridge
 var agents: Dictionary = {} # slot node name -> NpcAgent
@@ -20,28 +22,44 @@ var _trace := OS.get_cmdline_user_args().has("--crew-trace") ## test aid: one st
 var _trace_next := 2.0
 var _slots: Dictionary = {} # slot node name -> Node3D
 
-## `--crew=legacy|npc` (user args). Unknown values warn and fall back to legacy.
+## `--crew=legacy|npc` (user args), default npc. Unknown values warn and fall back to the default.
 static func mode(args: PackedStringArray = OS.get_cmdline_user_args()) -> StringName:
 	for a in args:
 		if a.begins_with("--crew="):
 			var v := a.get_slice("=", 1)
-			if v == "npc":
-				return MODE_NPC
-			if v != "legacy":
-				push_warning("[crew] unknown --crew value '%s', using legacy" % v)
-	return MODE_LEGACY
+			if v == "legacy":
+				return MODE_LEGACY
+			if v != "npc":
+				push_warning("[crew] unknown --crew value '%s', using npc" % v)
+	return MODE_NPC
 
 static func is_npc() -> bool:
 	return mode() == MODE_NPC
 
 func _ready() -> void:
-	if not is_npc():
+	var m := mode_override if mode_override != &"" else mode()
+	var crew := get_node_or_null(crew_path)
+	if m != MODE_NPC or crew == null or not crew.has_signal("crew_ready"):
 		set_process(false)
 		return
 	process_priority = 100 # after the world has moved the agents this frame
-	get_node(crew_path).crew_ready.connect(_on_crew_ready)
+	crew.crew_ready.connect(_on_crew_ready)
+
+## The crew's logical clock must start at the same game time on every run, or anything on the blackboard that follows the game clock (daylight,
+## storm) lines up differently with the decisions and the same seed stops reproducing the log (found in C2.4). The models are ready after an
+## asynchronous load that takes a varying number of frames, so the world starts at the next multiple of START_QUANTUM_S of this node's own clock.
+const START_QUANTUM_S := 5.0
+var _clock := 0.0
+var _start_at := -1.0
+var _built := false
 
 func _on_crew_ready() -> void:
+	_start_at = ceilf(_clock / START_QUANTUM_S) * START_QUANTUM_S
+	if _start_at <= _clock:
+		_start_at += START_QUANTUM_S
+
+func _build() -> void:
+	_built = true
 	var pivot := get_parent() as Node3D
 	var provider := get_node_or_null(stations_path) as ShipStations
 	if provider == null or provider.graph() == null:
@@ -147,7 +165,10 @@ func _spawn(slot: Node3D, pivot: Node3D) -> void:
 	agents[slot.name] = agent
 	_slots[slot.name] = slot
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_clock += delta
+	if not _built and _start_at >= 0.0 and _clock >= _start_at:
+		_build()
 	if _trace and world != null and world.now() >= _trace_next:
 		_trace_next += 2.0
 		for n in agents:

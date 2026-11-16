@@ -53,7 +53,7 @@ preferences = Dictionary[StringName, float]({
 skills = Dictionary[StringName, float]({
 &"crows_nest": 0.85,
 &"fishing_rail": 0.8,
-&"helm": 0.3
+&"helm": 0.15
 })
 needs = Dictionary[StringName, float]({
 &"boredom": 0.6

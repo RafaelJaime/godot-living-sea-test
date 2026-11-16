@@ -334,8 +334,7 @@ func nearest_station_tagged(agent: Node3D, tag: String) -> NpcStation:
 func distance_to(agent: Node3D, station: NpcStation) -> float:
 	if station == null:
 		return 0.0
-	var inv := platform_root.global_transform.affine_inverse() if platform_root else Transform3D.IDENTITY
-	var from_local: Vector3 = (inv * agent.global_position) if platform_root else agent.position
+	var from_local: Vector3 = NpcStation.relative_transform(platform_root, agent).origin if platform_root else agent.position
 	var to_local := station.approach_local(0, platform_root)
 	if graph != null and graph.node_count() > 0:
 		var d := graph.distance(graph.nearest_node(from_local), graph.nearest_node(to_local))

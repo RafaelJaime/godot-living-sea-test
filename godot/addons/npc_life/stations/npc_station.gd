@@ -143,11 +143,25 @@ func _slot_node(slot: int) -> NpcStationSlot:
 			return c
 	return null
 
+## Transform of `node` in the space of `platform`, composed from LOCAL transforms along the parent chain. Going through global transforms loses
+## precision far from the world origin (a ship sails kilometres away: centimetres of noise that change arrival times and so the decision log).
+## Falls back to the global route when `platform` is not an ancestor.
+static func relative_transform(platform: Node3D, node: Node3D) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var n: Node = node
+	while n != null and n != platform:
+		if n is Node3D:
+			t = (n as Node3D).transform * t
+		n = n.get_parent()
+	if n == platform:
+		return t
+	return platform.global_transform.affine_inverse() * node.global_transform
+
 ## Work anchor of a slot in the local space of `platform` (the station's own transform when no platform is given).
 func anchor_local(slot: int, platform: Node3D) -> Transform3D:
 	var sn := _slot_node(slot)
-	var g := sn.global_transform if sn else global_transform
-	return platform.global_transform.affine_inverse() * g if platform else g
+	var node: Node3D = sn if sn else self
+	return relative_transform(platform, node) if platform else node.global_transform
 
 func anchor_world(slot: int) -> Vector3:
 	var sn := _slot_node(slot)
