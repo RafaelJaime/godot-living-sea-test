@@ -20,6 +20,7 @@ var _sky_mat: ShaderMaterial
 var _cam_attr: CameraAttributesPractical
 ## Deterministic exposure (M3.5): a pure function of sun elevation, cloud cover and storm; lightning never feeds it.
 var exposure := 1.0
+var _fill_gain := 1.0
 var sun_energy_now := 0.0
 ## Quality-gated ambient occlusion state, for logs and the probe ("off", "ssao+ssil").
 var ao_state := "off"
@@ -78,6 +79,9 @@ func _ready() -> void:
 		_moon.shadow_enabled = false
 		_moon.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 		_moon.light_color = Color(0.62, 0.72, 1.0)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--night-fill="):
+			_fill_gain = float(a.get_slice("=", 1))
 	_update()
 	_apply_ao()
 	if _has_arg("--sky-log") or _has_arg("--sky-shots"):
@@ -85,6 +89,8 @@ func _ready() -> void:
 		probe.set("sky", self)
 		add_child(probe)
 
+	if _has_arg("--probe"): # opt-in: no visible gain on the hull and +3..5 ms p95 (see odd/evidence/look-dev)
+		add_child((load("res://scripts/ship_probe.gd") as GDScript).new())
 	if _has_arg("--look"): # look-dev A/B candidates (scripts/look_dev.gd), inert without the flag
 		add_child((load("res://scripts/look_dev.gd") as GDScript).new())
 
@@ -214,6 +220,12 @@ func _update() -> void:
 	var env := environment
 	var bank: float = w.fog_bank
 	env.ambient_light_energy = lerpf(0.22, 0.9, k) * (1.0 - 0.3 * storm)
+	# Moonlit/overcast fill so the hull reads at night, against the light and in storms (the sky cubemap alone is near black).
+	# Mixed in through ambient_light_sky_contribution; `--night-fill=<gain>` (default 1, 0 = previous look) for A/B.
+	var fill: float = clampf(smoothstep(0.95, 0.05, k) + 0.5 * storm + 0.4 * dusk, 0.0, 1.0) * _fill_gain
+	env.ambient_light_color = Color(0.34, 0.44, 0.72).lerp(Color(0.52, 0.46, 0.44), dusk).lerp(Color(0.42, 0.46, 0.52), storm)
+	env.ambient_light_sky_contribution = 1.0 - 0.65 * fill
+	env.ambient_light_energy = lerpf(env.ambient_light_energy, maxf(env.ambient_light_energy, 0.85), fill)
 	env.fog_density = base_fog_density * (1.0 + 0.9 * cloud + 6.0 * storm + 16.0 * bank)
 	fog_color = hor.lerp(Color(0.5, 0.55, 0.65), 0.15).lerp(Color(0.86, 0.80, 0.74), 0.5 * bank) * (0.55 + 0.45 * k)
 	env.fog_light_color = fog_color

@@ -99,7 +99,7 @@ validates final visuals. `--uncap` removes the fps cap and vsync for benchmarkin
 | cloth substeps+iterations | x0.5 | x1 |
 | ocean normal mips | 3 | 5 |
 | sky reflection cube (`sky_radiance`) | 64 | 256 |
-| SSAO / SSIL / SSR | off / off / off | on (q0) / off / off |
+| SSAO / SSIL / SSR | off / off / off | on (q0) / on (+~1 ms) / off |
 | particles (rain, spray) | x0.25 | x1 |
 Other systems read `Quality.<field>` (ocean_levels, fft_size, ocean_cascades, wake_resolution, cloth_scale, particle_scale, shadows, glow,
 render_scale, msaa, max_fps, readback_hz); it loads before everything else, so `_ready()` code can use it directly. The environment and lights
@@ -116,7 +116,7 @@ off a field here: off in dev, on in final.
 - Clouds are gated by the quality preset: SC2 runs with `--quality=final` (or `--sc2` in dev); dev uses the sky shader fbm layer.
 - Exposure is deterministic (no auto-exposure): `Sky.exposure` = `Sky._exposure_for(sun_elevation, cloud, storm)` written to `CameraAttributesPractical.exposure_multiplier`
   (0.82 at a clear noon, 1.0 at dusk/night, x0.86 in storms; lightning never feeds it), so captures reproduce and a `--timescale` run cannot pump.
-- SSAO (half-res) is applied by `sky.gd` from `Quality` in `final` only (`Quality.ssao`, `ssao_quality`, `ssil`; final: SSAO q0 only, SSIL opt-in with `--ao=both`; dev: off; logged as `[sky] <preset>: ssao=.. ssil=..`); ship shadows are 4 cascades over 160 m with blur 1.3
+- SSAO (half-res) is applied by `sky.gd` from `Quality` in `final` only (`Quality.ssao`, `ssao_quality`, `ssil`; final: SSAO q0 + SSIL, `--ao=ssao` drops SSIL; dev: off; logged as `[sky] <preset>: ssao=.. ssil=..`); ship shadows are 4 cascades over 160 m with blur 1.3
   (dev has no shadows). A/B aids: `--no-ao`, `--no-shadows`.
 - Storms: fog density x7, saturation 1.08 -> 0.78, exposure x0.86, rain streaks dim with daylight; rain particles = 7000 x `Quality.particle_scale` (logged as `[weather] rain particles cap=`).
 - Probe (`scripts/sky_probe.gd`, created by `sky.gd` only with the flags): `--sky-log=<wall s> --timescale=N` logs exposure/ambient/fog/horizon and reports max rate of change, its ratio to the
@@ -126,6 +126,8 @@ off a field here: off in dev, on in final.
 
 ## Look-dev candidates (`--look=`)
 `scripts/look_dev.gd` (created by sky.gd only when `--look=` is present; inert otherwise) applies A/B candidates after sky.gd each frame. Comma separated tokens: `tm:filmic|aces|agx|reinhard|linear`, `white:N`, `exp:X`, `glow:int[:bloom[:thr[:strength]]]`, `sat:X`, `con:X`, `bri:X`, `lut[:strength]` (procedural 3D grade: warm highlights at golden hour, cool shadows, blue night, desaturated storm), `vfog[:density[:aniso[:length]]]`, `probe[:update_s]` (ReflectionProbe under Ship/Pivot), `matdump`, `hull_rough:X`, `tshadow:X`. SSIL: `--ao=both`. Evidence and A/B sheets: `odd/evidence/look-dev/`.
+
+Night/backlit fill (sky.gd `_update`): `ambient_light_color` + `ambient_light_sky_contribution` blend a bluish (night), warm-neutral (dusk) or grey (storm) fill into the sky ambient so the hull reads at night and against the light; stars and lanterns are untouched. `--night-fill=<gain>` (default 1, 0 = old look). `--probe` adds the optional `ShipProbe` (ReflectionProbe, UPDATE_ONCE on time/weather band change); off by default because it added no visible hull reflection and raised p95.
 
 ## Ambient life (R8)
 `scripts/ambient/ambient_life.gd` (node `AmbientLife`): dolphin pods at the bow (day, calm), distant whale spouts, a ship passing on the horizon (lanterns lit at night/storm),
