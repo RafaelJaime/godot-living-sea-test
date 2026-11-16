@@ -35,7 +35,7 @@ script = ExtResource("5_uyq5l")
 action_id = &"comic_fall"
 job_kinds = PackedStringArray("chat", "social_spot")
 anim_tag = &"comic_fall"
-duration_range = Vector2(3, 5)
+duration_range = Vector2(3, 3.1)
 cooldown_s = 240.0
 
 [resource]

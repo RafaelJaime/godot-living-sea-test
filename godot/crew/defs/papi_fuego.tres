@@ -32,7 +32,7 @@ script = ExtResource("5_q00rm")
 action_id = &"point_ahead"
 job_kinds = PackedStringArray("spyglass_post", "social_spot")
 anim_tag = &"point_ahead"
-duration_range = Vector2(4, 8)
+duration_range = Vector2(2.4, 2.6)
 look_at = &"horizon"
 cooldown_s = 90.0
 

@@ -77,7 +77,7 @@ func _fuego() -> NpcCharacterDef:
 		{&"boredom": 0.3},
 		[_act(&"helm_steer", ["helm"], &"helm_steer", Vector2(20, 45), &"", &"helm", {&"hand_l": &"hand_l", &"hand_r": &"hand_r"}, &"ahead"),
 		_act(&"spyglass_scan", ["spyglass_post"], &"spyglass_scan", Vector2(10, 20), &"", &"spyglass_post", {}, &"horizon"),
-		_act(&"point_ahead", ["spyglass_post", "social_spot"], &"point_ahead", Vector2(4, 8), &"", &"", {}, &"horizon", 90.0)])
+		_act(&"point_ahead", ["spyglass_post", "social_spot"], &"point_ahead", Vector2(2.4, 2.6), &"", &"", {}, &"horizon", 90.0)])
 
 func _diagnostica() -> NpcCharacterDef:
 	return _def(&"papi_diagnostica", "Papi Diagnóstica", ["carpenter", "climber"], [], 1.35, 1.0,
@@ -96,7 +96,7 @@ func _salchipapa() -> NpcCharacterDef:
 		[_act(&"crows_nest_watch", ["crows_nest"], &"crows_nest_watch", Vector2(14, 30), &"", &"crows_nest", {}, &"horizon"),
 		_act(&"rope_work", ["reef_pin"], &"rope_work", Vector2(8, 16), &"", &"reef_pin"),
 		_act(&"fishing_cast", ["fishing_rail"], &"fishing_cast", Vector2(16, 40), &"", &"fishing_rail"),
-		_act(&"comic_fall", ["chat", "social_spot"], &"comic_fall", Vector2(3, 5), &"", &"", {}, &"", 240.0)])
+		_act(&"comic_fall", ["chat", "social_spot"], &"comic_fall", Vector2(3.0, 3.1), &"", &"", {}, &"", 240.0)])
 
 func _omar() -> NpcCharacterDef:
 	return _def(&"don_omar", "Don Omar", ["musician", "navigator"], ["elder"], 0.95, 0.6,

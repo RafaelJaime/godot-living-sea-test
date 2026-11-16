@@ -96,7 +96,7 @@ func _build() -> void:
 		if slot is Marker3D: # the barrels are siblings too
 			_spawn(slot as Node3D, pivot)
 	if OS.get_cmdline_user_args().has("--crew-demo-all"): # test aid for captures: three agents start one signature job at once
-		for row in [[&"violin_seat", &"violin_seat", &"don_omar"], [&"fishing_rail", &"fishing_rail_0", &"el_salchipapa"], [&"repair_spot", &"repair_spot_0", &"papi_diagnostica"]]:
+		for row in [[&"violin_seat", &"violin_seat", &"don_omar"], [&"fishing_rail", &"fishing_rail_0", &"el_salchipapa"], [&"repair_spot", &"repair_spot_0", &"papi_diagnostica"], [&"social_spot", &"social_spot_0", &"el_salchipapa"]]:
 			var j := NpcJob.new()
 			j.id = StringName("demo:%s" % row[0])
 			j.kind = row[0]
