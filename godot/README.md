@@ -245,3 +245,11 @@ Shot indices (hotkeys 1-7 and the 20 s cycle are unchanged; new shots are append
   hour. Terrain colour is a smooth vertex blend (shelf, wet sand, beach, dune grass, jungle, treeline rock, steep-face cliffs), a second shoulder hill breaks the cone, palms /
   bushes / rocks are one MultiMesh each. The underwater shelf fades into the ocean's `shallow_color` (read from the ocean material, default `vec3(0.05, 0.62, 0.58)`; ocean files untouched).
   Lighthouse beams (`ambient/lighthouse_beam.gd`) are unchanged.
+
+## Audio (`Audio` autoload, `scripts/audio.gd`)
+Ambient beds (sea, wind by regime, rain, thunder) and a positional API for anything with a place in the scene; clips are CC0 (`ATTRIBUTION.md`, rebuilt with `prepare_audio.sh` into `assets/audio/`).
+- `Audio.play_at(id, node_or_pos, opts)` one-shot 3D source (follows the node); `Audio.loop_at(id, node_or_pos, opts)` looped source, `Audio.stop(player)`; `Audio.footstep(node, surface)` (`wood` or `wet`); `Audio.register(id, [streams], params)` adds an id.
+  Options: `db`, `pitch`, `offset` (local to the node), `bus`, `max`, `unit`. Ids: gull, creak, wave, bell, footstep_wood, footstep_wet, hammer, hammer_loop, saw, violin.
+- Every 3D source has inverse-distance attenuation, a distance low-pass and no doppler; at most 28 live. Buses: Master (limiter, -6 dB), Ambient, SFX, Thunder.
+- Flags: `--no-audio`, `--mute`, `--audio` (capture/test modes are muted by default), `--audio-log`, `--audio-demo` (a source flies past the camera). Record the real game audio with `--write-movie out.avi --fixed-fps 30 --quit-after 1800` and `ffmpeg -vn`.
+- Hooks the gull system should provide (the rewrite is by sails-fix): `audio_bird_node() -> Node3D` (a visible bird) so calls come from the bird; until then the audio reads `_birds[i]["node"]` or falls back to a random spot.

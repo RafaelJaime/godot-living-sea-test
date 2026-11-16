@@ -13,6 +13,18 @@
 - **Wooden Hammer 01**, **Handsaw Wood** and **Wooden Lantern 01** by Poly Haven, CC0 — https://polyhaven.com/a/wooden_hammer_01, https://polyhaven.com/a/handsaw_wood, https://polyhaven.com/a/wooden_lantern_01 (1k glTF in `godot/assets/props/`), hand props.
 - Spyglass, swab and the ratline climb / spyglass look / deck swab animations are generated in this repo (CC0).
 
+## Ambient audio
+
+- **Ambient audio clips** (CC0, no attribution required; listed for traceability; converted to OGG by `prepare_audio.sh` into `godot/assets/audio/`), all from OpenGameArt:
+  sea bed "Sea and river wave sounds" (Vistula) by Snabisch https://opengameart.org/content/sea-and-river-wave-sounds;
+  waves "Beach Ocean Waves" (jasinski, freesound 18363, packed by qubodup) https://opengameart.org/content/beach-ocean-waves;
+  wind "wind1" (wind1-5) by qubodup https://opengameart.org/content/wind1;
+  gulls "Solo Seagull Sound Effects" by Rango Mango https://opengameart.org/content/solo-seagull-sound-effects;
+  creaks and bell "Various Sound Effects" https://opengameart.org/content/various-sound-effects and wood, rain and thunder "100 CC0 SFX #2" / "30 CC0 SFX loops" https://opengameart.org/content/100-cc0-sfx-2 https://opengameart.org/content/30-cc0-sfx-loops;
+  rumble "Rumbling Sound Effects" https://opengameart.org/content/rumbling-sound-effects.
+  Crew hooks (CC0): footsteps from "100 CC0 SFX #2", hammer from "Fast Hammer SFX" and "68 Workshop Sounds" by HaelDB (credit appreciated: https://opengameart.org/content/68-workshop-sounds, https://opengameart.org/content/fast-hammer-sfx), violin placeholder = "Medieval: Minstrel Dance" by Ivan Voirol (CC0, credits appreciated: https://opengameart.org/content/medieval-minstrel-dance); candidates "Medieval: King's Feast" (Snabisch) and "Medieval: The Old Tower Inn" (AntumDeluge), both CC0.
+  Splashes: "40 CC0 water / splash / slime SFX" by rockseller (CC0) https://opengameart.org/content/40-cc0-water-splash-slime-sfx; wood hits from "100 CC0 SFX #2". Fire crackle, rain on wood, flag flutter and the lighthouse hum are generated in code (no recordings).
+
 ## Own assets (CC0 1.0)
 
 The following models and textures are own models, released by the author under
