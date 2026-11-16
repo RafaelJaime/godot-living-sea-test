@@ -253,3 +253,10 @@ Ambient beds (sea, wind by regime, rain, thunder) and a positional API for anyth
 - Every 3D source has inverse-distance attenuation, a distance low-pass and no doppler; at most 28 live. Buses: Master (limiter, -6 dB), Ambient, SFX, Thunder.
 - Flags: `--no-audio`, `--mute`, `--audio` (capture/test modes are muted by default), `--audio-log`, `--audio-demo` (a source flies past the camera). Record the real game audio with `--write-movie out.avi --fixed-fps 30 --quit-after 1800` and `ffmpeg -vn`.
 - Hooks the gull system should provide (the rewrite is by sails-fix): `audio_bird_node() -> Node3D` (a visible bird) so calls come from the bird; until then the audio reads `_birds[i]["node"]` or falls back to a random spot.
+## Optional Vefects (outside git)
+Free packs by Vefects (Godot 4.7+, Forward+). Their license ("free for commercial and non-commercial projects, you may modify and ship them inside your own products; you may NOT sell, resell, redistribute or share them") forbids committing them, so `godot/Vefects/` is in `.gitignore`. Without the folder the game uses its built-in effects, with no errors or warnings (detection is `ResourceLoader.exists` in `scripts/ambient/optional_vfx.gd`, never `preload`). `--no-vefects` turns the integration off when they are installed.
+Install (no account needed; each download is a direct link that redirects to a signed zip):
+1. Candle VFX 1.0.4: `https://store.godotengine.org/asset/vefects/candle-vfx/download/7836/`; Zap VFX: `.../asset/vefects/zap-vfx/download/7513/` (page: `https://store.godotengine.org/asset/vefects/<slug>/`, publisher `https://vefects.com/`).
+2. Unzip each; copy the `Vefects` folder of each zip into `godot/` so the files end up at `res://Vefects/Candle VFX/` and `res://Vefects/Zap VFX/` (the `Demo` folders can be deleted).
+3. Open the project once so Godot imports them (about a minute).
+Used by: `scripts/ambient/vefects_lanterns.gd` (candle flame on each lit ship lantern, anchors untouched) and `scripts/weather_fx.gd` (white Zap strike at the ground point of each lightning bolt, scaled by distance, replacing the ribbon mesh).

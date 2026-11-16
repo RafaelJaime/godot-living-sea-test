@@ -11,3 +11,6 @@ godot/assets/anim_src/*_normal.png
 !godot/addons/**/*.import
 godot/assets/ship/ship_wheel_*.jpg
 godot/assets/ship/ship_wheel_normal.png
+
+# Vefects VFX packs: free but their license forbids redistribution, so they stay out of git (see godot/README.md, "Optional Vefects")
+godot/Vefects/

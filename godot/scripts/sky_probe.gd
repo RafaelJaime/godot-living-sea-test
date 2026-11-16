@@ -104,6 +104,14 @@ func _shots_step(delta: float) -> void:
 			d.jump_to(int(it["shot"]), true)
 		print("[sky-shots] ", it["name"], ": phase=", it["phase"], " weather=", wx, " shot=", it["shot"])
 	_shot_t += delta
+	if String(it["name"]).begins_with("strike") and not it.get("struck", false) and _shot_t >= 0.4:
+		it["struck"] = true # test aid: force one lightning strike, captured 0.15 s later (items named strike_*, wait 0.55)
+		var wx := get_node_or_null("../../Weather")
+		if wx != null:
+			var dist: float = wx.call("_spawn_bolt")
+			if wx.get("_zap_on"):
+				wx.call("_zap", dist)
+			WorldState.flash = 1.0
 	_follow = int(_shots[_shot_i].get("follow", 0)) == 1
 	_follow_dolphin()
 	if int(_shots[_shot_i].get("follow", 0)) == 2:

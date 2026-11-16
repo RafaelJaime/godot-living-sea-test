@@ -8,12 +8,15 @@ var _pattern: Array = [] # [Vector2(delay, intensity)] queue
 var _pat_t := 0.0
 var _bolt: MeshInstance3D
 var _bolt_mat: StandardMaterial3D
+var _zap_on := false ## Vefects Zap pack installed: it draws the strike instead of the ribbon mesh
+var _last_ground := Vector3.ZERO
 var _rain_mat: StandardMaterial3D
 
 ## Rain particle budget per quality preset: RAIN_BASE x Quality.particle_scale (dev 1750, final 7000), logged at start.
 const RAIN_BASE := 7000
 
 func _ready() -> void:
+	_zap_on = OptionalVfx.available(OptionalVfx.ZAP_WHITE) and "--vefects-zap" in OS.get_cmdline_user_args() # opt-in: its bolt is a straight column, the built-in one branches
 	_rain = GPUParticles3D.new()
 	_rain.amount = int(RAIN_BASE * Quality.particle_scale)
 	print("[weather] rain particles cap=", _rain.amount, " (", Quality.name_, ", particle_scale=", Quality.particle_scale, ")")
@@ -105,7 +108,7 @@ func _process(delta: float) -> void:
 			w.flash = maxf(w.flash, _pattern[0].y)
 			_pattern.pop_front()
 	_flash_light.light_energy = w.flash * 2.5
-	_bolt.visible = w.flash > 0.04
+	_bolt.visible = w.flash > 0.04 and not _zap_on
 	_bolt_mat.albedo_color = Color(0.75, 0.82, 1.0) * clampf(w.flash * 1.6, 0.0, 1.6)
 	_bolt_mat.albedo_color.a = clampf(w.flash * 1.5, 0.0, 1.0)
 
@@ -138,6 +141,18 @@ func _ribbon(st: SurfaceTool, pts: PackedVector3Array, side: Vector3, w0: float,
 		for v in [a0, a1, b0, a1, b1, b0]:
 			st.add_vertex(v)
 
+## Vefects strike at the ground point of the bolt: the pack's bolt is about 10 m tall, so it is scaled with the distance.
+func _zap(dist: float) -> void:
+	var z := OptionalVfx.spawn(OptionalVfx.ZAP_WHITE) as Node3D
+	if z == null:
+		return
+	add_child(z)
+	z.top_level = true
+	z.global_position = _last_ground
+	z.scale = Vector3.ONE * clampf(dist / 40.0, 4.0, 32.0)
+	OptionalVfx.fire(z)
+	get_tree().create_timer(4.0).timeout.connect(z.queue_free)
+
 func _spawn_bolt() -> float:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
@@ -148,6 +163,7 @@ func _spawn_bolt() -> float:
 	var dist := randf_range(500.0, 1300.0)
 	var ground := cam.global_position + fwd * dist
 	ground.y = 0.0
+	_last_ground = ground
 	var side := fwd.cross(Vector3.UP).normalized()
 	var top := ground + Vector3(randf_range(-80, 80), randf_range(420, 560), randf_range(-80, 80))
 	var main := _jag(top, ground, side, 90.0, 6)

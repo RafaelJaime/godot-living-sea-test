@@ -14,6 +14,8 @@ func _ready() -> void:
 	process_priority = 120
 	add_to_group("ambient_director")
 	add_child((load("res://scripts/ambient/deck_wet.gd") as GDScript).new())
+	if OptionalVfx.available(OptionalVfx.CANDLE_FLAME) and not "--no-vefects" in OS.get_cmdline_user_args(): # optional Vefects pack (outside git)
+		add_child((load("res://scripts/ambient/vefects_lanterns.gd") as GDScript).new())
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--ambient-log="):
 			_period = float(a.get_slice("=", 1))
