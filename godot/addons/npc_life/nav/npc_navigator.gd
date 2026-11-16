@@ -25,8 +25,14 @@ var _lat := 0.0
 var _entered := -1
 var _cur_type: StringName = &"walk"
 var _last_set := Vector3.INF
+var _hold := 0.0
+
+## Stand still for `seconds` (the agent plays a transition clip, e.g. stepping off a ladder); the path stays pending and resumes afterwards.
+func hold(seconds: float) -> void:
+	_hold = maxf(seconds, 0.0)
 
 func set_path(points: PackedVector3Array, types: Array[StringName]) -> void:
+	_hold = 0.0
 	_pts = points
 	_types = types
 	_seg = 0
@@ -62,6 +68,9 @@ func current_speed(base_speed: float) -> float:
 ## Advances `agent` along the path by `dt` seconds (agent.position only). `others` are Node3D neighbours in the same local space.
 func step(agent: Node3D, dt: float, base_speed: float, others: Array = []) -> void:
 	if finished:
+		return
+	if _hold > 0.0:
+		_hold -= dt
 		return
 	if _last_set != Vector3.INF:
 		max_error = maxf(max_error, (agent.position - _last_set).length())

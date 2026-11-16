@@ -11,6 +11,12 @@ class StubAnim extends NpcAnimationAdapter:
 		return Node3D.new() if scene != null else null
 	func process(_d: float) -> void: calls.append(["process"])
 
+class ExitStubAnim extends StubAnim:
+	var exited: Array = []
+	func exit_transition(from_edge_type: StringName) -> float:
+		exited.append(from_edge_type)
+		return 0.5 if from_edge_type == &"ladder" else 0.0
+
 class StubIk extends NpcIkAdapter:
 	var calls: Array = []
 	func bind(_a: Node3D, _s: Skeleton3D, _p: NpcRigProfile) -> bool: return true
@@ -139,3 +145,23 @@ func test_missing_adapters_log_once_and_logic_runs() -> void:
 	_run(14.0)
 	assert_eq(finished, [&"done", &"done"])
 	assert_eq(agent.adapter_warnings, 1, "one warning, however many jobs and frames")
+
+func test_agent_waits_at_the_top_of_a_ladder_for_the_exit_clip() -> void:
+	## graph: 0 -(ladder)- 1 -(walk)- 2; the exit transition is requested when the walk edge begins, and the navigator holds for its length.
+	var g := NpcWaypointGraph.new()
+	g.add_node(Vector3(0, 0, 0))
+	g.add_node(Vector3(0, 2, 0))
+	g.add_node(Vector3(4, 2, 0))
+	g.connect_nodes(0, 1, &"ladder")
+	g.connect_nodes(1, 2, &"walk")
+	world.graph = g
+	station.position = Vector3(4, 2, 0)
+	var ex := ExitStubAnim.new()
+	agent.anim = ex
+	agent.position = Vector3(0, 0, 0)
+	world.board.post(_job(&"steer", false), world.now())
+	for i in 400:
+		world.advance(0.05)
+		if ex.exited.size() > 1:
+			break
+	assert_eq(ex.exited, [&"walk", &"ladder"], "asked at each change of edge type; the ladder exit when the walk edge after it started")

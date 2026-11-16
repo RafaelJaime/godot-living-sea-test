@@ -111,3 +111,19 @@ func test_hand_reaches_the_target_on_the_real_rig() -> void:
 	var hp := seen[0]
 	assert_lt(hp.distance_to(t.global_position), 0.08, "the right hand ends up on the target")
 	assert_gt(hp.distance_to(start), 0.12, "and it actually moved there")
+
+func test_haul_shows_a_taut_rope_from_the_hand_only_while_hauling() -> void:
+	_model("res://assets/characters/papi_fuego.glb", &"papi_fuego")
+	var ad := _adapter()
+	assert_null(ad.rope_node(), "no rope before hauling")
+	ad._on_tag_changed(&"walk", &"haul", 0.3)
+	ad.process(0.016)
+	var rope := ad.rope_node()
+	assert_not_null(rope, "a rope appears with the haul tag")
+	assert_true(rope.visible)
+	var hand := sk.find_bone("RightHand")
+	var hp := sk.global_transform * sk.get_bone_global_pose(hand).origin
+	assert_lt(rope.global_position.distance_to(hp), 1.5, "the rope starts at the hand and is about a metre or two long")
+	ad._on_tag_changed(&"haul", &"idle", 0.3)
+	ad.process(0.016)
+	assert_false(rope.visible, "hidden when the haul ends")

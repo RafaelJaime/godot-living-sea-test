@@ -153,3 +153,26 @@ func test_clip_speed_of_a_tag_sets_the_playback_rate() -> void:
 	assert_almost_eq((vis.get_child(0) as AnimationPlayer).speed_scale, 1.35, 0.001, "0.54 / 0.4")
 	ad.set_locomotion(&"walk", 1.2)
 	assert_almost_eq((vis.get_child(0) as AnimationPlayer).speed_scale, 1.0, 0.001, "tags without a clip speed use the reference speed")
+
+func test_leaving_a_ladder_plays_the_exit_clip_before_walking() -> void:
+	var vis := _visual_with_player()
+	var player := vis.get_child(0) as AnimationPlayer
+	var lib := player.get_animation_library("shared")
+	var off := Animation.new()
+	off.length = 1.0
+	lib.add_animation("off", off)
+	var ad := NpcAnimPlayerAdapter.new()
+	ad.anim_set = _anim_set()
+	ad.anim_set.shared[&"ladder_off"] = &"shared/off"
+	ad.anim_set.exit_tags = {&"ladder": &"ladder_off"}
+	ad.anim_set.locomotion = {&"walk": &"walk", &"ladder": &"work"}
+	ad.bind(null, vis)
+	ad.set_locomotion(&"ladder", 0.5)
+	assert_eq(ad.exit_transition(&"walk"), 0.0, "leaving a plain edge has no exit clip")
+	var d := ad.exit_transition(&"ladder")
+	assert_almost_eq(d, 1.0, 0.001, "the exit clip length is returned so the agent can wait")
+	assert_eq(player.current_animation, "shared/off")
+	ad.set_locomotion(&"walk", 1.2) # the next edge starts while the exit clip is still playing
+	assert_eq(player.current_animation, "shared/off", "locomotion waits for the exit clip")
+	player.advance(1.2)
+	assert_eq(player.current_animation, "shared/walk", "then the pending walk starts")

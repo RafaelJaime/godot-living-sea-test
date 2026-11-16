@@ -152,3 +152,19 @@ func test_courtesy_yields_to_other_agent() -> void:
 	assert_gt(min_sep, 0.5, "they pass each other without overlapping")
 	assert_lt(worst_stall, 2.0, "nobody waits long")
 	assert_true(a.position.distance_to(Vector3(10, 0, 0)) < 0.05 and b.position.distance_to(Vector3.ZERO) < 0.05, "both end exactly on their path end (the sidestep is eased back)")
+
+func test_hold_pauses_the_walk_and_then_resumes() -> void:
+	var parent := Node3D.new()
+	add_child_autofree(parent)
+	var a := _agent(parent, "a")
+	nav.set_path(PackedVector3Array([Vector3.ZERO, Vector3(10, 0, 0)]), _types(1))
+	nav.step(a, 0.1, 1.0)
+	var x0 := a.position.x
+	nav.hold(0.5)
+	for i in 4:
+		nav.step(a, 0.1, 1.0)
+	assert_eq(a.position.x, x0, "no movement while held")
+	assert_false(nav.finished, "the path is still pending")
+	for i in 3:
+		nav.step(a, 0.1, 1.0)
+	assert_gt(a.position.x, x0, "it walks again after the hold")

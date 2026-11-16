@@ -74,8 +74,41 @@ func play(tag: StringName, loop := true, blend := 0.35) -> void:
 	_tag = tag
 	_clip = clip
 
+var _exit_clip: StringName = &""
+var _pending_tag: StringName = &""
+var _pending_speed := 1.0
+
+func exit_transition(from_edge_type: StringName) -> float:
+	var tag: StringName = anim_set.exit_tags.get(from_edge_type, &"")
+	if _player == null or tag == &"":
+		return 0.0
+	var clip := anim_set.resolve(tag)
+	if clip == &"" or not _player.has_animation(String(clip)):
+		return 0.0
+	if not _player.animation_finished.is_connected(_on_clip_finished):
+		_player.animation_finished.connect(_on_clip_finished)
+	play(tag, false)
+	_player.speed_scale = 1.0
+	_exit_clip = clip
+	_pending_tag = &""
+	return _player.get_animation(String(clip)).length
+
+func _on_clip_finished(clip_name: StringName) -> void:
+	if _exit_clip == &"" or clip_name != _exit_clip:
+		return
+	_exit_clip = &""
+	if _pending_tag != &"":
+		var t := _pending_tag
+		_pending_tag = &""
+		play(t)
+		_player.speed_scale = clampf(_pending_speed / maxf(float(anim_set.clip_speeds.get(t, reference_speed)), 0.01), 0.25, 2.5)
+
 func set_locomotion(edge_type: StringName, speed: float) -> void:
 	if _player == null:
+		return
+	if _exit_clip != &"": # a transition clip is playing: the next locomotion waits for it
+		_pending_tag = anim_set.locomotion_tag(edge_type)
+		_pending_speed = speed
 		return
 	var tag := anim_set.locomotion_tag(edge_type)
 	if tag != _tag:

@@ -157,6 +157,7 @@ func _map_tags(anim: NpcAnimSet) -> void:
 		anim.shared[tag] = clip
 	# travel speed (m/s) each climbing clip was authored for: ratline_climb 0.476 vertical, climb_ladder 0.40 vertical
 	anim.clip_speeds = {&"ladder": 0.40, &"rope": 0.476}
+	anim.exit_tags = {&"ladder": &"ladder_off"} # step off the ladder onto the deck before walking on
 	anim.locomotion = {&"walk": &"walk", &"stairs": &"stairs", &"ladder": &"ladder", &"rope": &"rope"}
 
 ## Only the helm is a standing watch: with four people, three permanent posts would leave nobody free for chores and free time. Lookout duty at the

@@ -48,6 +48,9 @@ locomotion = Dictionary[StringName, StringName]({
 &"stairs": &"stairs",
 &"walk": &"walk"
 })
+exit_tags = Dictionary[StringName, StringName]({
+&"ladder": &"ladder_off"
+})
 clip_speeds = Dictionary[StringName, float]({
 &"ladder": 0.4,
 &"rope": 0.476

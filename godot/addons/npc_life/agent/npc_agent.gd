@@ -35,6 +35,7 @@ var _last_station_id: StringName = &""
 var _ambient_serial := 0
 var _action_done: Dictionary = {} # action id -> logical time it last finished (signature action cooldowns)
 var _begun_action_id: StringName = &""
+var _edge_type: StringName = &"" ## edge type being walked, to detect leaving one (transition clips)
 var _ending := false
 
 func _enter_tree() -> void:
@@ -65,7 +66,12 @@ func bind_world(w: NpcWorld) -> void:
 	executor.navigator.edge_entered.connect(func(t: StringName, _i: int) -> void:
 		world.on_edge_entered(self, t)
 		if anim:
-			anim.set_locomotion(t, executor.navigator.current_speed(def.walk_speed if def else 1.2)))
+			if _edge_type != &"" and _edge_type != t:
+				var hold := anim.exit_transition(_edge_type)
+				if hold > 0.0:
+					executor.navigator.hold(hold)
+			anim.set_locomotion(t, executor.navigator.current_speed(def.walk_speed if def else 1.2))
+		_edge_type = t)
 	if def:
 		agent_id = def.agent_id
 		tags = def.all_tags()
@@ -309,6 +315,7 @@ func _begin(j: NpcJob, st: NpcStation, reason: StringName, now: float, top: Arra
 	if anim == null and adapter_warnings == 0:
 		adapter_warnings = 1
 		push_warning("[npc_life] agent %s has no animation adapter: running logic only" % agent_id)
+	_edge_type = &""
 	executor.start(j, st, work_s, act)
 	world.on_agent_decided(self, j, reason, top, temp, draw, idle_before)
 

@@ -132,8 +132,15 @@ func _ready() -> void:
 			if a.begins_with('--shots='):
 				PLAN = []
 				var k := 0
+				var t0 := 3.0
+				var dt := 2.5
+				for b in OS.get_cmdline_user_args(): # --shots-t0=<s> first shot time, --shots-dt=<s> spacing (default 3 and 2.5)
+					if b.begins_with('--shots-t0='):
+						t0 = float(b.get_slice('=', 1))
+					elif b.begins_with('--shots-dt='):
+						dt = float(b.get_slice('=', 1))
 				for i in a.get_slice('=', 1).split(','):
-					PLAN.append([3.0 + 2.5 * k, int(i)])
+					PLAN.append([t0 + dt * k, int(i)])
 					k += 1
 		for a in OS.get_cmdline_user_args():
 			if a.begins_with('--cam-sweep='): # M6.1: N shots turning the debug camera through 360 deg (needs a --cam to create the shot)
