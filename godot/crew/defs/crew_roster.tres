@@ -8,29 +8,12 @@ script = ExtResource("2_30ldb")
 watch_id = &"helm_watch"
 station_id = &"helm"
 job_kind = &"helm"
-eligible = PackedStringArray("papi_fuego", "don_omar", "papi_diagnostica")
+eligible = PackedStringArray("papi_fuego", "don_omar", "papi_diagnostica", "el_salchipapa")
 shift_s = 240.0
 shift_jitter_s = 40.0
+max_consecutive = 2
 keep_during_emergency = true
-
-[sub_resource type="Resource" id="Resource_u078x"]
-script = ExtResource("2_30ldb")
-watch_id = &"spyglass_watch"
-station_id = &"spyglass_post"
-job_kind = &"spyglass_post"
-eligible = PackedStringArray("papi_fuego", "papi_diagnostica")
-shift_s = 150.0
-shift_jitter_s = 30.0
-
-[sub_resource type="Resource" id="Resource_ibue0"]
-script = ExtResource("2_30ldb")
-watch_id = &"nest_watch"
-station_id = &"crows_nest"
-job_kind = &"crows_nest"
-eligible = PackedStringArray("el_salchipapa", "papi_diagnostica")
-shift_s = 200.0
-shift_jitter_s = 30.0
 
 [resource]
 script = ExtResource("1_bsa8f")
-watches = Array[ExtResource("2_30ldb")]([SubResource("Resource_p346p"), SubResource("Resource_u078x"), SubResource("Resource_ibue0")])
+watches = Array[ExtResource("2_30ldb")]([SubResource("Resource_p346p")])

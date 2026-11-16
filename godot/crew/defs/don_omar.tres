@@ -2,27 +2,27 @@
 
 [ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_mhlyg"]
 [ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_hy70w"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="3_ju3xi"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="4_ccgjf"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_l7a5j"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_vimju"]
 
-[sub_resource type="Resource" id="Resource_l7a5j"]
-script = ExtResource("4_ccgjf")
+[sub_resource type="Resource" id="Resource_x1rrd"]
+script = ExtResource("5_vimju")
 action_id = &"violin_play"
 job_kinds = PackedStringArray("violin_seat")
 anim_tag = &"violin_play"
 duration_range = Vector2(25, 60)
 station_kind = &"violin_seat"
 
-[sub_resource type="Resource" id="Resource_vimju"]
-script = ExtResource("4_ccgjf")
+[sub_resource type="Resource" id="Resource_rb8mu"]
+script = ExtResource("5_vimju")
 action_id = &"chart_study"
 job_kinds = PackedStringArray("chart_table")
 anim_tag = &"chart_study"
 duration_range = Vector2(12, 25)
 station_kind = &"chart_table"
 
-[sub_resource type="Resource" id="Resource_x1rrd"]
-script = ExtResource("4_ccgjf")
+[sub_resource type="Resource" id="Resource_e1t85"]
+script = ExtResource("5_vimju")
 action_id = &"star_gaze"
 job_kinds = PackedStringArray("listen_spot", "social_spot")
 anim_tag = &"star_gaze"
@@ -31,11 +31,11 @@ look_at = &"sky"
 cooldown_s = 120.0
 
 [resource]
-script = ExtResource("3_ju3xi")
+script = ExtResource("4_l7a5j")
 agent_id = &"don_omar"
 display_name = "Don Omar"
 roles = PackedStringArray("musician", "navigator")
-tags = PackedStringArray("elder")
+tags = PackedStringArray("elder", "don_omar")
 preferences = Dictionary[StringName, float]({
 &"chart_table": 0.6,
 &"listen_spot": 0.3,
@@ -50,7 +50,7 @@ skills = Dictionary[StringName, float]({
 needs = Dictionary[StringName, float]({
 &"boredom": 0.2
 })
-signature_actions = Array[ExtResource("4_ccgjf")]([SubResource("Resource_l7a5j"), SubResource("Resource_vimju"), SubResource("Resource_x1rrd")])
+signature_actions = Array[ExtResource("5_vimju")]([SubResource("Resource_x1rrd"), SubResource("Resource_rb8mu"), SubResource("Resource_e1t85")])
 anim_set = ExtResource("1_mhlyg")
 rig_profile = ExtResource("2_hy70w")
 temperature_scale = 0.6

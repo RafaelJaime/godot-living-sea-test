@@ -2,11 +2,11 @@
 
 [ext_resource type="Resource" path="res://crew/defs/crew_anim_set.tres" id="1_ioun3"]
 [ext_resource type="Resource" path="res://crew/defs/crew_rig_profile.tres" id="2_ddrk7"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="3_kymw5"]
-[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="4_wcmtf"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_character_def.gd" id="4_kog3o"]
+[ext_resource type="Script" path="res://addons/npc_life/agent/npc_action_def.gd" id="5_chbx0"]
 
-[sub_resource type="Resource" id="Resource_kog3o"]
-script = ExtResource("4_wcmtf")
+[sub_resource type="Resource" id="Resource_idgie"]
+script = ExtResource("5_chbx0")
 action_id = &"hammer_repair"
 job_kinds = PackedStringArray("repair_spot")
 anim_tag = &"hammer_repair"
@@ -14,16 +14,16 @@ duration_range = Vector2(10, 20)
 effect = &"repair"
 station_kind = &"repair_spot"
 
-[sub_resource type="Resource" id="Resource_chbx0"]
-script = ExtResource("4_wcmtf")
+[sub_resource type="Resource" id="Resource_2im86"]
+script = ExtResource("5_chbx0")
 action_id = &"ratline_climb"
 job_kinds = PackedStringArray("ratline_path")
 anim_tag = &"ratline_climb"
 duration_range = Vector2(8, 14)
 station_kind = &"ratline_path"
 
-[sub_resource type="Resource" id="Resource_idgie"]
-script = ExtResource("4_wcmtf")
+[sub_resource type="Resource" id="Resource_cn3uf"]
+script = ExtResource("5_chbx0")
 action_id = &"carry_crate"
 job_kinds = PackedStringArray("haul")
 anim_tag = &"carry_crate"
@@ -31,10 +31,11 @@ duration_range = Vector2(6, 12)
 effect = &"haul"
 
 [resource]
-script = ExtResource("3_kymw5")
+script = ExtResource("4_kog3o")
 agent_id = &"papi_diagnostica"
 display_name = "Papi Diagnóstica"
 roles = PackedStringArray("carpenter", "climber")
+tags = PackedStringArray("papi_diagnostica")
 preferences = Dictionary[StringName, float]({
 &"mop_zone": -0.4,
 &"ratline_path": 0.5,
@@ -49,7 +50,7 @@ skills = Dictionary[StringName, float]({
 needs = Dictionary[StringName, float]({
 &"boredom": 0.4
 })
-signature_actions = Array[ExtResource("4_wcmtf")]([SubResource("Resource_kog3o"), SubResource("Resource_chbx0"), SubResource("Resource_idgie")])
+signature_actions = Array[ExtResource("5_chbx0")]([SubResource("Resource_idgie"), SubResource("Resource_2im86"), SubResource("Resource_cn3uf")])
 anim_set = ExtResource("1_ioun3")
 rig_profile = ExtResource("2_ddrk7")
 walk_speed = 1.35

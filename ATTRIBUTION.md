@@ -13,6 +13,11 @@
 - **Wooden Hammer 01**, **Handsaw Wood** and **Wooden Lantern 01** by Poly Haven, CC0 — https://polyhaven.com/a/wooden_hammer_01, https://polyhaven.com/a/handsaw_wood, https://polyhaven.com/a/wooden_lantern_01 (1k glTF in `godot/assets/props/`), hand props.
 - Spyglass, swab and the ratline climb / spyglass look / deck swab animations are generated in this repo (CC0).
 
+## Crew animation clips
+
+- **Universal Animation Library 1 and 2 (Standard)** by Quaternius, CC0 1.0 — https://quaternius.com/packs/universalanimationlibrary.html and https://quaternius.com/packs/universalanimationlibrary2.html (downloaded 2026-11-15). Clips used: Walk_Carry, Idle_Lantern, Idle_Rail, Idle_Talking, Fixing_Kneeling, ClimbUp_1m. Retargeted onto the crew rig by `godot/assets/anim_src/spike/bake_spike.gd`; the source GLBs are not committed. Baked into `godot/assets/anim/crew_clips.res` by `godot/tools/crew_anim_bake.gd` as walk_carry, idle_lantern, idle_rail, idle_talking, fixing_kneeling, climb_up_1m.
+- **KayKit Character Animations 1.1** by Kay Lousberg, CC0 1.0 — https://kaylousberg.itch.io/kaykit-character-animations (downloaded 2026-11-15). Clips used: Hammering, Sawing, Fishing_Idle, Fishing_Cast, Fishing_Reeling. Retargeted by `bake_spike.gd` and baked into `crew_clips.res` as hammering, sawing, fishing_idle, fishing_cast, fishing_reeling.
+
 ## Ambient audio
 
 - **Ambient audio clips** (CC0, no attribution required; listed for traceability; converted to OGG by `prepare_audio.sh` into `godot/assets/audio/`), all from OpenGameArt:

@@ -5,7 +5,7 @@ extends SceneTree
 ## Signature animation tags map to existing shared clips until the C4 clip pipeline bakes the real ones (see odd/evidence/npc-crew-jobs/C4).
 
 const OUT := "res://crew/defs/"
-const LIB_SRC := "res://assets/anim/crew_shared.res"
+const LIB_SRC := "res://assets/anim/crew_clips.res" ## built by tools/crew_anim_bake.gd
 const IDLE_SRC := "res://assets/characters/papi_fuego.glb"
 
 func _initialize() -> void:
@@ -18,17 +18,7 @@ func _initialize() -> void:
 		_save(d, "%s.tres" % d.agent_id)
 	_save(prof, "crew_rig_profile.tres")
 	_save(_roster(), "crew_roster.tres")
-	# the anim set must reference its tags: every signature tag gets a shared clip for now
-	var tags := {}
-	for d in defs:
-		for a in d.signature_actions:
-			tags[a.anim_tag] = true
-	for t in tags:
-		anim.shared[t] = &"shared/idle"
-	# the station-level tags of ShipStations (its markers carry them); all idle until the C4 clips exist, climbing uses the stairs clip
-	for t in [&"steer", &"chart", &"fish", &"inspect", &"listen", &"lookout", &"mop", &"repair", &"spyglass", &"violin", &"light", &"haul"]:
-		anim.shared[t] = &"shared/idle"
-	anim.shared[&"climb"] = &"shared/climb_stairs"
+	_map_tags(anim)
 	_save(anim, "crew_anim_set.tres")
 	# re-save defs so they point at the final resource files
 	var anim_res := load(OUT + "crew_anim_set.tres")
@@ -65,6 +55,7 @@ func _def(id: StringName, name: String, roles: Array, tags: Array, walk: float, 
 	d.display_name = name
 	d.roles = PackedStringArray(roles)
 	d.tags = PackedStringArray(tags)
+	d.tags.append(String(id)) # the agent's own id is a tag, so a source can address one agent (free-time fairness)
 	d.walk_speed = walk
 	d.temperature_scale = temp
 	for k in prefs:
@@ -129,44 +120,47 @@ func _profile() -> NpcRigProfile:
 
 func _anim_set() -> NpcAnimSet:
 	var s := NpcAnimSet.new()
-	var src := load(LIB_SRC) as AnimationLibrary
-	var lib := AnimationLibrary.new()
-	for n in src.get_animation_list():
-		lib.add_animation(n, src.get_animation(n))
-	lib.set_meta("source_hips_y", src.get_meta("source_hips_y", 95.36))
-	var idle := _bake_idle(float(lib.get_meta("source_hips_y")))
-	if idle != null:
-		lib.add_animation(&"idle", idle)
-	s.library = lib
+	s.library = load(LIB_SRC) as AnimationLibrary
 	s.library_name = &"shared"
-	# clip names carry the library prefix: the adapter installs the library as "shared" into each character's AnimationPlayer
-	s.shared = {&"idle": &"shared/idle", &"walk": &"shared/walk", &"talk": &"shared/talk", &"stairs": &"shared/climb_stairs"}
-	s.locomotion = {&"walk": &"walk", &"stairs": &"stairs", &"ladder": &"stairs", &"rope": &"stairs"}
 	s.fallback_tag = &"idle"
+	s.shared = {}
 	return s
 
-## Fuego's own idle, re-expressed at the library's source hip height so the adapter's hip-ratio scaling is neutral for the others.
-func _bake_idle(source_hips_y: float) -> Animation:
-	var root := (load(IDLE_SRC) as PackedScene).instantiate()
-	var ap := root.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
-	var sk := root.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
-	var clip := ap.get_animation(ap.get_animation_list()[0]).duplicate() as Animation
-	var hips := sk.find_bone("Hips")
-	var ratio := source_hips_y / sk.get_bone_global_rest(hips).origin.y
-	for t in clip.get_track_count():
-		if clip.track_get_type(t) == Animation.TYPE_POSITION_3D and String(clip.track_get_path(t)).ends_with(":Hips"):
-			for k in clip.track_get_key_count(t):
-				clip.track_set_key_value(t, k, (clip.track_get_key_value(t, k) as Vector3) * ratio)
-	clip.loop_mode = Animation.LOOP_LINEAR
-	root.free()
-	return clip
+## Tag -> clip. `want` are clip names in order of preference (a later authored clip, e.g. furl_aloft from godot-ship, wins automatically once the bake
+## tool has put it in the library); the last one must exist. Stand-ins are noted so the gaps stay visible: haul and furl_aloft reuse arm-work clips,
+## play_violin and comic_fall use the talking gestures until their clips are authored.
+func _map_tags(anim: NpcAnimSet) -> void:
+	var table := {
+		# locomotion and base
+		&"idle": ["idle"], &"walk": ["walk"], &"talk": ["talk"], &"stairs": ["climb_stairs"], &"rope": ["ratline_climb"],
+		# station tags of ShipStations
+		&"steer": ["idle"], &"chart": ["idle_rail"], &"fish": ["fishing_idle"], &"inspect": ["idle_rail"], &"listen": ["idle_rail"],
+		&"lookout": ["idle_rail"], &"mop": ["deck_swab"], &"repair": ["hammering"], &"spyglass": ["spyglass_look"], &"violin": ["play_violin", "idle_talking"],
+		&"light": ["idle_lantern"], &"haul": ["haul", "sawing"], &"climb": ["ratline_climb"], &"furl_aloft": ["furl_aloft", "hammering"],
+		# signature actions
+		&"helm_steer": ["idle"], &"spyglass_scan": ["spyglass_look"], &"point_ahead": ["point_ahead", "idle_talking"],
+		&"hammer_repair": ["hammering"], &"ratline_climb": ["ratline_climb"], &"carry_crate": ["walk_carry"],
+		&"crows_nest_watch": ["idle_rail"], &"rope_work": ["fixing_kneeling"], &"fishing_cast": ["fishing_idle"], &"comic_fall": ["comic_fall", "idle_talking"],
+		&"violin_play": ["play_violin", "idle_talking"], &"chart_study": ["idle_rail"], &"star_gaze": ["idle_lantern"],
+	}
+	for tag in table:
+		var clip := &""
+		for c in table[tag]:
+			if anim.library.has_animation(c):
+				clip = StringName("shared/%s" % c)
+				break
+		if clip == &"":
+			push_error("[build_crew_defs] no clip for tag %s (wanted %s)" % [tag, table[tag]])
+			continue
+		anim.shared[tag] = clip
+	anim.locomotion = {&"walk": &"walk", &"stairs": &"stairs", &"ladder": &"rope", &"rope": &"rope"}
 
+## Only the helm is a standing watch: with four people, three permanent posts would leave nobody free for chores and free time. Lookout duty at the
+## spyglass and the crow's nest is ordinary free-time work (CrewLeisureSource). Skill weights make Fuego the most frequent helmsman.
 func _roster() -> NpcRoster:
 	var r := NpcRoster.new()
 	r.watches = [
-		_watch(&"helm_watch", &"helm", &"helm", ["papi_fuego", "don_omar", "papi_diagnostica"], 240.0, 40.0, true),
-		_watch(&"spyglass_watch", &"spyglass_post", &"spyglass_post", ["papi_fuego", "papi_diagnostica"], 150.0, 30.0, false),
-		_watch(&"nest_watch", &"crows_nest", &"crows_nest", ["el_salchipapa", "papi_diagnostica"], 200.0, 30.0, false),
+		_watch(&"helm_watch", &"helm", &"helm", ["papi_fuego", "don_omar", "papi_diagnostica", "el_salchipapa"], 240.0, 40.0, true),
 	]
 	return r
 
@@ -179,4 +173,5 @@ func _watch(id: StringName, station: StringName, kind: StringName, eligible: Arr
 	w.shift_s = shift
 	w.shift_jitter_s = jitter
 	w.keep_during_emergency = emergency
+	w.max_consecutive = 2 # nobody holds the post for more than two shifts in a row when someone else can take it
 	return w
