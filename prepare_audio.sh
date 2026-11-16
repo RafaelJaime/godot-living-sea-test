@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds godot/assets/audio/*.ogg from the CC0 OpenGameArt packs listed in ATTRIBUTION.md (see odd/audio_plan_preview/PLAN.md).
-#   AUDIO_SRC=<dir with vistula_short.mp3, beach_wave_0N.flac, windN.wav, gull_N.wav, gull_big1.wav, rumbling17.wav, craft_hammer.ogg, Loop_Minstrel_Dance_0.wav, ws/workshop (unzipped workshop.7z), x/ (unzipped sfx packs)> ./prepare_audio.sh
+#   AUDIO_SRC=<dir with vistula_short.mp3, beach_wave_0N.flac, windN.wav, gull_N.wav, gull_big1.wav, rumbling17.wav, craft_hammer.ogg, Loop_Minstrel_Dance_0.wav, ws/workshop (unzipped workshop.7z), sp/ (unzipped "40 CC0 water splash slime SFX"), x/ (unzipped sfx packs)> ./prepare_audio.sh
 set -e
 S=${AUDIO_SRC:?set AUDIO_SRC}
 O=$(dirname $0)/godot/assets/audio
@@ -25,4 +25,7 @@ cp $S/craft_hammer.ogg $O/hammer_hit.ogg
 ffmpeg -v error -y -i "$S/ws/workshop/workshop - wood hammering.wav" -ac 1 -ar 44100 -f wav - | oggenc -Q -q 3 -o $O/hammer_loop.ogg -
 ffmpeg -v error -y -i "$S/ws/workshop/workshop - quiet scrape.wav" -ac 1 -ar 44100 -f wav - | oggenc -Q -q 3 -o $O/saw_loop.ogg -
 ffmpeg -v error -y -t 60 -i $S/Loop_Minstrel_Dance_0.wav -ac 2 -ar 44100 -f wav - | oggenc -Q -q 2 -o $O/violin_loop.ogg -
+# Splashes (dolphins, bow spray) and wood hits (moored boat in its cradle).
+for i in 1 2 3 4; do ffmpeg -v error -y -i $S/sp/splash_0$i.ogg -ac 1 -ar 44100 -f wav - | oggenc -Q -q 3 -o $O/splash_$i.ogg -; done
+for i in 1 2 3; do ffmpeg -v error -y -i $S/x/sfx100v2_wood_hit_0$i.ogg -ac 1 -ar 44100 -f wav - | oggenc -Q -q 3 -o $O/hit_$i.ogg -; done
 ls -la $O

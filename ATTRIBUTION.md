@@ -24,6 +24,7 @@
   rumble "Rumbling Sound Effects" https://opengameart.org/content/rumbling-sound-effects.
   Crew hooks (CC0): footsteps from "100 CC0 SFX #2", hammer from "Fast Hammer SFX" and "68 Workshop Sounds" by HaelDB (credit appreciated: https://opengameart.org/content/68-workshop-sounds, https://opengameart.org/content/fast-hammer-sfx), violin placeholder = "Medieval: Minstrel Dance" by Ivan Voirol (CC0, credits appreciated: https://opengameart.org/content/medieval-minstrel-dance); candidates "Medieval: King's Feast" (Snabisch) and "Medieval: The Old Tower Inn" (AntumDeluge), both CC0.
   Splashes: "40 CC0 water / splash / slime SFX" by rockseller (CC0) https://opengameart.org/content/40-cc0-water-splash-slime-sfx; wood hits from "100 CC0 SFX #2". Fire crackle, rain on wood, flag flutter and the lighthouse hum are generated in code (no recordings).
+  Splashes: "40 CC0 water / splash / slime SFX" by rockseller (CC0) https://opengameart.org/content/40-cc0-water-splash-slime-sfx; wood hits from "100 CC0 SFX #2". Fire crackle, rain on wood, flag flutter and the lighthouse hum are generated in code (no recordings).
 
 ## Own assets (CC0 1.0)
 

@@ -486,6 +486,7 @@ func _soft_dot() -> Texture2D:
 	return t
 
 func _splash(at: Vector3, big: float) -> void:
+	Audio.play_at(&"splash", Vector3(at.x, Waves.height_at(at.x, at.z), at.z), {"db": 3.0 * (big - 1.0), "pitch": 1.0 / maxf(big, 0.7)})
 	for sp in _splashes:
 		if float(sp["t"]) >= 1.0:
 			sp["t"] = 0.0

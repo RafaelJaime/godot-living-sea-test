@@ -16,7 +16,7 @@ extends Node
 
 const DIR := "res://assets/audio/"
 const MASTER_DB := -6.0
-const MAX_3D := 28
+const MAX_3D := 40
 ## Wind speed (m/s) at which each wind clip is at full level; neighbours cross-fade between them.
 const WIND_PEAKS := [3.5, 7.0, 11.0, 15.0, 19.5]
 
@@ -50,6 +50,11 @@ var _demo_t := 0.0
 var _demo_next := 0.0
 var _demo_loop: AudioStreamPlayer3D
 var _built := false
+var _persist := {} # key -> {player, base_db}
+var _next_island_gull := 12.0
+var _next_far_bell := 40.0
+var _next_rig := 5.0
+var _last_bump := -10.0
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -110,7 +115,57 @@ func _define_library() -> void:
 	register(&"hammer", ["hammer_hit"], {"max": 60.0, "unit": 6.0, "db": -4.0, "pitch": [0.92, 1.08], "filter_hz": 4000.0})
 	register(&"hammer_loop", ["hammer_loop"], {"max": 60.0, "unit": 6.0, "db": -6.0, "filter_hz": 4000.0})
 	register(&"saw", ["saw_loop"], {"max": 50.0, "unit": 5.0, "db": -6.0, "filter_hz": 4000.0})
+	register(&"splash", _names("splash_", 4), {"max": 150.0, "unit": 12.0, "db": -4.0, "pitch": [0.9, 1.1], "filter_hz": 4500.0})
+	register(&"hit", _names("hit_", 3), {"max": 60.0, "unit": 5.0, "db": -8.0, "pitch": [0.85, 1.0], "filter_hz": 3500.0})
+	register(&"crackle", [_synth("crackle")], {"max": 16.0, "unit": 1.5, "db": -24.0, "pitch": [0.95, 1.05], "filter_hz": 6000.0})
+	register(&"patter", [_synth("patter")], {"max": 40.0, "unit": 5.0, "db": -14.0, "pitch": [1.0, 1.0], "filter_hz": 6000.0})
+	register(&"flutter", [_synth("flutter")], {"max": 70.0, "unit": 6.0, "db": -14.0, "pitch": [0.95, 1.05], "filter_hz": 5000.0})
+	register(&"hum", [_synth("hum")], {"max": 450.0, "unit": 25.0, "db": -34.0, "pitch": [1.0, 1.0], "filter_hz": 1500.0})
 	register(&"violin", ["violin_loop"], {"max": 55.0, "unit": 6.0, "db": -4.0, "pitch": [1.0, 1.0], "filter_hz": 7000.0})
+
+## Short procedural loops (no CC0 recording needed): fire crackle, rain on wood, flag flutter, a very low lighthouse hum.
+func _synth(kind: String) -> AudioStreamWAV:
+	var rate := 22050
+	var secs := 3.0 if kind != "hum" else 2.0
+	var n := int(rate * secs)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(kind)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var lp := 0.0
+	var env := 0.0
+	for i in n:
+		var t := float(i) / rate
+		var v := 0.0
+		match kind:
+			"crackle": # quiet hiss plus sparse sharp clicks that decay in a few ms
+				lp += (rng.randf_range(-1.0, 1.0) - lp) * 0.12
+				if rng.randf() < 0.0009:
+					env = rng.randf_range(0.25, 1.0)
+				env *= 0.9965
+				v = lp * 0.05 + (rng.randf_range(-1.0, 1.0) * env * 0.7)
+			"patter": # dense small drops on a hard surface
+				if rng.randf() < 0.008:
+					env = rng.randf_range(0.1, 1.0) * rng.randf()
+				env *= 0.992
+				lp += (rng.randf_range(-1.0, 1.0) - lp) * 0.45
+				v = lp * env * 1.1 + rng.randf_range(-1.0, 1.0) * 0.015
+			"flutter": # cloth: noise cut by a ~9 Hz flap envelope
+				lp += (rng.randf_range(-1.0, 1.0) - lp) * 0.3
+				var e := 0.5 + 0.5 * sin(TAU * 9.0 * t + 1.7 * sin(TAU * 1.0 * t))
+				v = lp * e * e * 0.9
+			"hum":
+				v = 0.7 * sin(TAU * 58.0 * t) + 0.3 * sin(TAU * 116.0 * t + 0.6)
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32000.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_begin = 0
+	w.loop_end = n
+	return w
 
 func _names(prefix: String, n: int) -> Array:
 	var out := []
@@ -237,6 +292,7 @@ func _build_with_ship() -> void:
 	if _ship.has_signal("wobble"):
 		_ship.connect("wobble", _on_wobble)
 	WorldState.thunder.connect(_on_thunder)
+	_setup_persistent()
 
 func _db(g: float) -> float:
 	return linear_to_db(maxf(g, 0.0001))
@@ -319,6 +375,7 @@ func _process(delta: float) -> void:
 		if night > 0.7 and w.storm < 0.4:
 			play_at(&"bell", _ship, {"offset": Vector3(0, 6.0, 12.0)})
 	_tick_flap(dt, wind_ms)
+	_tick_scene_sources(dt, w, wind_ms, rain_amt, night)
 	if _demo:
 		_tick_demo(dt)
 	if _log:
@@ -326,7 +383,7 @@ func _process(delta: float) -> void:
 		if _log_t >= 5.0:
 			_log_t = 0.0
 			print("[audio] t=", int(_t), " sea=", snappedf(_sea.volume_db, 0.1), " dB wind_ms=", snappedf(wind_ms, 0.1), " winds=", _winds.map(func(p): return snappedf(p.volume_db, 1.0)),
-				" rain=", snappedf(_db(rg), 0.1), " storm=", snappedf(w.storm, 0.01), " night=", snappedf(night, 0.01), " birds_out=", birds_out, " sources3d=", _live.size())
+				" rain=", snappedf(_db(rg), 0.1), " storm=", snappedf(w.storm, 0.01), " night=", snappedf(night, 0.01), " birds_out=", birds_out, " sources3d=", _live.size(), " persistent=", _persist.size())
 
 func _wave_wash(level: float) -> void:
 	var side := 1.0 if randf() < 0.5 else -1.0
@@ -354,6 +411,13 @@ func _on_wobble(intensity: float, kind: String) -> void:
 	if kind == "slam" and _t - _last_wobble_wave > 1.5:
 		_last_wobble_wave = _t
 		_wave_wash(clampf(0.4 + intensity, 0.4, 1.0))
+		play_at(&"splash", _ship, {"offset": Vector3(0, 1.0, -10.0), "db": linear_to_db(clampf(0.5 + intensity, 0.5, 1.0)), "pitch": 0.85}) # bow spray
+	if kind != "slam" and intensity > 0.15 and _t - _last_bump > 2.0:
+		_last_bump = _t
+		var boat := get_tree().root.get_node_or_null("Main/Boat") as Node3D
+		if boat != null:
+			play_at(&"hit", boat, {"db": linear_to_db(clampf(intensity, 0.2, 1.0))}) # the lashed boat knocking in its cradle
+		return
 	elif _t - _last_wobble_creak > 1.5:
 		_last_wobble_creak = _t
 		_creak(clampf(0.3 + intensity * 0.7, 0.2, 1.0))
@@ -433,3 +497,98 @@ func _tick_demo(dt: float) -> void:
 		2:
 			if _demo_loop == null:
 				_demo_loop = loop_at(&"violin", _demo_node)
+
+
+# ------------------------------------------------------------------------------------------------ scene sources
+## Looped sources that live on scene nodes (lantern crackle, flag flutter, lighthouse hum, rain on deck and sails): created once, volume per frame.
+func _persistent(key: String, id: StringName, target: Node3D, base_db: float, opts: Dictionary = {}) -> void:
+	if _persist.has(key) or target == null:
+		return
+	var p := loop_at(id, target, opts)
+	if p == null:
+		return
+	p.volume_db = -60.0
+	_persist[key] = {"player": p, "base": base_db}
+
+func _set_persistent(key: String, gain: float) -> void:
+	if not _persist.has(key):
+		return
+	var d: Dictionary = _persist[key]
+	var p: AudioStreamPlayer3D = d["player"]
+	if not is_instance_valid(p):
+		_persist.erase(key)
+		return
+	p.volume_db = float(d["base"]) + _db(gain) if gain > 0.002 else -60.0
+	p.stream_paused = gain <= 0.002
+
+func _setup_persistent() -> void:
+	_persistent("rain_deck", &"patter", _ship, -8.0, {"offset": Vector3(0, 3.0, 2.0)})
+	_persistent("rain_sails", &"patter", _ship, -12.0, {"offset": Vector3(0, 11.0, -2.0), "pitch": 1.35})
+	if ShipLights.has_signal("lantern_changed"):
+		ShipLights.lantern_changed.connect(func(_id, _lit): _sync_lanterns())
+	_sync_lanterns()
+	for g in ["flag_pavillion_mast", "flag_main_mast"]:
+		var f := get_tree().get_first_node_in_group(g) as Node3D
+		_persistent("flag_" + g, &"flutter", f, -4.0)
+	for i in get_tree().get_nodes_in_group("lighthouse_beam").size():
+		var b := get_tree().get_nodes_in_group("lighthouse_beam")[i] as Node3D
+		_persistent("hum_" + str(b.get_instance_id()), &"hum", b, 0.0)
+
+func _sync_lanterns() -> void:
+	for l in get_tree().get_nodes_in_group("ship_lantern"):
+		var key := "fire_" + str(l.get_instance_id())
+		if l.lit and not l.is_window:
+			_persistent(key, &"crackle", l, 0.0)
+			_set_persistent(key, 1.0)
+		else:
+			_set_persistent(key, 0.0)
+
+func _tick_scene_sources(dt: float, w: Node, wind_ms: float, rain_amt: float, night: float) -> void:
+	_set_persistent("rain_deck", rain_amt)
+	_set_persistent("rain_sails", rain_amt * 0.8)
+	var flap := smoothstep(2.0, 12.0, wind_ms)
+	for g in ["flag_pavillion_mast", "flag_main_mast"]:
+		_set_persistent("flag_" + g, flap)
+	for k in _persist.keys():
+		if str(k).begins_with("hum_"):
+			_set_persistent(k, 1.0)
+	# New lighthouses and lanterns appear as islands recycle: check them every few seconds.
+	if int(_t) % 5 == 0 and int(_t * 10.0) % 10 == 0:
+		for b in get_tree().get_nodes_in_group("lighthouse_beam"):
+			_persistent("hum_" + str(b.get_instance_id()), &"hum", b as Node3D, 0.0)
+	# Gulls resting on the islands: day only, from the island itself.
+	_next_island_gull -= dt
+	if _next_island_gull <= 0.0:
+		_next_island_gull = randf_range(10.0, 28.0)
+		if night < 0.5 and w.storm < 0.6:
+			var isl := get_tree().root.get_node_or_null("Main/Islands")
+			if isl != null and isl.has_method("targets"):
+				var best: Vector3 = Vector3.INF
+				var bd := 1100.0
+				for t in isl.targets():
+					var pos := Vector3((t["pos"] as Vector2).x, 25.0, (t["pos"] as Vector2).y)
+					var d := pos.distance_to(_ship.global_position)
+					if d < bd:
+						bd = d
+						best = pos
+				if best.is_finite():
+					play_at(&"gull", best, {"db": 4.0, "max": 1100.0, "unit": 70.0})
+	# A very distant bell from a passing ship, now and then, much attenuated.
+	_next_far_bell -= dt
+	if _next_far_bell <= 0.0:
+		_next_far_bell = randf_range(40.0, 110.0)
+		var ps := get_tree().root.get_node_or_null("Main/PassingShips")
+		if ps != null and "_slots" in ps:
+			var act: Array = []
+			for s in ps.get("_slots"):
+				if s["active"]:
+					act.append(s["node"])
+			if not act.is_empty():
+				var shp: Node3D = act[randi() % act.size()]
+				play_at(&"bell", shp, {"db": 14.0, "max": 1800.0, "unit": 90.0, "pitch": 0.9})
+	# Rigging and blocks groaning, more with the wind.
+	if wind_ms > 5.0:
+		_next_rig -= dt
+		if _next_rig <= 0.0:
+			_next_rig = randf_range(3.0, 9.0) / (0.3 + wind_ms / 12.0)
+			play_at(&"creak", _ship, {"offset": Vector3(randf_range(-2.0, 2.0), randf_range(6.0, 16.0), randf_range(-8.0, 8.0)), "pitch": randf_range(1.35, 1.7), "db": -10.0 + 8.0 * smoothstep(5.0, 18.0, wind_ms)})
