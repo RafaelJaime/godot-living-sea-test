@@ -139,3 +139,17 @@ func _scan(dir: String, bad: Array[String]) -> void:
 			bad.append(dir + "/" + f)
 	for sub in d.get_directories():
 		_scan(dir + "/" + sub, bad)
+
+func test_clip_speed_of_a_tag_sets_the_playback_rate() -> void:
+	## A clip authored for 0.4 m/s of travel must play at speed/0.4 when the agent really moves at 0.54 m/s, or the feet slide.
+	var vis := _visual_with_player()
+	var ad := NpcAnimPlayerAdapter.new()
+	ad.anim_set = _anim_set()
+	ad.anim_set.shared[&"ladder"] = &"shared/work"
+	ad.anim_set.locomotion = {&"walk": &"walk", &"ladder": &"ladder"}
+	ad.anim_set.clip_speeds = {&"ladder": 0.4}
+	ad.bind(null, vis)
+	ad.set_locomotion(&"ladder", 0.54)
+	assert_almost_eq((vis.get_child(0) as AnimationPlayer).speed_scale, 1.35, 0.001, "0.54 / 0.4")
+	ad.set_locomotion(&"walk", 1.2)
+	assert_almost_eq((vis.get_child(0) as AnimationPlayer).speed_scale, 1.0, 0.001, "tags without a clip speed use the reference speed")

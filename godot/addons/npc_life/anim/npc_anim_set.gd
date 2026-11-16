@@ -14,6 +14,9 @@ extends Resource
 ## Edge type (walk, stairs, ladder, rope) -> locomotion tag.
 @export var locomotion: Dictionary[StringName, StringName] = {}
 @export var fallback_tag: StringName = &"idle"
+## Optional travel speed (m/s) a locomotion clip was authored for, per tag: the adapter plays it at `agent speed / clip speed` so feet do not slide.
+## Tags without an entry use the adapter's `reference_speed`.
+@export var clip_speeds: Dictionary[StringName, float] = {}
 
 var _missing: Array[StringName] = []
 

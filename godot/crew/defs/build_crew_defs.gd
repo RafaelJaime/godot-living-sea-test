@@ -134,7 +134,7 @@ func _anim_set() -> NpcAnimSet:
 func _map_tags(anim: NpcAnimSet) -> void:
 	var table := {
 		# locomotion and base
-		&"idle": ["idle"], &"walk": ["walk"], &"talk": ["talk"], &"stairs": ["climb_stairs"], &"rope": ["ratline_climb"],
+		&"idle": ["idle"], &"walk": ["walk"], &"talk": ["talk"], &"stairs": ["climb_stairs"], &"rope": ["ratline_climb"], &"ladder": ["climb_ladder", "ratline_climb"], &"ladder_off": ["climb_ladder_off", "idle"],
 		# station tags of ShipStations
 		&"steer": ["idle"], &"chart": ["idle_rail"], &"fish": ["fishing_idle"], &"inspect": ["idle_rail"], &"listen": ["idle_rail"],
 		&"lookout": ["idle_rail"], &"mop": ["deck_swab"], &"repair": ["hammering"], &"spyglass": ["spyglass_look"], &"violin": ["play_violin", "idle_talking"],
@@ -155,7 +155,9 @@ func _map_tags(anim: NpcAnimSet) -> void:
 			push_error("[build_crew_defs] no clip for tag %s (wanted %s)" % [tag, table[tag]])
 			continue
 		anim.shared[tag] = clip
-	anim.locomotion = {&"walk": &"walk", &"stairs": &"stairs", &"ladder": &"rope", &"rope": &"rope"}
+	# travel speed (m/s) each climbing clip was authored for: ratline_climb 0.476 vertical, climb_ladder 0.40 vertical
+	anim.clip_speeds = {&"ladder": 0.40, &"rope": 0.476}
+	anim.locomotion = {&"walk": &"walk", &"stairs": &"stairs", &"ladder": &"ladder", &"rope": &"rope"}
 
 ## Only the helm is a standing watch: with four people, three permanent posts would leave nobody free for chores and free time. Lookout duty at the
 ## spyglass and the crow's nest is ordinary free-time work (CrewLeisureSource). Skill weights make Fuego the most frequent helmsman.

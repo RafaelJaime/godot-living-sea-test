@@ -37,6 +37,8 @@ const OPTIONAL := {
 	&"play_violin": "blender/play_violin.res",
 	&"point_ahead": "blender/point_ahead.res",
 	&"comic_fall": "blender/comic_fall.res",
+	&"climb_ladder": "blender/climb_ladder.res",
+	&"climb_ladder_off": "blender/climb_ladder_off.res",
 }
 
 func _initialize() -> void:

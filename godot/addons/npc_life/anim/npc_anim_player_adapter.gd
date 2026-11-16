@@ -80,7 +80,7 @@ func set_locomotion(edge_type: StringName, speed: float) -> void:
 	var tag := anim_set.locomotion_tag(edge_type)
 	if tag != _tag:
 		play(tag)
-	_player.speed_scale = clampf(speed / maxf(reference_speed, 0.01), 0.25, 2.5)
+	_player.speed_scale = clampf(speed / maxf(float(anim_set.clip_speeds.get(tag, reference_speed)), 0.01), 0.25, 2.5)
 
 func attach_prop(scene: PackedScene, socket: StringName) -> Node3D:
 	if _skeleton == null or scene == null:

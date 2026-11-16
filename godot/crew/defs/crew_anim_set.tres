@@ -21,6 +21,8 @@ shared = Dictionary[StringName, StringName]({
 &"helm_steer": &"shared/idle",
 &"idle": &"shared/idle",
 &"inspect": &"shared/idle_rail",
+&"ladder": &"shared/climb_ladder",
+&"ladder_off": &"shared/climb_ladder_off",
 &"light": &"shared/idle_lantern",
 &"listen": &"shared/idle_rail",
 &"lookout": &"shared/idle_rail",
@@ -41,8 +43,12 @@ shared = Dictionary[StringName, StringName]({
 &"walk": &"shared/walk"
 })
 locomotion = Dictionary[StringName, StringName]({
-&"ladder": &"rope",
+&"ladder": &"ladder",
 &"rope": &"rope",
 &"stairs": &"stairs",
 &"walk": &"walk"
+})
+clip_speeds = Dictionary[StringName, float]({
+&"ladder": 0.4,
+&"rope": 0.476
 })
