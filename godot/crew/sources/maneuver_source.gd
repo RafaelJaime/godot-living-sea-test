@@ -1,11 +1,11 @@
 class_name CrewManeuverSource
 extends NpcJobSource
 ## Maneuver jobs (C3.2, C3.6). While the blackboard `maneuver` (written by the bridge from `Autopilot.maneuver_started/ended`) is a tack or a jibe,
-## a pair of `brace` jobs is posted at the deck brace stations `brace_<mast>`; their effect asks the rig to swing the yards through
+## one `brace` job per mast is posted at the deck brace stations `brace_<mast>`; their effect asks the rig to swing the yards through
 ## `rig.request_brace(mast, angle)` (angle sign = the new tack side). Without brace stations the first two deck reef lines stand in. The jobs clear when
 ## the maneuver ends; the ship's slow automatic fallback remains when nobody comes.
 
-@export var jobs_per_maneuver := 2
+@export var jobs_per_maneuver := 3
 
 var rig: Object
 var _active := false
@@ -15,8 +15,17 @@ func _init() -> void:
 	source_id = &"maneuver"
 	poll_hz = 4.0
 
-func _stations(w: NpcWorld) -> Array[StringName]:
+## Brace pins are `brace_<mast>_<p|s>`; the pin on the side of the new tack (side +1 = starboard) of each mast, in the order fore, main, mizzen. Plain
+## `brace_<n>` and the deck reef lines stand in on ships without them.
+func _stations(w: NpcWorld, side: int) -> Array[StringName]:
 	var out: Array[StringName] = []
+	var suffix := "_s" if side >= 0 else "_p"
+	for mast in ["fore", "main", "mizzen"]:
+		var id := StringName("brace_%s%s" % [mast, suffix])
+		if w.find_station(id) != null and out.size() < jobs_per_maneuver:
+			out.append(id)
+	if not out.is_empty():
+		return out
 	for prefix in ["brace_%d", "reef_line_%d"]:
 		var i := 0
 		while w.find_station(StringName(prefix % i)) != null and out.size() < jobs_per_maneuver:
@@ -34,7 +43,7 @@ func _poll(world: Node, now: float) -> void:
 		_n += 1
 		var side := int(w.inputs.get_value(&"maneuver_side", 1))
 		var mast := 0
-		for sid in _stations(w):
+		for sid in _stations(w, side):
 			var j := NpcJob.new()
 			j.id = StringName("maneuver:%s:%d:%d" % [kind, _n, mast])
 			j.kind = &"brace"

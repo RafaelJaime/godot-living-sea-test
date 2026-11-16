@@ -21,10 +21,12 @@ func _world(aloft := false, brace := false) -> void:
 	for i in 4:
 		_station(StringName("reef_line_%d" % i), &"reef_line")
 		if aloft:
-			_station(StringName("yard_aloft_%d" % i), &"yard_aloft")
+			_station(StringName("yard_aloft_%d_p" % i), &"yard_aloft") # the real ship has a port and a starboard footrope spot per yard
+			_station(StringName("yard_aloft_%d_s" % i), &"yard_aloft")
 	if brace:
-		for m in 3:
-			_station(StringName("brace_%d" % m), &"brace")
+		for m in ["fore", "main", "mizzen"]:
+			for side in ["p", "s"]:
+				_station(StringName("brace_%s_%s" % [m, side]), &"brace")
 	rig = FakeRig.new()
 	add_child_autofree(rig)
 
@@ -125,6 +127,8 @@ func test_maneuver_posts_brace_jobs_and_clears_them() -> void:
 	var jobs := _jobs("maneuver:")
 	assert_gte(jobs.size(), 1, "at least one job within 2 s")
 	assert_eq(jobs[0].kind, &"brace")
+	assert_true(String(jobs[0].station_id).begins_with("brace_"), "at a brace pin")
+	assert_true(String(jobs[0].station_id).ends_with("_s"), "on the side of the new tack (side +1 = starboard pin)")
 	m._on_job_effect(jobs[0], null, &"brace")
 	assert_eq(rig.braces.size(), 1, "the brace goes through the rig")
 	world.inputs.set_value(&"maneuver", &"")

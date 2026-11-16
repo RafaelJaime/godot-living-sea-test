@@ -28,8 +28,18 @@ func _sails(w: NpcWorld) -> int:
 		n += 1
 	return n
 
+## The aloft station of sail `i`: the ship has a port and a starboard footrope spot per yard (`yard_aloft_<i>_p|_s`); sails alternate sides so the
+## crew spreads out. Plain `yard_aloft_<i>` is accepted too. &"" when the sail has none (the spritsail).
+func _aloft_station(w: NpcWorld, i: int) -> StringName:
+	var order: Array = ["_p", "_s", ""] if i % 2 == 0 else ["_s", "_p", ""]
+	for suffix in order:
+		var id := StringName("yard_aloft_%d%s" % [i, suffix])
+		if w.find_station(id) != null:
+			return id
+	return &""
+
 func _aloft(w: NpcWorld, i: int) -> bool:
-	return w.find_station(StringName("yard_aloft_%d" % i)) != null
+	return _aloft_station(w, i) != &""
 
 func _poll(world: Node, now: float) -> void:
 	var w := world as NpcWorld
@@ -82,7 +92,7 @@ func _post_furl(w: NpcWorld, i: int, now: float) -> void:
 	var j := NpcJob.new()
 	j.id = StringName("storm:%d" % i)
 	j.kind = &"reef"
-	j.station_id = StringName(("yard_aloft_%d" if aloft else "reef_line_%d") % i)
+	j.station_id = _aloft_station(w, i) if aloft else StringName("reef_line_%d" % i)
 	j.priority = 1.0
 	j.ttl_s = 0.0
 	j.override = &"all_hands"
@@ -95,7 +105,7 @@ func _post_unfurl(w: NpcWorld, i: int, now: float) -> void:
 	var j := NpcJob.new()
 	j.id = StringName("unfurl:%d" % i)
 	j.kind = &"reef"
-	j.station_id = StringName(("yard_aloft_%d" if aloft else "reef_line_%d") % i)
+	j.station_id = _aloft_station(w, i) if aloft else StringName("reef_line_%d" % i)
 	j.priority = 0.4
 	j.ttl_s = 240.0
 	j.payload = {"sail": i, "aloft": aloft, "target": 0.0}
